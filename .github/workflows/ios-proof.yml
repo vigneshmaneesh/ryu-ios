@@ -51,7 +51,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 1
   ios-logging:
-    if: github.event.repository.private == false && !contains(github.event.head_commit.message, '[package-only]')
+    if: github.event.repository.private == false && !contains(github.event.head_commit.message, '[package-only]') && !contains(github.event.head_commit.message, '[graphics-only]')
     runs-on: xcode-27
     timeout-minutes: 25
     env:

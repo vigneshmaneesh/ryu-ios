@@ -22,7 +22,23 @@ static int completedRuns;
 static NSWindow *testWindow;
 #endif
 
-static int never_cancel(void) { return 0; }
+static int never_cancel(void) {
+#if !TARGET_OS_OSX
+    static int calls;
+    if (completedRuns == 0 && ++calls == 10) {
+        // Hold a live, already-presented frame while the compositor is sampled.
+        // Capturing after Vulkan teardown observes a legitimately cleared layer.
+        NSString *ready = [dataPath stringByAppendingPathComponent:@"frame-ready"];
+        NSString *captured = [dataPath stringByAppendingPathComponent:@"frame-captured"];
+        [@"ready" writeToFile:ready atomically:YES encoding:NSUTF8StringEncoding error:NULL];
+        NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:45];
+        while (![NSFileManager.defaultManager fileExistsAtPath:captured] && deadline.timeIntervalSinceNow > 0)
+            [NSThread sleepForTimeInterval:0.05];
+        if (![NSFileManager.defaultManager fileExistsAtPath:captured]) return 1;
+    }
+#endif
+    return 0;
+}
 static void *check_renderer(void *unused) {
     (void)unused;
     @autoreleasepool {

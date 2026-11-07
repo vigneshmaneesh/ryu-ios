@@ -18,9 +18,17 @@ with (out / "renderer-process.log").open("w") as log:
         stdout=log, stderr=subprocess.STDOUT)
     try:
         deadline = time.monotonic() + 120
+        captured = False
         while not result_file.exists() and time.monotonic() < deadline:
             if process.poll() is not None:
                 break
+            if not captured and (documents / "frame-ready").exists():
+                try:
+                    subprocess.run(["xcrun", "simctl", "io", device, "screenshot", "--display=1", str(out / "renderer-screen.png")],
+                        check=True, timeout=30)
+                    captured = True
+                finally:
+                    (documents / "frame-captured").write_text("done")
             time.sleep(0.25)
         for name in ("graphics-result.json", "graphics-last-run.log"):
             if (documents / name).exists():
@@ -31,8 +39,8 @@ with (out / "renderer-process.log").open("w") as log:
         print(json.dumps(result, indent=2), flush=True)
         if result["status"] != 0 or result["runs"] != 2:
             raise RuntimeError("Production iOS renderer checks failed.")
-        subprocess.run(["xcrun", "simctl", "io", device, "screenshot", "--display=1", str(out / "renderer-screen.png")],
-            check=True, timeout=60)
+        if not captured:
+            raise RuntimeError("No live frame was captured before renderer teardown.")
     finally:
         subprocess.run(["xcrun", "simctl", "terminate", device, bundle], check=False, timeout=30)
         try:
