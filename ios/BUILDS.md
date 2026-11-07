@@ -19,11 +19,11 @@ before that workflow was cancelled during the packaging restart. The package
 branch uses identical runtime sources without repeating simulator startup.
 
 The main workflow now runs mobile logging independently of IPA packaging and
-selects a compatible simulator from the runner inventory. Device confirmation of
+selects a compatible simulator from the runner inventory. The [full main-branch workflow](https://github.com/vigneshmaneesh/ryu-ios/actions/runs/42402239040) subsequently passed both IPA packaging and the separate iOS-runtime logging job. Device confirmation of
 this homebrew fix remains pending. If it still closes, reopen and share diagnostics
 before another attempt so the prior `horizon-last-run.log` is preserved.
 
-## Current device test
+## Earlier v0.5.1 device build
 
 **v0.5.1 build 14**, source `d3782005fcc240488d69f270cdc5d543b84714ac`.
 
