@@ -1,6 +1,23 @@
-# Ryu iOS: guest translation milestone (v0.2)
+# Ryu iOS: production CPU integration (v0.3)
 
 This is an iOS 27 **CPU prototype**, not a playable Switch emulator yet.
+The first commercial compatibility target is **Tomodachi Life: Living the Dream**;
+no game boot or performance claim has been established.
+
+v0.3 adds the complete upstream CPU engine, production dispatcher and translation
+cache, real software page tables, interrupts and concurrent guest contexts. Five
+new groups test BL/RET/SVC dispatch, modified-code invalidation, guest-page remaps,
+cooperative interrupt/stop, and two guest threads with isolated TLS. It prepares a
+256 MiB virtual code pool plus a 1 MiB conformance region through StikDebug.
+Native code is written through RW aliases and published at stable RX addresses.
+Physical pages are touched on demand by the allocator; actual device footprint
+and debugger preparation behavior still require measurement.
+
+The core is pinned to a full upstream commit with checked platform overlays and
+a versioned C interface. See [the update process](UPSTREAM.md) and the original
+[numbered roadmap](MILESTONES.md). The supplied desktop source is unchanged.
+
+The v0.2 regression suite is retained:
 It is a native SwiftUI app for iPhone and iPad, with a small NativeAOT C# framework
 that compiles the **actual LightningJit AArch64 decoder, compiler, register
 allocator and native context from this repository**. After StikDebug activation
@@ -18,8 +35,8 @@ The memory adapter implements `IJitMemoryAllocator` over the native coordinator'
 prepared region, with a stable RX pointer and an explicit RW alias for writing.
 The callback adapter is a conformance harness, not an implementation of Horizon
 services. This version does not boot Horizon, render Switch graphics or load games.
-The production CPU dispatcher, large guest address spaces, mapping/page faults,
-and executable-cache invalidation still need integration.
+Large game address spaces, permission faults, fast memory tracking, Horizon,
+graphics, audio and game loading still need integration and hardware validation.
 
 ## Build for £0 with GitHub Actions
 
@@ -51,9 +68,9 @@ profile must preserve `get-task-allow`.
 1. Use the existing StikDebug pairing setup and connect LocalDevVPN.
 2. Open **Ryu JIT** and tap **Enable JIT and test**.
 3. Let StikDebug process the request, then return to Ryu JIT if necessary.
-4. A successful v0.2 test displays **Guest translation passed**, with all six
-   groups listed and **25 cases passed**. Run it again to check prepared-memory
-   reuse and a new random input seed.
+4. A successful v0.3 test displays **Production CPU passed**, retaining all
+   **25 compiler cases** and adding **5 production CPU groups**. Run it again
+   without closing the app to check cache-pool reuse and a new random input seed.
 5. Use **Share diagnostics** to copy the OS version, protection/signing status,
    and test stages. Pairing files and Apple credentials are never read by this app.
 
@@ -88,7 +105,14 @@ managed library is compiled with NativeAOT for macOS and executes the guest suit
 with four seeds: **100 translated guest executions**. The host harness uses
 macOS `MAP_JIT` and per-thread write protection. The iOS app uses the already
 validated StikDebug/TXM protocol and separate memory aliases. Passing on macOS
-does not establish that the new guest suite passes on either iOS device.
+does not establish device compatibility for a new build. CI also compiles the
+complete production CPU into a separate NativeAOT library and runs its five new
+groups with four seeds, including concurrent threads, on Apple Silicon before
+producing the iOS framework.
+
+For desktop production CPU checks, prepare the locked source, then run
+`dotnet run --project ios/RuntimeChecks -c Release`. These tests also run on x64;
+only the Apple Silicon NativeAOT/device checks cover the actual ARM64 AOT path.
 
 ## Reported device results
 
@@ -102,12 +126,18 @@ On 7 November 2026, the user confirmed the original v0.1 IPA passed on both devi
 These are user-reported results for the [first validated prototype build](https://github.com/vigneshmaneesh/ryu-ios/actions/runs/42386337979),
 from commit `235f4b0b5ec132061cca7b62a0fe009ec7052b48`. Exact OS build numbers
 were not captured. This verifies the arithmetic/code-emission probe; guest-code
-translation, graphics, and game compatibility remain to be validated.
+translation, graphics, and game compatibility were not covered by that build.
+
+The user subsequently reported all 25 v0.2 guest cases passed on **both devices**,
+and supplied an iPad screenshot showing the six passing groups, signing ready,
+TXM present and StikDebug selected. The v0.2 CI build is
+[run 42389244296](https://github.com/vigneshmaneesh/ryu-ios/actions/runs/42389244296).
+v0.3 production CPU hardware results remain pending.
 
 ## Next porting milestones
 
-- Validate the v0.2 guest suite on both devices, then integrate the production CPU
-  dispatcher and translation cache with the prepared-memory allocator.
+- Validate the v0.3 production CPU groups and enlarged prepared-memory pool on
+  both devices, including a second run and shared memory diagnostics.
 - Adapt memory reservation, aliasing, signal handling, and guest address spaces.
 - Bring up the emulator services and sandboxed file/firmware/key import.
 - Port the Vulkan renderer through an iOS MoltenVK build and a Metal surface.

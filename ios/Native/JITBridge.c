@@ -6,6 +6,7 @@
 #include <libkern/OSCacheControl.h>
 #include <mach/mach.h>
 #include <mach/vm_map.h>
+#include <os/proc.h>
 #include <stdatomic.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -27,7 +28,7 @@ static atomic_bool ready = false;
 static atomic_flag running = ATOMIC_FLAG_INIT;
 static vm_address_t executable = 0;
 static vm_address_t writable = 0;
-static vm_size_t allocation_size = 0;
+static _Atomic(vm_size_t) allocation_size = 0;
 
 static int signing_flags(uint32_t *flags) {
     *flags = 0;
@@ -70,6 +71,14 @@ int ryu_txm_presence(void) {
 int ryu_jit_stage(void) { return atomic_load(&stage); }
 int ryu_jit_ready(void) { return atomic_load(&ready); }
 void ryu_jit_cancel(void) { atomic_store(&cancelled, true); }
+uint64_t ryu_available_memory(void) { return (uint64_t)os_proc_available_memory(); }
+uint64_t ryu_prepared_code_capacity(void) { return (uint64_t)allocation_size; }
+uint64_t ryu_memory_footprint(void) {
+    task_vm_info_data_t info = {0};
+    mach_msg_type_number_t count = TASK_VM_INFO_COUNT;
+    if (task_info(mach_task_self(), TASK_VM_INFO, (task_info_t)&info, &count) != KERN_SUCCESS) return 0;
+    return info.phys_footprint;
+}
 
 static uint64_t milliseconds(void) {
     struct timespec time;

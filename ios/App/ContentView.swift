@@ -13,9 +13,9 @@ struct ContentView: View {
                             .foregroundStyle(.tint)
                         Text("Ryujinx on iOS")
                             .font(.largeTitle.bold())
-                        Text("Guest translation · v0.2")
+                        Text("Production CPU · v0.3")
                             .font(.title3).foregroundStyle(.secondary)
-                        Text("Tests real ARM64 guest translation, branches, memory access and managed callbacks. Game loading is planned for a later milestone.")
+                        Text("Tests the production dispatcher, cache invalidation, guest page tables, interrupts and two guest threads. Game loading and graphics are still being developed.")
                             .foregroundStyle(.secondary)
                     }
 

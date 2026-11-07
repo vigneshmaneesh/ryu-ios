@@ -32,10 +32,23 @@ final class JITViewModel: ObservableObject {
         logs.append("\(time)  \(message)")
     }
 
+    private var coreProvenance: String {
+        guard let url = Bundle.main.url(forResource: "upstream.lock", withExtension: "json"),
+              let data = try? Data(contentsOf: url),
+              let lock = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let revision = lock["revision"] as? String,
+              let abi = lock["adapterAbi"] as? Int else { return "Unavailable" }
+        return "\(revision); core ABI \(abi)"
+    }
+
     var diagnostics: String {
-        "Ryu iOS guest translation prototype \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") ?? "?") (\(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") ?? "?"))\n" +
+        "Ryu iOS production CPU prototype \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") ?? "?") (\(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") ?? "?"))\n" +
         "System: \(UIDevice.current.systemName) \(UIDevice.current.systemVersion)\n" +
         "Device: \(UIDevice.current.model)\n" +
+        "Physical RAM: \(ProcessInfo.processInfo.physicalMemory / 1_048_576) MiB\n" +
+        "App footprint: \(ryu_memory_footprint() / 1_048_576) MiB; available: \(ryu_available_memory() / 1_048_576) MiB\n" +
+        "Prepared code region: \(ryu_prepared_code_capacity() / 1_048_576) MiB\n" +
+        "Upstream: \(coreProvenance)\n" +
         "TXM: \(txm), get-task-allow: \(entitlement)\n" +
         "Status: \(status)\n\(detail)\n\n" + logs.joined(separator: "\n")
     }
@@ -78,6 +91,7 @@ final class JITViewModel: ObservableObject {
         status = alreadyReady ? "Generating new ARM64 code" : "Waiting for StikDebug"
         detail = alreadyReady ? "Reusing the prepared memory with a new function." : "Allow StikDebug to enable JIT, then return here."
         log("Starting f(a, b) = a + b + \(requestedBias).")
+        log("Before: footprint \(ryu_memory_footprint() / 1_048_576) MiB, available \(ryu_available_memory() / 1_048_576) MiB.")
         backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "Prepare Ryujinx JIT") { [weak self] in
             Task { @MainActor in
                 ryu_jit_cancel()
@@ -131,6 +145,7 @@ final class JITViewModel: ObservableObject {
         timer = nil
         isRunning = false
         endBackgroundTask()
+        log("After: footprint \(ryu_memory_footprint() / 1_048_576) MiB, available \(ryu_available_memory() / 1_048_576) MiB.")
         if code == 0 {
             passed = true
             result = value
