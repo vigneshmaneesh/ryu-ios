@@ -2,10 +2,21 @@
 
 ## v0.5.3 kernel worker stack investigation
 
+Device candidate: **v0.5.3 build 20**, source `0a6bbba6ed714daf28c0c2b77f8368bb10377996`.
+
+- [Successful package/NativeAOT job](https://github.com/vigneshmaneesh/ryu-ios/actions/runs/42403680502/job/128496764374).
+- Artifact ID: `13586940115`; one-day retention.
+- IPA SHA-256: `5ecd557e6faa55288fa2f95c39fd095dfd4daf88bcb4ba6d7ec57d0ccc751768`.
+- ZIP SHA-256: `e8a635d5384430fdff14cf0d6c9f437c301dbf02890f5fe702d6a82e773ecfa7`.
+
 Moves the homebrew core call onto an explicit 8 MiB pthread stack, adds saved
 constructor checkpoints and tests actual kernel construction twice in the iOS
 simulator runtime. No guest JIT is used by that simulator regression. Device
 homebrew execution remains the acceptance test; this is still a prototype.
+
+The first simulator attempt timed out during cold iOS boot, before executing the
+logger or constructor tests. Its 180-second bootstatus limit was increased to
+600 seconds; this CI-only change does not alter the packaged runtime sources.
 
 ## v0.5.2 logging fix and recovered crash trace
 

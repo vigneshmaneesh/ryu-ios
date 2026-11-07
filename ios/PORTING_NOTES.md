@@ -23,6 +23,20 @@ conformance workload; it is not a renderer or game-launch fallback. It first
 initializes the shader-cache readiness gate that the CPU waits on, even though
 the workload makes no GPU calls. Successful teardown and a second run are required.
 
+The host stack is part of the core integration contract. Upstream HID initialization
+builds a 0x40000-byte shared-memory struct by value, with nested temporary values.
+The iOS bridge enters the kernel on an explicit 8 MiB pthread stack and joins it
+before returning caller-owned buffers. Do not invoke that constructor directly
+from a Dispatch worker. The iOS runtime CI check compares a 512 KiB control with
+the explicit-stack worker and requires two successful construction/teardown runs.
+It does not execute guest code or establish physical-device compatibility.
+
+Checked startup overlays provide an optional `StartupDiagnostics.Checkpoint`
+callback in HLE. The app flushes those constructor checkpoints to its journal,
+including the actual native stack size, so fatal native failures can be narrowed
+after relaunch. An unset callback preserves desktop behavior. Any upstream
+constructor change must pass the overlay's exact-match checks during an update.
+
 Still required for a usable game release:
 
 - Wire the upstream Vulkan renderer to a retained CAMetalLayer and presentation.
