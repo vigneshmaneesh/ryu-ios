@@ -153,6 +153,16 @@ public static class StartupDiagnostics
             replace(path, prefix, f'{indentation}Ryujinx.HLE.StartupDiagnostics.Write("{message}");\n{prefix}')
 
 
+def add_application_exit():
+    # libnx asks applet AM to terminate the application, then sleeps. Let the
+    # frontend perform shutdown on its own thread rather than inside IPC.
+    replace("src/Ryujinx.HLE/Switch.cs", "public HleConfiguration Configuration { get; }",
+            "public event Action<ulong> ApplicationExitRequested;\n        public void RequestApplicationExit(ulong pid) => ApplicationExitRequested?.Invoke(pid);\n\n        public HleConfiguration Configuration { get; }")
+    replace("src/Ryujinx.HLE/HOS/Services/Am/AppletAE/AllSystemAppletProxiesService/SystemAppletProxy/ISelfController.cs",
+            "public ResultCode Exit(ServiceCtx context)\n        {\n            Logger.Stub?.PrintStub(LogClass.ServiceAm);",
+            "public ResultCode Exit(ServiceCtx context)\n        {\n            context.Device.RequestApplicationExit(_pid);")
+
+
 def adapt_vulkan():
     renderer = "src/Ryujinx.Graphics.Vulkan/VulkanRenderer.cs"
     replace(renderer, "IsMoltenVk = OperatingSystem.IsMacOS()", "IsMoltenVk = (OperatingSystem.IsMacOS() || OperatingSystem.IsIOS())")
@@ -240,6 +250,7 @@ public interface IPreparedJitMemoryBlock : IJitMemoryBlock
                 "if (GetRegion(funcOffset).Block is IPreparedJitMemoryBlock prepared)\n                {\n                    prepared.Write((ulong)(funcOffset % (int)CacheSize), code);\n                }\n                else if (OperatingSystem.IsMacOS() && RuntimeInformation.ProcessArchitecture == Architecture.Arm64)")
     generate_callback_pointers()
     add_startup_diagnostics()
+    add_application_exit()
     adapt_vulkan()
     # iOS/tvOS ConsolePal supports writing to NSLog, but colour APIs throw.
     # An exception on the upstream async logging thread terminates the process.

@@ -61,3 +61,10 @@ bypassing its default `__Internal` loader, which fails under iOS NativeAOT. Help
 shaders use upstream embedded SPIR-V binaries. The optional
 GLSL compiler is not packaged; iOS rejects that path explicitly. Guest shader
 translation, GPU command submission and homebrew/game display remain later work.
+
+v0.7's first real guest smoke boot presented an emulated GPU frame at
+21:24:02 UTC in run 42415436349. The deko3d program compiled and reached its
+normal libnx exit, but applet AM's `ISelfController.Exit` was an upstream stub,
+leaving libnx asleep. The iOS overlay now exposes an application-exit request
+on Switch; the frontend observes it and performs kernel/GPU teardown on its own
+thread. No termination is performed inside the IPC service callback.

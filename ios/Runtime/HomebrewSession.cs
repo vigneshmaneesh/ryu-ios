@@ -27,6 +27,8 @@ internal static unsafe class HomebrewSession
         VulkanRenderer renderer = null;
         Switch device = null;
         bool gpuReady = false;
+        long requestedExit = 0;
+        void RequestExit(ulong pid) => Volatile.Write(ref requestedExit, unchecked((long)pid));
         Logger.Updated += HorizonJournal.Observe;
         StartupDiagnostics.Checkpoint = HorizonJournal.Write;
         try
@@ -40,6 +42,7 @@ internal static unsafe class HomebrewSession
             }, () => ["VK_KHR_surface", "VK_EXT_metal_surface"], "");
             HorizonJournal.Write("Constructing Switch with the real Vulkan renderer");
             device = new Switch(ServiceBootstrap.KernelProbeConfiguration(renderer, new DummyHardwareDeviceDriver()));
+            device.ApplicationExitRequested += RequestExit;
             HorizonJournal.Write("Initializing Vulkan and the GPU thread");
             renderer.Initialize(GraphicsDebugLevel.None);
             renderer.Window.SetSize(width, height);
@@ -47,6 +50,7 @@ internal static unsafe class HomebrewSession
             device.Gpu.SetGpuThread();
             HorizonJournal.Write("Loading guest NRO: " + Path.GetFileName(program));
             if (!device.LoadProgram(program)) throw new InvalidOperationException("The NRO loader rejected this homebrew.");
+            ulong applicationPid = device.Processes.ActiveApplication?.ProcessId ?? 0;
             device.Gpu.InitializeShaderCache(CancellationToken.None);
             gpuReady = true;
             HorizonJournal.Write("CPU and GPU ready; processing the guest command stream");
@@ -55,6 +59,11 @@ internal static unsafe class HomebrewSession
             bool stopped = false;
             while (device.Processes.ActiveApplication != null)
             {
+                if (unchecked((ulong)Volatile.Read(ref requestedExit)) == applicationPid)
+                {
+                    HorizonJournal.Write("Guest requested application exit through applet AM");
+                    break;
+                }
                 if (cancelled != null && cancelled() != 0) { stopped = true; break; }
                 if (device.WaitFifo()) device.ProcessFrame();
                 while (device.ConsumeFrameAvailable())
@@ -78,6 +87,7 @@ internal static unsafe class HomebrewSession
         {
             if (device != null)
             {
+                device.ApplicationExitRequested -= RequestExit;
                 if (!gpuReady)
                 {
                     device.Gpu.HostInitalized.Set();
