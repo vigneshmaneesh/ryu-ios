@@ -8,6 +8,21 @@ final class BackendChecks: ObservableObject {
     @Published var passed = false
     @Published var needsRestart = false
 
+    init(isHorizon: Bool = false) {
+        guard isHorizon else { return }
+        if let trace = Self.savedHorizonTrace() {
+            report = "Previous homebrew run:\n" + trace
+            passed = trace.contains("RESULT PASS")
+        }
+    }
+
+    private nonisolated static func savedHorizonTrace() -> String? {
+        guard let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return nil }
+        let file = support.appendingPathComponent("RyuCore/horizon-last-run.log")
+        guard let data = try? Data(contentsOf: file), !data.isEmpty else { return nil }
+        return String(decoding: data.suffix(48 * 1024), as: UTF8.self)
+    }
+
     func run() { perform(horizon: false) }
     func runHorizon() { perform(horizon: true) }
 
@@ -35,6 +50,7 @@ final class BackendChecks: ObservableObject {
                     }
                 }
                 message = buffer.withUnsafeBufferPointer { String(cString: $0.baseAddress!) }
+                if horizon, let trace = Self.savedHorizonTrace() { message += "\n\nSaved startup trace:\n" + trace }
                 if message.isEmpty { message = "Backend checks returned \(status)." }
             } catch {
                 message = "Could not initialize app storage: \(error.localizedDescription)"

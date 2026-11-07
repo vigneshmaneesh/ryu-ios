@@ -4,7 +4,7 @@ import UniformTypeIdentifiers
 struct ContentView: View {
     @StateObject private var model = JITViewModel()
     @StateObject private var backend = BackendChecks()
-    @StateObject private var horizon = BackendChecks()
+    @StateObject private var horizon = BackendChecks(isHorizon: true)
     @StateObject private var library = GameLibrary()
     @State private var showingImporter = false
 
@@ -18,7 +18,7 @@ struct ContentView: View {
                             .foregroundStyle(.tint)
                         Text("Ryujinx on iOS")
                             .font(.largeTitle.bold())
-                        Text("Horizon homebrew · v0.5")
+                        Text("Horizon homebrew · v0.5.2")
                             .font(.title3).foregroundStyle(.secondary)
                         Text("Tests the production dispatcher, cache invalidation, guest page tables, interrupts and two guest threads. Game loading and graphics are still being developed.")
                             .foregroundStyle(.secondary)

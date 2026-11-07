@@ -9,6 +9,7 @@ Silicon NativeAOT tests run separately in GitHub Actions.
 | v0.2 | All 25 guest compiler cases passed | All 25 passed; screenshot supplied |
 | v0.3 | Five production CPU groups passed twice | Five production CPU groups passed twice |
 | v0.4 build 10 | No v0.4 diagnostics supplied yet | CPU passed three runs; virtual RAM and service checks passed; Vulkan instance returned -7 |
+| v0.5.1 build 14 | CPU/platform checks reported working; bundled homebrew closes the app | Same reported outcome |
 
 ## iPad v0.4 diagnostics
 
@@ -29,5 +30,16 @@ RAM, texture/shader storage, video and other runtime allocations remain unmeasur
 The small changes across three runs do not by themselves establish a memory leak.
 
 The GPU fix queries advertised instance extensions and requests portability
-enumeration only when present. Its device result remains pending. A GPU clear and
+enumeration only when present. The user subsequently reported the platform checks
+working on both devices in v0.5.1, while homebrew crashed on both. A GPU clear and
 readback is backend conformance, not proof that Switch graphics render correctly.
+
+## Homebrew crash investigation
+
+The upstream console target unconditionally calls `Console.ForegroundColor` and
+`Console.ResetColor` on its logging thread. Both throw `PlatformNotSupportedException`
+in the .NET 10.0.14 iOS console implementation. The asynchronous logger catches a
+different exception type, so this path can terminate the process. v0.5.2 avoids
+those terminal operations on iOS/tvOS, exercises the actual iOS BCL in simulator CI,
+and writes a flushed startup/teardown trace for recovery after reopening the app.
+The exact device crash has not been confirmed with an Apple crash report yet.

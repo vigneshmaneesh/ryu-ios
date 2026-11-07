@@ -149,6 +149,13 @@ public interface IPreparedJitMemoryBlock : IJitMemoryBlock
         replace(path, "if (OperatingSystem.IsMacOS() && RuntimeInformation.ProcessArchitecture == Architecture.Arm64)",
                 "if (GetRegion(funcOffset).Block is IPreparedJitMemoryBlock prepared)\n                {\n                    prepared.Write((ulong)(funcOffset % (int)CacheSize), code);\n                }\n                else if (OperatingSystem.IsMacOS() && RuntimeInformation.ProcessArchitecture == Architecture.Arm64)")
     generate_callback_pointers()
+    # iOS/tvOS ConsolePal supports writing to NSLog, but colour APIs throw.
+    # An exception on the upstream async logging thread terminates the process.
+    console = "src/Ryujinx.Common/Logging/Targets/ConsoleLogTarget.cs"
+    replace(console, "Console.ForegroundColor = GetLogColor(args.Level);",
+            "if (!OperatingSystem.IsIOS() && !OperatingSystem.IsTvOS())\n                Console.ForegroundColor = GetLogColor(args.Level);")
+    replace(console, "Console.ResetColor();",
+            "if (!OperatingSystem.IsIOS() && !OperatingSystem.IsTvOS())\n                Console.ResetColor();", 2)
     replace("src/Ryujinx.Graphics.Gpu/Engine/MME/Macro.cs", "else if (GraphicsConfig.EnableMacroJit)",
             "else if (System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported && GraphicsConfig.EnableMacroJit)")
     replace("src/ARMeilleure/CodeGen/Arm64/HardwareCapabilities.cs",

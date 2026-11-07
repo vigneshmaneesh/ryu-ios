@@ -1,8 +1,15 @@
-# Ryu iOS: Horizon homebrew integration (v0.5.1)
+# Ryu iOS: Horizon homebrew integration (v0.5.2)
 
 This is an iOS 27 **CPU prototype**, not a playable Switch emulator yet.
 The first commercial compatibility target is **Tomodachi Life: Living the Dream**;
 no game boot or performance claim has been established.
+
+v0.5.2 removes unsupported terminal colour calls from the iOS logger, addressing
+a process-terminating exception path reached during homebrew startup. CI includes
+a real iOS simulator runtime check of async/direct logging and disposal. Homebrew
+startup stages and unhandled managed exceptions are written to app storage and
+flushed to disk; reopening the app restores that trace into Share diagnostics.
+Device confirmation of the homebrew fix remains required.
 
 v0.5 adds **Boot bundled homebrew** after JIT activation. An authored NRO runs
 through the real Horizon scheduler/process loader, requests a 2 MiB heap, emits a

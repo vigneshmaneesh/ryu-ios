@@ -31,6 +31,7 @@ mkdir -p "$app/ThirdParty"
 cp "$out/native-dependencies/MoltenVK/LICENSE" "$app/ThirdParty/MoltenVK-LICENSE.txt"
 
 dotnet run --project "$root/ios/EmitterChecks/EmitterChecks.csproj" -c Release
+bash "$root/ios/scripts/check-ios-logging.sh"
 
 # Run actual translated guest code and reverse managed callbacks in NativeAOT on
 # the Apple Silicon host before producing the iOS framework. No simulator substitute.

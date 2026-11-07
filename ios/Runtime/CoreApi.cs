@@ -26,15 +26,19 @@ public static unsafe class CoreApi
         if (Interlocked.CompareExchange(ref _busy, 1, 0) != 0) return -2;
         try
         {
+            string path = Marshal.PtrToStringUTF8((nint)directory) ?? throw new ArgumentException("Missing directory");
+            HorizonJournal.Begin(path);
+            HorizonJournal.Write("Configuring native libraries and prepared JIT allocator");
             ConfigureDarwinLibraries();
             var pool = new PreparedCodePool(writable, executable, capacity, beginWrite, publish);
             JitMemoryAllocator.PreparedCodeAllocator = pool.Reserve;
-            string path = Marshal.PtrToStringUTF8((nint)directory) ?? throw new ArgumentException("Missing directory");
             WriteReport(report, reportCapacity, HorizonProbe.Run(path));
+            HorizonJournal.Finish(true);
             return 0;
         }
         catch (Exception error)
         {
+            HorizonJournal.Finish(false, error);
             WriteReport(report, reportCapacity, $"FAIL Horizon {error.GetType().Name}: {error.Message}");
             return -3;
         }
@@ -56,6 +60,10 @@ public static unsafe class CoreApi
             ConfigureDarwinLibraries();
             string path = Marshal.PtrToStringUTF8((nint)directory) ?? throw new ArgumentException("Missing directory");
             WriteReport(report, reportCapacity, ServiceBootstrap.Initialize(path));
+            // Reproduce the mobile logging path before any guest runs. Flush also
+            // catches failures confined to the async logger thread in simulator CI.
+            Ryujinx.Common.Logging.Logger.Warning?.PrintMsg(Ryujinx.Common.Logging.LogClass.Application, "Ryu platform logger check");
+            Ryujinx.Common.Logging.Logger.Flush();
             return 0;
         }
         catch (Exception error)
