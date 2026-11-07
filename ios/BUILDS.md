@@ -135,3 +135,10 @@ rendering is pending; audio/input and commercial game compatibility remain work.
 Routine CI skips the extended CPU/kernel/simulator suite. A delivery-only job
 adds the bundled homebrew libraries' notices alongside this unchanged IPA; it
 performs no further emulator tests. Later builds embed these notices in the app.
+
+IPA SHA-256: `820f2bb3f5bc1d8eb05963398f416bf5bc7bd7bf46d12a7c824999b65087348b`.
+The delivery bundle is [artifact 13591917044](https://github.com/vigneshmaneesh/ryu-ios/actions/runs/42416577280/artifacts/13591917044),
+with ZIP SHA-256 `377c1f03bba0b014a5a3c9123c2d5c3e1020493bb8b35b060b933dc959dd8663`.
+The IPA is unchanged from build 30; the bundle includes the homebrew runtime
+notices and installation instructions. Device request: one M1 iPad graphics
+homebrew launch and clean completion; no repeated CPU/platform/renderer suite.
