@@ -29,12 +29,25 @@ int ryu_vulkan_probe(char *report, size_t capacity) {
     const char *step = "instance";
     VkResult result = VK_SUCCESS;
 #define TRY(operation) do { result = (operation); if (result != VK_SUCCESS) goto cleanup; } while (0)
+    // Direct MoltenVK linkage on iOS can omit the loader's portability-enumeration
+    // extension. Enable its flag only when this instance implementation advertises it.
+    uint32_t instance_extension_count = 0;
+    TRY(vkEnumerateInstanceExtensionProperties(NULL, &instance_extension_count, NULL));
+    VkExtensionProperties *instance_extensions = calloc(instance_extension_count, sizeof(*instance_extensions));
+    if (instance_extensions == NULL) { result = VK_ERROR_OUT_OF_HOST_MEMORY; goto cleanup; }
+    result = vkEnumerateInstanceExtensionProperties(NULL, &instance_extension_count, instance_extensions);
+    bool enumerate_portability = false;
+    for (uint32_t i = 0; i < instance_extension_count; i++)
+        if (strcmp(instance_extensions[i].extensionName, VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME) == 0)
+            enumerate_portability = true;
+    free(instance_extensions);
+    if (result != VK_SUCCESS) goto cleanup;
     const char *extensions[] = {VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME};
     VkApplicationInfo app = {.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
         .pApplicationName = "Ryu iOS backend check", .apiVersion = VK_API_VERSION_1_1};
     VkInstanceCreateInfo create_instance = {.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-        .flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR, .pApplicationInfo = &app,
-        .enabledExtensionCount = 1, .ppEnabledExtensionNames = extensions};
+        .flags = enumerate_portability ? VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR : 0, .pApplicationInfo = &app,
+        .enabledExtensionCount = enumerate_portability ? 1 : 0, .ppEnabledExtensionNames = extensions};
     TRY(vkCreateInstance(&create_instance, NULL, &instance));
     step = "physical device";
     uint32_t count = 0;
