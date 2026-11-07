@@ -142,3 +142,22 @@ with ZIP SHA-256 `377c1f03bba0b014a5a3c9123c2d5c3e1020493bb8b35b060b933dc959dd86
 The IPA is unchanged from build 30; the bundle includes the homebrew runtime
 notices and installation instructions. Device request: one M1 iPad graphics
 homebrew launch and clean completion; no repeated CPU/platform/renderer suite.
+
+## v0.7.1 build 32: read-only bundled NRO correction
+
+Source `c9ce137834094f1b7cd191bebe4d26d90f41e6ed`,
+[successful run 42426905522](https://github.com/vigneshmaneesh/ryu-ios/actions/runs/42426905522).
+[IPA artifact 13596375221](https://github.com/vigneshmaneesh/ryu-ios/actions/runs/42426905522/artifacts/13596375221)
+expires after one day. IPA SHA-256:
+`509c97f881eb78aabe314c6d55422f04dc21f930c745611bc7dce508ff2b901f`.
+ZIP SHA-256:
+`79647a9c2e7108b00ff296c4690ca1a3fe098688d206e047345f18f4499fc763`.
+
+The previous device result failed before guest execution: the NRO stream implicitly
+requested read/write access to the sealed app bundle. The checked upstream overlay
+now opens it with `FileAccess.Read, FileShare.Read`. The one Apple NativeAOT smoke
+boot confirmed a read/write open is denied, then loaded that read-only NRO,
+presented **178 frames**, handled applet exit and completed teardown. No extra
+emulation run or full regression suite was added. iOS device ARM64/platform,
+iPhone/iPad metadata, contents and signing checks passed. The IPA includes the
+homebrew runtime notices. Physical-device graphics remain awaiting one retry.
