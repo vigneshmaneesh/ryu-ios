@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "repository": "https://git.ryujinx.app/projects/Ryubing.git",
+  "revision": "a61a42681119bf15fe8f3297677ae48bda83e70f",
+  "adapterAbi": 1,
+  "target": "Tomodachi Life: Living the Dream",
+  "verifiedLocalSourceFiles": 4240
+}

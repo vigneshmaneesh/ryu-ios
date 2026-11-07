@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsAotCompatible>true</IsAotCompatible>
+    <NativeLib>Shared</NativeLib>
+    <PublishAot Condition="'$(RuntimeIdentifier)' == 'ios-arm64'">true</PublishAot>
+    <PublishAotUsingRuntimePack Condition="'$(RuntimeIdentifier)' == 'ios-arm64'">true</PublishAotUsingRuntimePack>
+    <IlcOptimizationPreference>Speed</IlcOptimizationPreference>
+    <IlcMaxDegreeOfParallelism>2</IlcMaxDegreeOfParallelism>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../build/upstream/src/Ryujinx.Cpu/Ryujinx.Cpu.csproj" />
+  </ItemGroup>
+</Project>

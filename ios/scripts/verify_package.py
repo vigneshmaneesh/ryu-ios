@@ -45,4 +45,9 @@ with (framework / "Info.plist").open("rb") as file:
     framework_info = plistlib.load(file)
 assert framework_info["CFBundleExecutable"] == "RyujinxEmitter"
 assert (app / "LICENSE.txt").is_file()
+core = app / "Frameworks/RyuCore.framework"
+verify_ios_binary(core / "RyuCore")
+with (core / "Info.plist").open("rb") as file:
+    assert plistlib.load(file)["CFBundleExecutable"] == "RyuCore"
+assert (app / "upstream.lock.json").is_file()
 print("PASS: iOS ARM64 binaries, IPA contents, iPhone/iPad targets, and JIT entitlements.")

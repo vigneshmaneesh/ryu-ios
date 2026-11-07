@@ -90,7 +90,7 @@ final class JITViewModel: ObservableObject {
         }
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             var value: UInt64 = 0
-            var error = [CChar](repeating: 0, count: 512)
+            var error = [CChar](repeating: 0, count: 2048)
             let code = error.withUnsafeMutableBufferPointer { buffer in
                 ryu_jit_run(requestedTXM, 120_000, requestedBias, &value, buffer.baseAddress, buffer.count)
             }
@@ -119,7 +119,7 @@ final class JITViewModel: ObservableObject {
         let messages: [Int32: String] = [
             1: "Waiting for debugger", 2: "Preparing executable memory",
             3: "Generating ARM64 code", 4: "Executing generated code",
-            5: "Guest translation passed", 6: "Test failed", 7: "Cancelled",
+            5: "Production CPU passed", 6: "Test failed", 7: "Cancelled",
             8: "Translating guest programs", 9: "Executing translated guest code"
         ]
         if let message = messages[stage] { status = message; log(message) }
@@ -134,8 +134,8 @@ final class JITViewModel: ObservableObject {
         if code == 0 {
             passed = true
             result = value
-            status = "Guest translation passed"
-            detail = "The arithmetic probe and all 25 translated guest cases passed."
+            status = "Production CPU passed"
+            detail = "The arithmetic probe, 25 compiler cases and all 5 production CPU groups passed."
             guestReport = message
             log(message)
             log("Verified result: 20 + 22 + \(bias) = \(value).")

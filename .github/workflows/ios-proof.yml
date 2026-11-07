@@ -23,7 +23,7 @@ jobs:
     # Keep the zero-cost constraint: this workflow only runs in a PUBLIC repository.
     if: github.event.repository.private == false
     runs-on: xcode-27
-    timeout-minutes: 35
+    timeout-minutes: 60
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: '1'
       DOTNET_NOLOGO: '1'

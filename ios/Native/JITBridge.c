@@ -1,4 +1,5 @@
 #include "JITBridge.h"
+#include "CoreApi.h"
 #include <CoreFoundation/CoreFoundation.h>
 #include <dlfcn.h>
 #include <errno.h>
@@ -91,7 +92,9 @@ static void discard_regions(void) {
 }
 
 static kern_return_t allocate_regions(int txm) {
-    allocation_size = (vm_size_t)vm_page_size;
+    // Virtual reservation; the upstream code cache touches physical pages on demand.
+    // Keep the existing compiler conformance suite in a separate 1 MiB prefix.
+    allocation_size = (vm_size_t)(257UL * 1024 * 1024);
     kern_return_t status;
     bool script_active = txm == 1;
     if (script_active) {
@@ -180,13 +183,26 @@ int ryu_jit_run(int txm, uint32_t timeout_ms, uint32_t bias,
         if (index == 0) *result = actual;
     }
     atomic_store(&stage, RYU_JIT_TRANSLATING);
+    const size_t diagnostic_capacity = 1024 * 1024;
     int32_t guest_status = ryu_guest_suite((void *)writable, (void *)executable,
-        allocation_size, begin_code_write, publish_code, bias,
+        diagnostic_capacity, begin_code_write, publish_code, bias,
         (uint8_t *)error, error_capacity);
     if (guest_status != 0) {
         atomic_store(&stage, RYU_JIT_FAILED);
         atomic_flag_clear(&running);
         return guest_status;
+    }
+    if (ryu_core_abi_version() != 1)
+        return fail(error, error_capacity, "Unsupported production core ABI", ENOTSUP);
+    size_t used = error != NULL && error_capacity > 0 ? strnlen(error, error_capacity) : 0;
+    if (used + 1 < error_capacity) { error[used++] = '\n'; error[used] = '\0'; }
+    int32_t core_status = ryu_core_check((void *)(writable + diagnostic_capacity),
+        (void *)(executable + diagnostic_capacity), allocation_size - diagnostic_capacity,
+        begin_code_write, publish_code, bias, (uint8_t *)error + used, error_capacity - used);
+    if (core_status != 0) {
+        atomic_store(&stage, RYU_JIT_FAILED);
+        atomic_flag_clear(&running);
+        return core_status;
     }
     atomic_store(&ready, true);
     atomic_store(&stage, RYU_JIT_PASSED);

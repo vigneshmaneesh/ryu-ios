@@ -19,9 +19,22 @@ with (framework / "Info.plist").open("wb") as file:
         "CFBundleExecutable": "RyujinxEmitter",
         "CFBundleName": "RyujinxEmitter",
         "CFBundlePackageType": "FMWK",
-        "CFBundleShortVersionString": "0.2.0",
+        "CFBundleShortVersionString": "0.3.0",
         "CFBundleVersion": version,
         "MinimumOSVersion": "27.0",
         "CFBundleSupportedPlatforms": ["iPhoneOS"],
     }, file)
 shutil.copyfile(root / "LICENSE.txt", app / "LICENSE.txt")
+core = app / "Frameworks/RyuCore.framework"
+with (core / "Info.plist").open("wb") as file:
+    plistlib.dump({
+        "CFBundleIdentifier": "app.ryu.ios.core",
+        "CFBundleExecutable": "RyuCore",
+        "CFBundleName": "RyuCore",
+        "CFBundlePackageType": "FMWK",
+        "CFBundleShortVersionString": "0.3.0",
+        "CFBundleVersion": version,
+        "MinimumOSVersion": "27.0",
+        "CFBundleSupportedPlatforms": ["iPhoneOS"],
+    }, file)
+shutil.copyfile(root / "ios/upstream.lock.json", app / "upstream.lock.json")

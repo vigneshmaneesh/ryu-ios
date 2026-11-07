@@ -19,6 +19,9 @@ if [[ "${sdk_version%%.*}" -lt 27 ]]; then
     exit 1
 fi
 mkdir -p "$framework" "$out/native" "$out/managed" "$out/macos"
+core_framework="$app/Frameworks/RyuCore.framework"
+mkdir -p "$core_framework" "$out/core-macos" "$out/core-ios"
+python3 "$root/ios/scripts/prepare_core.py"
 
 dotnet run --project "$root/ios/EmitterChecks/EmitterChecks.csproj" -c Release
 
@@ -33,6 +36,27 @@ xcrun --sdk macosx clang -arch arm64 -isysroot "$mac_sdk" -mmacosx-version-min=1
     -Wl,-rpath,"$out/macos" -o "$out/macos/HostGuestChecks"
 codesign --force --sign - --entitlements "$root/ios/Native/HostJIT.entitlements" "$out/macos/HostGuestChecks"
 "$out/macos/HostGuestChecks"
+
+# Compile and execute the entire upstream CPU and real memory manager with the
+# same prepared-code allocator used on iOS, including multi-threaded callbacks.
+SDKROOT="$mac_sdk" dotnet publish "$root/ios/Runtime/RyuCore.csproj" \
+    -c Release -r osx-arm64 -o "$out/core-macos" -p:PublishAot=true
+xcrun --sdk macosx clang -arch arm64 -isysroot "$mac_sdk" -mmacosx-version-min=14.0 \
+    -std=c11 -O2 -Wall -Wextra -Werror -I "$root/ios/Native" \
+    "$root/ios/Native/HostCoreChecks.c" "$out/core-macos/RyuCore.dylib" \
+    -Wl,-rpath,"$out/core-macos" -o "$out/core-macos/HostCoreChecks"
+codesign --force --sign - --entitlements "$root/ios/Native/HostJIT.entitlements" "$out/core-macos/HostCoreChecks"
+"$out/core-macos/HostCoreChecks"
+
+dotnet publish "$root/ios/Runtime/RyuCore.csproj" \
+    -c Release -r ios-arm64 -o "$out/core-ios" \
+    -p:PublishAot=true -p:PublishAotUsingRuntimePack=true \
+    -p:SupportedOSPlatformVersion="$deployment_target"
+cp "$out/core-ios/RyuCore.dylib" "$core_framework/RyuCore"
+install_name_tool -id '@rpath/RyuCore.framework/RyuCore' "$core_framework/RyuCore"
+if otool -l "$core_framework/RyuCore" | grep -A2 LC_RPATH | grep -q 'path @executable_path ('; then
+    install_name_tool -rpath '@executable_path' '@executable_path/Frameworks' "$core_framework/RyuCore"
+fi
 
 dotnet publish "$root/ios/ManagedEmitter/RyujinxEmitter.csproj" \
     -c Release -r ios-arm64 -o "$out/managed" \
@@ -53,7 +77,7 @@ xcrun clang -target "$target" -isysroot "$sdk" \
     -c "$root/ios/Native/JITProtocol.S" -o "$out/native/JITProtocol.o"
 xcrun --sdk iphoneos swiftc -target "$target" -sdk "$sdk" -swift-version 5 -O -parse-as-library \
     -module-name RyuJIT -import-objc-header "$root/ios/Native/JITBridge.h" \
-    -F "$app/Frameworks" -framework RyujinxEmitter -framework SwiftUI -framework UIKit \
+    -F "$app/Frameworks" -framework RyujinxEmitter -framework RyuCore -framework SwiftUI -framework UIKit \
     -framework Foundation -framework CoreFoundation \
     -Xlinker -rpath -Xlinker '@executable_path/Frameworks' \
     "$root/ios/App/RyuJITApp.swift" "$root/ios/App/JITViewModel.swift" "$root/ios/App/ContentView.swift" \
@@ -62,6 +86,7 @@ xcrun --sdk iphoneos swiftc -target "$target" -sdk "$sdk" -swift-version 5 -O -p
 # Ad-hoc signatures preserve requested entitlements for the sideloading tool to inspect.
 # This IPA is re-signed by AltStore/SideStore with the user's development profile.
 codesign --force --sign - "$framework"
+codesign --force --sign - "$core_framework"
 codesign --force --sign - --entitlements "$root/ios/App/RyuJIT.entitlements" "$app"
 codesign --verify --deep --strict "$app"
 codesign -d --entitlements :- "$app" 2> "$out/codesign.log" > "$out/entitlements.plist"
