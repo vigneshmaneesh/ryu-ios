@@ -19,7 +19,7 @@ observed instrumentation. The original milestone numbers remain fixed.
 | 9 | Threads, interrupts, timers and synchronization | Interrupt/TLS checks and real Horizon scheduling for the authored NRO pass both devices; broader synchronization coverage incomplete |
 | 10 | Horizon kernel and services | Real initialization, service startup and teardown pass twice on both devices in v0.5.3 build 20; commercial service compatibility unverified |
 | 11 | Real homebrew loading/execution | Complete for the authored NRO: real SetHeapSize, OutputDebugString and ExitProcess pass twice on desktop, Apple NativeAOT and both devices |
-| 12 | iOS Vulkan/MoltenVK graphics and first frame | v0.6 integrates upstream VulkanRenderer, Metal surface, swapchain, GAL clears and pixel/presentation conformance; CI/device checks pending; guest GPU command submission not integrated |
+| 12 | iOS Vulkan/MoltenVK graphics and first frame | Upstream VulkanRenderer / Metal surface / swapchain conformance passes both devices in v0.6 build 26; M1 repeat and trace confirmed; guest GPU commands and a real homebrew frame remain unintegrated |
 | 13 | Shader translation, cache and correctness | Not integrated |
 | 14 | Native audio | Not integrated |
 | 15 | Controllers, touch and motion | Not integrated |
@@ -39,6 +39,11 @@ observed instrumentation. The original milestone numbers remain fixed.
 user. This is the accepted kernel/homebrew baseline. Next: phase 12, connecting
 the actual emulated GPU renderer to an iOS presentation surface and validating a
 visible homebrew frame. The existing offscreen clear/readback does not satisfy it.
+
+The user has now accepted **v0.6.0 build 26's host renderer display on both devices**,
+including a repeated M1 iPad run. The real upstream backend verifies 36,864 pixels
+and presents 120 frames. This establishes the iOS screen/renderer bridge; phase 12
+still requires guest GPU command submission and a homebrew-rendered frame.
 
 The user reported **v0.3 passed twice on both devices**, covering all 25 compiler
 cases and five production CPU groups with the 256 MiB virtual JIT pool.
@@ -62,3 +67,14 @@ twice in [CI](https://github.com/vigneshmaneesh/ryu-ios/actions/runs/42405407747
 
 Continue phases 8–17 with a small redistributable homebrew workload before using
 the commercial target to diagnose multiple unverified subsystems at once.
+
+## v0.7 work in progress
+
+The next build connects real NRO execution to the GPU FIFO, shader translator and
+Metal presentation loop, with a bundled public-domain deko3d triangle and launch
+buttons for imported NROs. This integration is awaiting its first smoke boot; it
+is not yet evidence of commercial game compatibility.
+
+Routine CI now builds the homebrew and IPA with one actual guest boot. The full
+CPU/kernel and simulator regression suite is opt-in using `extended_checks`.
+Physical-device validation is requested once per meaningful milestone.

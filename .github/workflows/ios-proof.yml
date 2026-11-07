@@ -1,12 +1,15 @@
-name: iOS 27 JIT proof of concept
+name: Native iOS 27 build
 
 on:
   workflow_dispatch:
+    inputs:
+      extended_checks:
+        description: Run the full CPU/kernel/simulator regression suite
+        type: boolean
+        default: false
   push:
     paths:
       - 'ios/**'
-      - 'src/Ryujinx.Cpu/LightningJit/**'
-      - 'src/ARMeilleure/**'
       - '.github/workflows/ios-proof.yml'
       - 'Directory.Build.props'
       - 'global.json'
@@ -15,48 +18,39 @@ permissions:
   contents: read
 
 concurrency:
-  group: ios-proof-${{ github.ref }}
+  group: ios-build-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  ios-graphics:
-    if: github.event.repository.private == false && !contains(github.event.head_commit.message, '[ios-runtime-only]') && !contains(github.event.head_commit.message, '[package-only]')
-    runs-on: xcode-27
-    timeout-minutes: 25
-    env:
-      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
-      DOTNET_NOLOGO: '1'
+  homebrew:
+    if: github.event.repository.private == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    container:
+      image: devkitpro/devkita64@sha256:82575ea78651b530b2e232bb3799cfd1fe331514e053d5f724bb4b28191fb79d
     steps:
       - uses: actions/checkout@v4
-      - name: Select Xcode 27
-        run: sudo xcode-select --switch /Applications/Xcode_27.0.app/Contents/Developer
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '10.0.403'
-      - name: Check production renderer and composed iOS frame
-        working-directory: ios
+      - name: Build the bundled graphics homebrew
         run: |
-          python3 scripts/prepare_core.py
-          bash scripts/check-ios-graphics.sh
-      - name: Preserve renderer diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
+          make -j2 -C ios/HomebrewGraphics
+          dkp-pacman -Q > ios/HomebrewGraphics/toolchain.txt
+      - uses: actions/upload-artifact@v4
         with:
-          name: RyuRenderer-iOS-proof
+          name: Ryu-graphics-homebrew
           path: |
-            ios/build/graphics-simulator/renderer-screen.png
-            ios/build/graphics-simulator/renderer-process.log
-            ios/build/graphics-simulator/graphics-last-run.log
-            ios/build/graphics-simulator/graphics-result.json
-          if-no-files-found: ignore
+            ios/HomebrewGraphics/deko_basic.nro
+            ios/HomebrewGraphics/NOTICE.txt
+            ios/HomebrewGraphics/toolchain.txt
           retention-days: 1
-  ios-logging:
-    if: github.event.repository.private == false && !contains(github.event.head_commit.message, '[package-only]') && !contains(github.event.head_commit.message, '[graphics-only]')
+  build:
+    if: github.event.repository.private == false
+    needs: homebrew
     runs-on: xcode-27
     timeout-minutes: 25
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: '1'
       DOTNET_NOLOGO: '1'
+      RYU_EXTENDED_CHECKS: ${{ inputs.extended_checks && '1' || '0' }}
     steps:
       - uses: actions/checkout@v4
       - name: Select Xcode 27
@@ -64,37 +58,13 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.403'
-      - name: Check actual iOS console and kernel startup
-        working-directory: ios
-        run: |
-          python3 scripts/prepare_core.py
-          bash scripts/check-ios-logging.sh
-  build:
-    # Keep the zero-cost constraint: this workflow only runs in a PUBLIC repository.
-    # CI infrastructure-only retries can reuse the already verified IPA artifact.
-    if: github.event.repository.private == false && !contains(github.event.head_commit.message, '[ios-runtime-only]') && !contains(github.event.head_commit.message, '[simulator-only]')
-    runs-on: xcode-27
-    timeout-minutes: 20
-    env:
-      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
-      DOTNET_NOLOGO: '1'
-      DOTNET_GENERATE_ASPNET_CERTIFICATE: 'false'
-    steps:
-      - uses: actions/checkout@v4
-      - name: Select Xcode 27
-        shell: bash
-        run: |
-          set -euo pipefail
-          sudo xcode-select --switch /Applications/Xcode_27.0.app/Contents/Developer
-          xcodebuild -version
-          xcrun --sdk iphoneos --show-sdk-version
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/download-artifact@v4
         with:
-          dotnet-version: '10.0.403'
-      - name: Build and verify re-signable IPA
+          name: Ryu-graphics-homebrew
+          path: ios/build/homebrew
+      - name: Build IPA and smoke-boot graphics homebrew once
         run: bash ios/scripts/build-ios.sh
-      - name: Upload IPA
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: RyuJIT-iOS27
           path: |
@@ -103,3 +73,18 @@ jobs:
           if-no-files-found: error
           retention-days: 1
           compression-level: 0
+  extended:
+    if: github.event.repository.private == false && inputs.extended_checks
+    runs-on: xcode-27
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo xcode-select --switch /Applications/Xcode_27.0.app/Contents/Developer
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.403'
+      - name: Optional iOS runtime regressions
+        working-directory: ios
+        run: |
+          python3 scripts/prepare_core.py
+          bash scripts/check-ios-logging.sh

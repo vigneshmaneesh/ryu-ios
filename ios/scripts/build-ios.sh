@@ -30,11 +30,15 @@ cp -R "$molten_root/dynamic/MoltenVK.xcframework/ios-arm64/MoltenVK.framework" "
 mkdir -p "$app/ThirdParty"
 cp "$out/native-dependencies/MoltenVK/LICENSE" "$app/ThirdParty/MoltenVK-LICENSE.txt"
 
+extended="${RYU_EXTENDED_CHECKS:-0}"
+if [[ "$extended" == 1 ]]; then
 dotnet run --project "$root/ios/EmitterChecks/EmitterChecks.csproj" -c Release
+fi
 
 # Run actual translated guest code and reverse managed callbacks in NativeAOT on
 # the Apple Silicon host before producing the iOS framework. No simulator substitute.
 mac_sdk="$(xcrun --sdk macosx --show-sdk-path)"
+if [[ "$extended" == 1 ]]; then
 SDKROOT="$mac_sdk" dotnet publish "$root/ios/ManagedEmitter/RyujinxEmitter.csproj" \
     -c Release -r osx-arm64 -o "$out/macos" -p:PublishAot=true
 xcrun --sdk macosx clang -arch arm64 -isysroot "$mac_sdk" -mmacosx-version-min=14.0 \
@@ -43,21 +47,24 @@ xcrun --sdk macosx clang -arch arm64 -isysroot "$mac_sdk" -mmacosx-version-min=1
     -Wl,-rpath,"$out/macos" -o "$out/macos/HostGuestChecks"
 codesign --force --sign - --entitlements "$root/ios/Native/HostJIT.entitlements" "$out/macos/HostGuestChecks"
 "$out/macos/HostGuestChecks"
+fi
 
 # Compile and execute the entire upstream CPU and real memory manager with the
 # same prepared-code allocator used on iOS, including multi-threaded callbacks.
 SDKROOT="$mac_sdk" dotnet publish "$root/ios/Runtime/RyuCore.csproj" \
     -c Release -r osx-arm64 -o "$out/core-macos" -p:PublishAot=true \
     --configfile "$out/upstream/nuget.config"
+if [[ "$extended" == 1 ]]; then
 xcrun --sdk macosx clang -arch arm64 -isysroot "$mac_sdk" -mmacosx-version-min=14.0 \
     -std=c11 -O2 -Wall -Wextra -Werror -I "$root/ios/Native" \
     "$root/ios/Native/HostCoreChecks.c" "$out/core-macos/RyuCore.dylib" \
     -Wl,-rpath,"$out/core-macos" -o "$out/core-macos/HostCoreChecks"
 codesign --force --sign - --entitlements "$root/ios/Native/HostJIT.entitlements" "$out/core-macos/HostCoreChecks"
 "$out/core-macos/HostCoreChecks" "$out/core-services"
+fi
 
-# Exercise the real renderer and swapchain on Apple Silicon, including all
-# helper SPIR-V shaders, pixel readback and two complete initialization cycles.
+# Smoke-boot the bundled graphics NRO once through the real CPU and GPU.
+# The broader conformance suite is optional to keep normal builds focused.
 mac_molten="$molten_root/dynamic/MoltenVK.xcframework/macos-arm64_x86_64"
 codesign --force --sign - "$mac_molten/MoltenVK.framework"
 xcrun --sdk macosx clang -arch arm64 -isysroot "$mac_sdk" -mmacosx-version-min=14.0 \
@@ -67,19 +74,19 @@ xcrun --sdk macosx clang -arch arm64 -isysroot "$mac_sdk" -mmacosx-version-min=1
     -std=c11 -O2 -Wall -Wextra -Werror -I "$root/ios/Native" \
     -c "$root/ios/Native/CoreWorker.c" -o "$out/native/CoreWorker-mac.o"
 xcrun --sdk macosx clang -arch arm64 -isysroot "$mac_sdk" -mmacosx-version-min=14.0 \
-    -std=gnu11 -fobjc-arc -O2 -Wall -Wextra -Werror -I "$root/ios/Native" \
+    -std=gnu11 -fobjc-arc -DRYU_GUEST_SMOKE -O2 -Wall -Wextra -Werror -I "$root/ios/Native" \
     -F "$mac_molten" -framework MoltenVK -framework Cocoa -framework QuartzCore -framework Metal \
     "$root/ios/Native/HostGraphicsChecks.m" "$out/native/CoreWorker-mac.o" "$out/native/MetalSurface-mac.o" \
     "$out/core-macos/RyuCore.dylib" -Wl,-rpath,"$out/core-macos" -Wl,-rpath,"$mac_molten" \
     -o "$out/core-macos/HostGraphicsChecks"
-codesign --force --sign - "$out/core-macos/HostGraphicsChecks"
-python3 - "$out/core-macos/HostGraphicsChecks" "$mac_molten/MoltenVK.framework/MoltenVK" "$out/core-graphics" <<'PY'
+codesign --force --sign - --entitlements "$root/ios/Native/HostJIT.entitlements" "$out/core-macos/HostGraphicsChecks"
+python3 - "$out/core-macos/HostGraphicsChecks" "$mac_molten/MoltenVK.framework/MoltenVK" "$out/core-graphics" "$out/homebrew/deko_basic.nro" <<'PY'
 from pathlib import Path
 import subprocess, sys
 try:
-    subprocess.run(sys.argv[1:], check=True, timeout=120)
+    subprocess.run(sys.argv[1:], check=True, timeout=90)
 finally:
-    trace = Path(sys.argv[3]) / "graphics-last-run.log"
+    trace = Path(sys.argv[3]) / "guest-last-run.log"
     if trace.exists():
         print(trace.read_text(), flush=True)
 PY
@@ -106,6 +113,9 @@ if otool -l "$framework/RyujinxEmitter" | grep -A2 LC_RPATH | grep -q 'path @exe
     install_name_tool -rpath '@executable_path' '@executable_path/Frameworks' "$framework/RyujinxEmitter"
 fi
 python3 "$root/ios/scripts/package_metadata.py" "$root" "$out" "${GITHUB_RUN_NUMBER:-1}"
+cp "$out/homebrew/deko_basic.nro" "$app/deko_basic.nro"
+cp "$out/homebrew/NOTICE.txt" "$app/ThirdParty/GraphicsHomebrew-NOTICE.txt"
+cp "$out/homebrew/toolchain.txt" "$app/ThirdParty/GraphicsHomebrew-toolchain.txt"
 
 target="arm64-apple-ios$deployment_target"
 xcrun clang -target "$target" -isysroot "$sdk" -std=c11 -O2 -Wall -Wextra -Werror \

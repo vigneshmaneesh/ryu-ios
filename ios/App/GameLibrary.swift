@@ -20,6 +20,12 @@ final class GameLibrary: ObservableObject {
         catch { message = "Could not read the game library: \(error.localizedDescription)" }
     }
 
+    func executableURL(for title: ImportedTitle) -> URL? {
+        guard title.storedFilename.lowercased().hasSuffix(".nro"),
+              URL(fileURLWithPath: title.storedFilename).lastPathComponent == title.storedFilename else { return nil }
+        return try? Self.directory().appendingPathComponent(title.storedFilename)
+    }
+
     private nonisolated static func directory() throws -> URL {
         let support = try FileManager.default.url(for: .applicationSupportDirectory,
             in: .userDomainMask, appropriateFor: nil, create: true)

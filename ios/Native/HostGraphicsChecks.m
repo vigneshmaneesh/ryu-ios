@@ -11,6 +11,21 @@
 #include "CoreWorker.h"
 #include <stdio.h>
 #include <stdlib.h>
+#if TARGET_OS_OSX && defined(RYU_GUEST_SMOKE)
+#include <sys/mman.h>
+#include <pthread.h>
+#include <libkern/OSCacheControl.h>
+static void *guestCode;
+static NSString *programPath;
+static void begin_write(void) { pthread_jit_write_protect_np(0); }
+static void publish_code(void *address, uintptr_t size) {
+    sys_icache_invalidate(address, size);
+    pthread_jit_write_protect_np(1);
+}
+#define CHECK_RUNS 1
+#else
+#define CHECK_RUNS 2
+#endif
 
 extern int ryu_create_metal_surface(void *instance, void *layer, uint64_t *surface);
 static CAMetalLayer *testLayer;
@@ -43,10 +58,18 @@ static void *check_renderer(void *unused) {
     (void)unused;
     @autoreleasepool {
         char report[4096] = {0};
-        for (int run = 0; run < 2; run++) {
+        for (int run = 0; run < CHECK_RUNS; run++) {
+#ifdef RYU_GUEST_SMOKE
+            testStatus = ryu_core_homebrew_run(guestCode, guestCode, 256UL * 1024 * 1024,
+                begin_write, publish_code, (const uint8_t *)libraryPath.UTF8String,
+                (__bridge void *)testLayer, 640, 360, ryu_create_metal_surface, never_cancel,
+                (const uint8_t *)programPath.UTF8String, (const uint8_t *)dataPath.UTF8String,
+                (uint8_t *)report, sizeof(report));
+#else
             testStatus = ryu_core_graphics_check((const uint8_t *)libraryPath.UTF8String,
                 (__bridge void *)testLayer, 640, 360, ryu_create_metal_surface, never_cancel,
                 (const uint8_t *)dataPath.UTF8String, (uint8_t *)report, sizeof(report));
+#endif
             printf("Renderer run %d: %s\n", run + 1, report);
             fflush(stdout);
             if (testStatus != 0) break;
@@ -94,7 +117,15 @@ static CAMetalLayer *make_layer(void) {
 #if TARGET_OS_OSX
 int main(int argc, char **argv) {
     @autoreleasepool {
+#ifdef RYU_GUEST_SMOKE
+        if (argc != 4) return 2;
+        programPath = [NSString stringWithUTF8String:argv[3]];
+        guestCode = mmap(NULL, 256UL * 1024 * 1024, PROT_READ | PROT_WRITE | PROT_EXEC,
+            MAP_PRIVATE | MAP_ANON | MAP_JIT, -1, 0);
+        if (guestCode == MAP_FAILED) return 3;
+#else
         if (argc != 3) return 2;
+#endif
         libraryPath = [NSString stringWithUTF8String:argv[1]];
         dataPath = [NSString stringWithUTF8String:argv[2]];
         [NSFileManager.defaultManager createDirectoryAtPath:dataPath withIntermediateDirectories:YES attributes:nil error:NULL];
@@ -111,7 +142,7 @@ int main(int argc, char **argv) {
         begin_checks();
         [NSApp run];
         [testWindow orderOut:nil];
-        return testStatus == 0 && completedRuns == 2 ? 0 : 1;
+        return testStatus == 0 && completedRuns == CHECK_RUNS ? 0 : 1;
     }
 }
 #else

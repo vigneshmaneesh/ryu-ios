@@ -1,5 +1,33 @@
 # Build provenance and rollback
 
+## v0.6.0 production renderer candidate
+
+Accepted renderer device build: **v0.6.0 build 26**, source `38e405f58c3abaf0a3ef79778ec3dcf0e4ca0e40`,
+on `feature/ios-renderer`. The default branch retains the accepted build 20 baseline.
+
+- [Successful package and Apple NativeAOT checks](https://github.com/vigneshmaneesh/ryu-ios/actions/runs/42411383129/job/128520080903).
+- Artifact ID: `13589748017`; one-day retention.
+- IPA SHA-256: `d135b4287b35c89e18d989f3bcce0b610cf9680d7cc41de15a6c7a2e0b2412dd`.
+- ZIP SHA-256: `0f1db3da2a164a9c1058673ad4119073ab386aa1345bc2967e27bb5946cdb717`.
+
+The upstream renderer passed twice on the Apple runner and twice under the actual
+iOS 27.2 simulator runtime: 36,864 rendered pixels verified, 120 successful
+swapchain frame presentations per run, then teardown. The first iOS loader path
+failed under NativeAOT; this candidate binds commands from the signed framework
+directly. Kernel/CPU regressions passed before packaging.
+
+The simulator graphics job then failed in its screenshot command because the
+selected device has two displays. A CI-only follow-up selects primary display 1;
+it does not alter build 26's app/runtime code. The logger printed PASS but its
+simctl transport timed out; the follow-up also extends that command's allowance.
+Physical-device and composed-screen confirmation are separate acceptance gates.
+This is host renderer conformance, not guest GPU command execution or game boot.
+
+The user supplied a successful M1 iPad trace, confirmed two M1 runs in one app
+session, and confirmed the iPhone 16 works. See `DEVICE_RESULTS.md` for the exact
+rendering results and reported memory/thermal overlay. Device renderer acceptance
+is complete for this diagnostic workload; it is not commercial-game acceptance.
+
 ## v0.5.3 kernel worker stack investigation
 
 Accepted device baseline: **v0.5.3 build 20**, source `0a6bbba6ed714daf28c0c2b77f8368bb10377996`.

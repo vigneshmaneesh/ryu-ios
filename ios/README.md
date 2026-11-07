@@ -16,6 +16,9 @@ This is host renderer conformance. A guest NRO's GPU command stream is not wired
 to this display test yet, so phase 12 remains incomplete. Apple CI checks two
 renderer initialization/teardown cycles, and an iOS simulator compositor screenshot
 must contain all four colours. Device confirmation remains a separate gate.
+The user has confirmed build 26's renderer display works on both devices and
+passes twice in the same M1 iPad session. The recorded M1 trace verifies every
+pixel and all presentations, followed by successful teardown.
 
 v0.5.3 moves kernel startup off the Dispatch worker onto a pthread with an
 explicit 8 MiB stack. Upstream HID initialization returns a 256 KiB structure by
@@ -226,3 +229,8 @@ separately from the desktop solution while the remaining core is being ported.
 Ryujinx source remains under the repository's MIT license; its notice is packaged
 inside the app. StikDebug is used as an external tool; its implementation is not
 embedded in this app.
+
+v0.7 development adds the first real graphics-homebrew session and NRO launch
+buttons. Default CI builds a pinned public-domain deko3d demo and smoke-boots it
+once. Full regression checks are available on demand through `extended_checks`;
+the simulator screenshot fixture is not a release gate.

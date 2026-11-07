@@ -35,6 +35,8 @@ static atomic_flag running = ATOMIC_FLAG_INIT;
 static vm_address_t executable = 0;
 static vm_address_t writable = 0;
 static _Atomic(vm_size_t) allocation_size = 0;
+static void begin_code_write(void);
+static void publish_code(void *address, uintptr_t length);
 
 static int signing_flags(uint32_t *flags) {
     *flags = 0;
@@ -106,6 +108,7 @@ typedef struct {
     char *report;
     size_t capacity;
     int status;
+    const char *program;
 } GraphicsWork;
 
 void ryu_graphics_cancel(void) { atomic_store(&graphics_cancelled, true); }
@@ -113,6 +116,15 @@ void ryu_graphics_prepare(void) { atomic_store(&graphics_cancelled, false); }
 static int is_graphics_cancelled(void) { return atomic_load(&graphics_cancelled) ? 1 : 0; }
 static void *run_graphics(void *context) {
     GraphicsWork *work = context;
+    if (work->program != NULL) {
+        const size_t diagnostic_capacity = 1024 * 1024;
+        work->status = ryu_core_homebrew_run((void *)(writable + diagnostic_capacity),
+            (void *)(executable + diagnostic_capacity), allocation_size - diagnostic_capacity,
+            begin_code_write, publish_code, (const uint8_t *)work->library, work->layer, work->width, work->height,
+            ryu_create_metal_surface, is_graphics_cancelled, (const uint8_t *)work->program,
+            (const uint8_t *)work->directory, (uint8_t *)work->report, work->capacity);
+        return NULL;
+    }
     work->status = ryu_core_graphics_check((const uint8_t *)work->library, work->layer, work->width, work->height,
         ryu_create_metal_surface, is_graphics_cancelled, (const uint8_t *)work->directory,
         (uint8_t *)work->report, work->capacity);
@@ -130,11 +142,34 @@ int ryu_graphics_check(const char *library, void *metal_layer, int width, int he
         snprintf(report, report_capacity, "Another native check is running.");
         return -1;
     }
-    GraphicsWork work = { library, metal_layer, width, height, directory, report, report_capacity, -1 };
+    GraphicsWork work = { library, metal_layer, width, height, directory, report, report_capacity, -1, NULL };
     int status = ryu_core_on_thread(run_graphics, &work, RYU_CORE_STACK_SIZE);
     if (status == 0) status = work.status;
     else { snprintf(report, report_capacity, "Could not start renderer worker: %s.", strerror(status)); status = -1; }
     if (status < 0) atomic_store(&graphics_failed, true);
+    atomic_flag_clear(&running);
+    return status;
+}
+
+uint64_t ryu_homebrew_frames(void) { return ryu_core_guest_frames(); }
+
+int ryu_homebrew_run(const char *library, void *metal_layer, int width, int height,
+    const char *program, const char *directory, char *report, size_t report_capacity) {
+    if (!library || !metal_layer || !program || !directory || !report || report_capacity < 2) return -1;
+    if (!atomic_load(&ready)) {
+        snprintf(report, report_capacity, "Enable JIT and complete the CPU test before launching homebrew.");
+        return 2;
+    }
+    if (atomic_load(&graphics_failed) || atomic_load(&horizon_failed)) {
+        snprintf(report, report_capacity, "Restart the app after a failed native execution test.");
+        return -1;
+    }
+    if (atomic_flag_test_and_set(&running)) return -2;
+    GraphicsWork work = { library, metal_layer, width, height, directory, report, report_capacity, -1, program };
+    int status = ryu_core_on_thread(run_graphics, &work, RYU_CORE_STACK_SIZE);
+    if (status == 0) status = work.status;
+    else { snprintf(report, report_capacity, "Could not start homebrew worker: %s.", strerror(status)); status = -1; }
+    if (status < 0) atomic_store(&horizon_failed, true);
     atomic_flag_clear(&running);
     return status;
 }

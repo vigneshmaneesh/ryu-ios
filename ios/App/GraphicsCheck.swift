@@ -11,14 +11,18 @@ final class GraphicsCheck: ObservableObject {
     @Published var report = ""
     @Published var passed = false
     @Published var needsRestart = false
+    @Published var frames: UInt64 = 0
+    let isGuest: Bool
+    var programURL: URL?
 
-    init() {
-        if let saved = Self.savedTrace() { report = "Previous renderer run:\n" + saved }
+    init(isGuest: Bool = false) {
+        self.isGuest = isGuest
+        if let saved = Self.savedTrace(guest: isGuest) { report = "Previous run:\n" + saved }
     }
 
-    nonisolated private static func savedTrace() -> String? {
+    nonisolated private static func savedTrace(guest: Bool = false) -> String? {
         guard let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first,
-              let data = try? Data(contentsOf: support.appendingPathComponent("RyuCore/graphics-last-run.log")) else { return nil }
+              let data = try? Data(contentsOf: support.appendingPathComponent("RyuCore/" + (guest ? "guest-last-run.log" : "graphics-last-run.log"))) else { return nil }
         return String(decoding: data.suffix(48 * 1024), as: UTF8.self)
     }
 
@@ -27,7 +31,18 @@ final class GraphicsCheck: ObservableObject {
         ryu_graphics_prepare()
         isRunning = true
         passed = false
-        report = "Initializing the upstream Vulkan renderer…"
+        frames = 0
+        report = isGuest ? "Booting homebrew with the real CPU and GPU…" : "Initializing the upstream Vulkan renderer…"
+        let guest = isGuest
+        let program = programURL ?? (guest ? Bundle.main.url(forResource: "deko_basic", withExtension: "nro") : nil)
+        if guest {
+            Task { [weak self] in
+                while self?.isRunning == true {
+                    self?.frames = ryu_homebrew_frames()
+                    try? await Task.sleep(for: .milliseconds(250))
+                }
+            }
+        }
         let width = Int32(layer.drawableSize.width)
         let height = Int32(layer.drawableSize.height)
         // The closure owns the layer until the native worker has joined.
@@ -44,17 +59,24 @@ final class GraphicsCheck: ObservableObject {
                 try directory.setResourceValues(values)
                 guard let frameworks = Bundle.main.privateFrameworksPath else { throw CocoaError(.fileNoSuchFile) }
                 let library = frameworks + "/MoltenVK.framework/MoltenVK"
+                if guest && program == nil { throw CocoaError(.fileNoSuchFile) }
                 var output = [CChar](repeating: 0, count: 4096)
                 status = library.withCString { lib in
                     directory.path.withCString { path in
                         output.withUnsafeMutableBufferPointer { buffer in
-                            ryu_graphics_check(lib, Unmanaged.passUnretained(layer).toOpaque(), width, height,
+                            if guest, let program {
+                                return program.path.withCString { executable in
+                                    ryu_homebrew_run(lib, Unmanaged.passUnretained(layer).toOpaque(), width, height,
+                                        executable, path, buffer.baseAddress, buffer.count)
+                                }
+                            }
+                            return ryu_graphics_check(lib, Unmanaged.passUnretained(layer).toOpaque(), width, height,
                                 path, buffer.baseAddress, buffer.count)
                         }
                     }
                 }
                 message = output.withUnsafeBufferPointer { String(cString: $0.baseAddress!) }
-                if let saved = Self.savedTrace() { message += "\n\nSaved renderer trace:\n" + saved }
+                if let saved = Self.savedTrace(guest: guest) { message += "\n\nSaved run trace:\n" + saved }
             } catch { message = "Could not initialize renderer storage: \(error.localizedDescription)" }
             let completedStatus = status
             let completedMessage = message
@@ -126,12 +148,15 @@ struct GraphicsDisplay: View {
                         .aspectRatio(16 / 9, contentMode: .fit)
                         .background(.black)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
-                    Text("Expected display: red, green, blue and white quadrants.")
+                    Text(model.isGuest ? "Real homebrew graphics" : "Expected display: red, green, blue and white quadrants.")
                         .font(.headline)
-                    Text("This tests the production renderer and screen presentation. Guest graphics and game loading are still being integrated.")
+                    Text(model.isGuest ? "The bundled demo draws a coloured triangle on a blue background, then exits. Imported NROs run until they exit or you stop them. Audio and touch/controller input are being developed." : "This checks the production renderer and screen presentation.")
                         .foregroundStyle(.secondary)
-                    if model.isRunning { ProgressView("Rendering and checking pixels…") }
-                    Button(model.passed ? "Run renderer test again" : "Run renderer test") {
+                    if model.isRunning {
+                        ProgressView(model.isGuest ? "Homebrew running…" : "Rendering and checking pixels…")
+                        if model.isGuest { Text("Guest frames: \(model.frames)").monospacedDigit() }
+                    }
+                    Button(model.isGuest ? "Launch homebrew" : (model.passed ? "Run renderer test again" : "Run renderer test")) {
                         if let metalLayer { model.run(layer: metalLayer) }
                     }
                     .buttonStyle(.borderedProminent)
@@ -143,7 +168,7 @@ struct GraphicsDisplay: View {
                     }
                 }.padding(24)
             }
-            .navigationTitle("Renderer display test")
+            .navigationTitle(model.isGuest ? "Homebrew" : "Renderer display test")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

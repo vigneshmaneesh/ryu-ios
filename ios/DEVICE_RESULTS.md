@@ -12,6 +12,7 @@ Silicon NativeAOT tests run separately in GitHub Actions.
 | v0.5.1 build 14 | CPU/platform checks reported working; bundled homebrew closes the app | Same reported outcome |
 | v0.5.2 build 17 | Bundled homebrew still crashes | Same reported outcome; recovered trace stops at Switch construction |
 | v0.5.3 build 20 | Bundled homebrew passes twice, user confirmed | Bundled homebrew passes twice, user confirmed |
+| v0.6.0 build 26 | Production renderer display works, user confirmed | Production renderer display passes twice in the same app session; full trace supplied |
 
 ## iPad v0.4 diagnostics
 
@@ -74,3 +75,20 @@ The [corrected iOS-runtime regression](https://github.com/vigneshmaneesh/ryu-ios
 then passed two construction/service-readiness/teardown cycles on the larger
 worker, while retaining the reproducing small-stack control. Its logging check
 also passed. The local `HorizonChecks --startup-only` mode passed twice as well.
+
+## Production renderer device evidence
+
+The user confirmed v0.6.0 build 26 works on the iPhone 16 and ran it twice on the
+M1 iPad in the same app session. The visible pattern contained the coloured
+regions; this validates host renderer output, not guest GPU command execution.
+
+The supplied iPad trace records iOS 27.2.0, an 8,400,896-byte host stack and
+`Apple M1 GPU`. Initialization created the Metal surface and production renderer,
+all **36,864 RGBA pixels** matched, and **120 frames** were accepted by the swapchain.
+Renderer scope exit completed and the journal ended with `RESULT PASS`.
+
+The on-screen performance overlay reported 1280x720 at 1.0x, direct BGRA8Unorm,
+Metal memory 55.25 MB, app memory 389.47 MB, available memory 4.98 GB, 120 Hz,
+nominal thermal state, Game Mode off and about 51.17 FPS. These are a single
+user-reported renderer-test snapshot. The test deliberately sleeps between frames;
+its rate is not a game performance result or a renderer throughput benchmark.

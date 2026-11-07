@@ -11,10 +11,53 @@ public static unsafe class CoreApi
 {
     private static int _busy;
     private static int _resolverReady;
+    private static long _guestFrames;
     public const uint AbiVersion = 1;
 
     [UnmanagedCallersOnly(EntryPoint = "ryu_core_abi_version")]
     public static uint GetAbiVersion() => AbiVersion;
+
+    [UnmanagedCallersOnly(EntryPoint = "ryu_core_guest_frames")]
+    public static ulong GetGuestFrames() => (ulong)Volatile.Read(ref _guestFrames);
+
+    [UnmanagedCallersOnly(EntryPoint = "ryu_core_homebrew_run")]
+    public static int RunHomebrew(nint writable, nint executable, nuint capacity,
+        delegate* unmanaged<void> beginWrite, delegate* unmanaged<nint, nuint, void> publish,
+        byte* library, nint layer, int width, int height,
+        delegate* unmanaged<nint, nint, ulong*, int> createSurface, delegate* unmanaged<int> cancelled,
+        byte* program, byte* directory, byte* report, nuint reportCapacity)
+    {
+        if (library == null || layer == 0 || createSurface == null || program == null || directory == null ||
+            width <= 0 || height <= 0 || report == null || reportCapacity < 2 || reportCapacity > int.MaxValue) return -1;
+        report[0] = 0;
+        if (Interlocked.CompareExchange(ref _busy, 1, 0) != 0) return -2;
+        Volatile.Write(ref _guestFrames, 0);
+        try
+        {
+            string path = Marshal.PtrToStringUTF8((nint)directory);
+            HorizonJournal.Begin(path, "guest-last-run.log", "guest homebrew graphics");
+            ConfigureDarwinLibraries();
+            var pool = new PreparedCodePool(writable, executable, capacity, beginWrite, publish);
+            JitMemoryAllocator.PreparedCodeAllocator = pool.Reserve;
+            string result = HomebrewSession.Run(Marshal.PtrToStringUTF8((nint)library), layer, width, height,
+                createSurface, cancelled, Marshal.PtrToStringUTF8((nint)program), path,
+                frames => Volatile.Write(ref _guestFrames, (long)frames));
+            WriteReport(report, reportCapacity, result);
+            HorizonJournal.Finish(true);
+            return 0;
+        }
+        catch (Exception error)
+        {
+            HorizonJournal.Finish(false, error);
+            WriteReport(report, reportCapacity, $"FAIL homebrew {error.GetType().Name}: {error.Message}");
+            return -3;
+        }
+        finally
+        {
+            JitMemoryAllocator.PreparedCodeAllocator = null;
+            Volatile.Write(ref _busy, 0);
+        }
+    }
 
     [UnmanagedCallersOnly(EntryPoint = "ryu_core_graphics_check")]
     public static int CheckGraphics(byte* library, nint layer, int width, int height,

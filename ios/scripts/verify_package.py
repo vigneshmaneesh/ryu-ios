@@ -54,4 +54,5 @@ verify_ios_binary(app / "Frameworks/MoltenVK.framework/MoltenVK")
 assert (app / "ThirdParty/MoltenVK-LICENSE.txt").stat().st_size > 0
 assert (app / "ThirdParty/Silk.NET-LICENSE.txt").stat().st_size > 0
 assert (app / "ThirdParty/Ryubing-THIRDPARTY.md").stat().st_size > 0
+assert (app / "deko_basic.nro").read_bytes()[0x10:0x14] == b"NRO0"
 print("PASS: iOS ARM64 binaries, IPA contents, iPhone/iPad targets, and JIT entitlements.")

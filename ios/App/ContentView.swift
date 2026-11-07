@@ -7,8 +7,10 @@ struct ContentView: View {
     @StateObject private var horizon = BackendChecks(isHorizon: true)
     @StateObject private var library = GameLibrary()
     @StateObject private var graphics = GraphicsCheck()
+    @StateObject private var guest = GraphicsCheck(isGuest: true)
     @State private var showingImporter = false
     @State private var showingGraphics = false
+    @State private var showingGuest = false
 
     var body: some View {
         NavigationStack {
@@ -22,7 +24,7 @@ struct ContentView: View {
                             .font(.largeTitle.bold())
                         Text("Horizon homebrew · v\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown")")
                             .font(.title3).foregroundStyle(.secondary)
-                        Text("Tests the production dispatcher, cache invalidation, guest page tables, interrupts and two guest threads. Game loading and graphics are still being developed.")
+                        Text("Launch graphics homebrew using the production CPU and Vulkan renderer. Commercial game support is still being developed.")
                             .foregroundStyle(.secondary)
                     }
 
@@ -37,6 +39,11 @@ struct ContentView: View {
                                         Text(title.name)
                                         Text(ByteCountFormatter.string(fromByteCount: title.byteCount, countStyle: .file))
                                             .font(.caption).foregroundStyle(.secondary)
+                                    }
+                                    Spacer()
+                                    if let executable = library.executableURL(for: title) {
+                                        Button("Launch") { guest.programURL = executable; showingGuest = true }
+                                            .disabled(!model.passed || model.isRunning || horizon.isRunning || backend.isRunning || guest.needsRestart || horizon.needsRestart || graphics.needsRestart)
                                     }
                                 }
                             }
@@ -74,7 +81,7 @@ struct ContentView: View {
                                     .frame(maxWidth: .infinity).padding(.vertical, 6)
                             }
                             .buttonStyle(.borderedProminent)
-                            .disabled(model.isRunning || model.needsRestart || backend.isRunning || library.isImporting || horizon.isRunning || horizon.needsRestart || graphics.needsRestart)
+                            .disabled(model.isRunning || model.needsRestart || backend.isRunning || library.isImporting || horizon.isRunning || horizon.needsRestart || graphics.needsRestart || guest.needsRestart)
                             if model.isRunning {
                                 Button("Cancel waiting", action: model.cancel)
                                     .disabled(ryu_jit_stage() != 1)
@@ -99,7 +106,7 @@ struct ContentView: View {
                             if backend.isRunning { ProgressView() }
                             Button("Test platform backends", action: backend.run)
                                 .buttonStyle(.bordered)
-                                .disabled(model.isRunning || backend.isRunning || library.isImporting || horizon.isRunning || horizon.needsRestart || graphics.needsRestart)
+                                .disabled(model.isRunning || backend.isRunning || library.isImporting || horizon.isRunning || horizon.needsRestart || graphics.needsRestart || guest.needsRestart)
                         }.frame(maxWidth: .infinity, alignment: .leading)
                     }
 
@@ -109,11 +116,22 @@ struct ContentView: View {
                                 .foregroundStyle(.secondary)
                             Button("Test renderer display") { showingGraphics = true }
                                 .buttonStyle(.borderedProminent)
-                                .disabled(model.isRunning || backend.isRunning || horizon.isRunning || library.isImporting || horizon.needsRestart || graphics.needsRestart)
+                                .disabled(model.isRunning || backend.isRunning || horizon.isRunning || library.isImporting || horizon.needsRestart || graphics.needsRestart || guest.needsRestart)
                             if !graphics.report.isEmpty {
                                 Text(graphics.passed ? "Renderer check passed." : graphics.report)
                                     .font(.callout).textSelection(.enabled)
                             }
+                        }.frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                    GroupBox("Graphics homebrew") {
+                        VStack(alignment: .leading, spacing: 14) {
+                            Text("Launches the bundled deko3d triangle through the real Switch CPU, services and GPU. Enable JIT first.")
+                                .foregroundStyle(.secondary)
+                            Button("Boot triangle homebrew") { guest.programURL = nil; showingGuest = true }
+                                .buttonStyle(.borderedProminent)
+                                .disabled(!model.passed || model.isRunning || backend.isRunning || horizon.isRunning || library.isImporting || guest.needsRestart || graphics.needsRestart || horizon.needsRestart)
+                            if !guest.report.isEmpty { Text(guest.report).font(.caption).textSelection(.enabled) }
                         }.frame(maxWidth: .infinity, alignment: .leading)
                     }
 
@@ -130,7 +148,7 @@ struct ContentView: View {
                             if horizon.isRunning { ProgressView() }
                             Button("Boot bundled homebrew", action: horizon.runHorizon)
                                 .buttonStyle(.borderedProminent)
-                                .disabled(!model.passed || model.isRunning || backend.isRunning || library.isImporting || horizon.isRunning || horizon.needsRestart || graphics.needsRestart)
+                                .disabled(!model.passed || model.isRunning || backend.isRunning || library.isImporting || horizon.isRunning || horizon.needsRestart || graphics.needsRestart || guest.needsRestart)
                             if horizon.needsRestart {
                                 Text("Close and reopen this app before further execution tests.")
                                     .font(.callout)
@@ -156,7 +174,7 @@ struct ContentView: View {
                                 .textSelection(.enabled).padding(.top, 8)
                         }
                     }
-                    ShareLink(item: model.diagnostics + "\n\nPlatform backends:\n" + backend.report + "\n\nHorizon homebrew:\n" + horizon.report + "\n\nUpstream renderer:\n" + graphics.report) {
+                    ShareLink(item: model.diagnostics + "\n\nPlatform backends:\n" + backend.report + "\n\nHorizon homebrew:\n" + horizon.report + "\n\nUpstream renderer:\n" + graphics.report + "\n\nGraphics homebrew:\n" + guest.report) {
                         Label("Share diagnostics", systemImage: "square.and.arrow.up")
                     }
                     .buttonStyle(.bordered)
@@ -172,6 +190,7 @@ struct ContentView: View {
             .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.item],
                 allowsMultipleSelection: true, onCompletion: library.importSelection)
             .fullScreenCover(isPresented: $showingGraphics) { GraphicsDisplay(model: graphics) }
+            .fullScreenCover(isPresented: $showingGuest) { GraphicsDisplay(model: guest) }
         }
     }
 

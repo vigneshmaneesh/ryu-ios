@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "source": {
+    "repository": "https://github.com/switchbrew/switch-examples",
+    "revision": "669786898205b7beb25ff1731e72982e6d0397d3",
+    "path": "graphics/deko3d/deko_basic",
+    "license": "Public Domain"
+  },
+  "toolchain": {
+    "image": "devkitpro/devkita64@sha256:82575ea78651b530b2e232bb3799cfd1fe331514e053d5f724bb4b28191fb79d",
+    "tag": "20260219"
+  },
+  "output": "deko_basic.nro"
+}
