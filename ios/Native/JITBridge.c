@@ -4,7 +4,7 @@
 #include <errno.h>
 #include <libkern/OSCacheControl.h>
 #include <mach/mach.h>
-#include <mach/mach_vm.h>
+#include <mach/vm_map.h>
 #include <stdatomic.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -24,9 +24,9 @@ static atomic_int stage = RYU_JIT_IDLE;
 static atomic_bool cancelled = false;
 static atomic_bool ready = false;
 static atomic_flag running = ATOMIC_FLAG_INIT;
-static mach_vm_address_t executable = 0;
-static mach_vm_address_t writable = 0;
-static mach_vm_size_t allocation_size = 0;
+static vm_address_t executable = 0;
+static vm_address_t writable = 0;
+static vm_size_t allocation_size = 0;
 
 static int signing_flags(uint32_t *flags) {
     *flags = 0;
@@ -84,34 +84,34 @@ static int fail(char *error, size_t capacity, const char *message, int code) {
 }
 
 static void discard_regions(void) {
-    if (writable != 0) mach_vm_deallocate(mach_task_self(), writable, allocation_size);
-    if (executable != 0) mach_vm_deallocate(mach_task_self(), executable, allocation_size);
+    if (writable != 0) vm_deallocate(mach_task_self(), writable, allocation_size);
+    if (executable != 0) vm_deallocate(mach_task_self(), executable, allocation_size);
     writable = executable = 0;
     allocation_size = 0;
 }
 
 static kern_return_t allocate_regions(int txm) {
-    allocation_size = (mach_vm_size_t)vm_page_size;
+    allocation_size = (vm_size_t)vm_page_size;
     kern_return_t status;
     bool script_active = txm == 1;
     if (script_active) {
         // universal.js allocates and prepares this RX mapping through debugserver.
-        executable = (mach_vm_address_t)ryu_jit_prepare_region(NULL, (size_t)allocation_size);
+        executable = (vm_address_t)ryu_jit_prepare_region(NULL, (size_t)allocation_size);
         status = executable == 0 ? KERN_RESOURCE_SHORTAGE : KERN_SUCCESS;
     } else {
-        status = mach_vm_allocate(mach_task_self(), &executable, allocation_size, VM_FLAGS_ANYWHERE);
+        status = vm_allocate(mach_task_self(), &executable, allocation_size, VM_FLAGS_ANYWHERE);
         if (status == KERN_SUCCESS)
-            status = mach_vm_protect(mach_task_self(), executable, allocation_size, FALSE, VM_PROT_READ | VM_PROT_EXECUTE);
+            status = vm_protect(mach_task_self(), executable, allocation_size, FALSE, VM_PROT_READ | VM_PROT_EXECUTE);
     }
 
     vm_prot_t current = 0, maximum = 0;
     if (status == KERN_SUCCESS) {
-        status = mach_vm_remap(mach_task_self(), &writable, allocation_size, 0,
+        status = vm_remap(mach_task_self(), &writable, allocation_size, 0,
                                VM_FLAGS_ANYWHERE, mach_task_self(), executable,
                                FALSE, &current, &maximum, VM_INHERIT_NONE);
     }
     if (status == KERN_SUCCESS) {
-        status = mach_vm_protect(mach_task_self(), writable, allocation_size, FALSE, VM_PROT_READ | VM_PROT_WRITE);
+        status = vm_protect(mach_task_self(), writable, allocation_size, FALSE, VM_PROT_READ | VM_PROT_WRITE);
     }
     // Complete the script handshake even if alias creation failed, before reporting.
     if (script_active) ryu_jit_detach();
@@ -152,7 +152,7 @@ int ryu_jit_run(int txm, uint32_t timeout_ms, uint32_t bias,
 
     atomic_store(&stage, RYU_JIT_EMITTING);
     int32_t code_size = ryu_emit_add((uint8_t *)writable, (uintptr_t)allocation_size, bias);
-    if (code_size <= 0 || (mach_vm_size_t)code_size > allocation_size)
+    if (code_size <= 0 || (vm_size_t)code_size > allocation_size)
         return fail(error, error_capacity, "Ryujinx ARM64 code generation failed", code_size);
     // Distinct RW and RX aliases preserve W^X. Publish the new instructions before calling.
     atomic_thread_fence(memory_order_seq_cst);
@@ -174,3 +174,4 @@ int ryu_jit_run(int txm, uint32_t timeout_ms, uint32_t bias,
     atomic_flag_clear(&running);
     return 0;
 }
+
