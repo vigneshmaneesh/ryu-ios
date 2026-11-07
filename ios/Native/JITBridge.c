@@ -20,6 +20,7 @@ extern int csops(pid_t pid, unsigned int operation, void *address, size_t size);
 extern void *ryu_jit_prepare_region(void *address, size_t length);
 extern void ryu_jit_detach(void);
 extern int ryu_vulkan_probe(char *report, size_t capacity);
+extern int ryu_create_metal_surface(void *instance, void *layer, uint64_t *surface);
 
 static const uint32_t CS_OPS_STATUS = 0;
 static const uint32_t CS_GET_TASK_ALLOW = 0x00000004;
@@ -28,6 +29,8 @@ static atomic_int stage = RYU_JIT_IDLE;
 static atomic_bool cancelled = false;
 static atomic_bool ready = false;
 static atomic_bool horizon_failed = false;
+static atomic_bool graphics_failed = false;
+static atomic_bool graphics_cancelled = false;
 static atomic_flag running = ATOMIC_FLAG_INIT;
 static vm_address_t executable = 0;
 static vm_address_t writable = 0;
@@ -93,6 +96,47 @@ int ryu_backend_check(const char *data_directory, char *report, size_t report_ca
     snprintf(report, report_capacity, "%s\n\n%s", services, graphics);
     atomic_flag_clear(&running);
     return service_status == 0 && gpu_status == 0 ? 0 : EIO;
+}
+
+typedef struct {
+    const char *library;
+    void *layer;
+    int width, height;
+    const char *directory;
+    char *report;
+    size_t capacity;
+    int status;
+} GraphicsWork;
+
+void ryu_graphics_cancel(void) { atomic_store(&graphics_cancelled, true); }
+static int is_graphics_cancelled(void) { return atomic_load(&graphics_cancelled) ? 1 : 0; }
+static void *run_graphics(void *context) {
+    GraphicsWork *work = context;
+    work->status = ryu_core_graphics_check((const uint8_t *)work->library, work->layer, work->width, work->height,
+        ryu_create_metal_surface, is_graphics_cancelled, (const uint8_t *)work->directory,
+        (uint8_t *)work->report, work->capacity);
+    return NULL;
+}
+
+int ryu_graphics_check(const char *library, void *metal_layer, int width, int height,
+    const char *directory, char *report, size_t report_capacity) {
+    if (library == NULL || metal_layer == NULL || directory == NULL || report == NULL || report_capacity < 2) return -1;
+    if (atomic_load(&graphics_failed) || atomic_load(&horizon_failed)) {
+        snprintf(report, report_capacity, "Restart the app after a failed renderer/kernel test.");
+        return -1;
+    }
+    if (atomic_flag_test_and_set(&running)) {
+        snprintf(report, report_capacity, "Another native check is running.");
+        return -1;
+    }
+    atomic_store(&graphics_cancelled, false);
+    GraphicsWork work = { library, metal_layer, width, height, directory, report, report_capacity, -1 };
+    int status = ryu_core_on_thread(run_graphics, &work, RYU_CORE_STACK_SIZE);
+    if (status == 0) status = work.status;
+    else { snprintf(report, report_capacity, "Could not start renderer worker: %s.", strerror(status)); status = -1; }
+    if (status < 0) atomic_store(&graphics_failed, true);
+    atomic_flag_clear(&running);
+    return status;
 }
 
 static uint64_t milliseconds(void) {

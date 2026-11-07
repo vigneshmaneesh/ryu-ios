@@ -3,6 +3,11 @@
 #include <stddef.h>
 #include <stdint.h>
 
+// Metal layer is retained by the caller until this synchronous call returns.
+int ryu_graphics_check(const char *library, void *metal_layer, int width, int height,
+    const char *directory, char *report, size_t report_capacity);
+void ryu_graphics_cancel(void);
+
 enum RyuJITStage {
     RYU_JIT_IDLE, RYU_JIT_WAITING, RYU_JIT_PREPARING, RYU_JIT_EMITTING,
     RYU_JIT_EXECUTING, RYU_JIT_PASSED, RYU_JIT_FAILED, RYU_JIT_CANCELLED,

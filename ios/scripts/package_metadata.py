@@ -19,7 +19,7 @@ with (framework / "Info.plist").open("wb") as file:
         "CFBundleExecutable": "RyujinxEmitter",
         "CFBundleName": "RyujinxEmitter",
         "CFBundlePackageType": "FMWK",
-        "CFBundleShortVersionString": "0.5.3",
+        "CFBundleShortVersionString": "0.6.0",
         "CFBundleVersion": version,
         "MinimumOSVersion": "27.0",
         "CFBundleSupportedPlatforms": ["iPhoneOS"],
@@ -32,9 +32,11 @@ with (core / "Info.plist").open("wb") as file:
         "CFBundleExecutable": "RyuCore",
         "CFBundleName": "RyuCore",
         "CFBundlePackageType": "FMWK",
-        "CFBundleShortVersionString": "0.5.3",
+        "CFBundleShortVersionString": "0.6.0",
         "CFBundleVersion": version,
         "MinimumOSVersion": "27.0",
         "CFBundleSupportedPlatforms": ["iPhoneOS"],
     }, file)
 shutil.copyfile(root / "ios/upstream.lock.json", app / "upstream.lock.json")
+shutil.copyfile(root / "distribution/legal/THIRDPARTY.md", app / "ThirdParty/Ryubing-THIRDPARTY.md")
+shutil.copyfile(root / "ios/ThirdParty/Silk.NET-LICENSE.txt", app / "ThirdParty/Silk.NET-LICENSE.txt")

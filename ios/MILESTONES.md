@@ -19,7 +19,7 @@ observed instrumentation. The original milestone numbers remain fixed.
 | 9 | Threads, interrupts, timers and synchronization | Interrupt/TLS checks and real Horizon scheduling for the authored NRO pass both devices; broader synchronization coverage incomplete |
 | 10 | Horizon kernel and services | Real initialization, service startup and teardown pass twice on both devices in v0.5.3 build 20; commercial service compatibility unverified |
 | 11 | Real homebrew loading/execution | Complete for the authored NRO: real SetHeapSize, OutputDebugString and ExitProcess pass twice on desktop, Apple NativeAOT and both devices |
-| 12 | iOS Vulkan/MoltenVK graphics and first frame | Official iOS MoltenVK pinned; user reports offscreen GPU clear/readback working on both devices; emulated GPU and presentation not integrated |
+| 12 | iOS Vulkan/MoltenVK graphics and first frame | v0.6 integrates upstream VulkanRenderer, Metal surface, swapchain, GAL clears and pixel/presentation conformance; CI/device checks pending; guest GPU command submission not integrated |
 | 13 | Shader translation, cache and correctness | Not integrated |
 | 14 | Native audio | Not integrated |
 | 15 | Controllers, touch and motion | Not integrated |

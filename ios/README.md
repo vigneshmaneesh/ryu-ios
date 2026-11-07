@@ -1,8 +1,21 @@
-# Ryu iOS: Horizon homebrew integration (v0.5.3)
+# Ryu iOS: production renderer bring-up (v0.6.0)
 
 This is an iOS 27 **CPU prototype**, not a playable Switch emulator yet.
 The first commercial compatibility target is **Tomodachi Life: Living the Dream**;
 no game boot or performance claim has been established.
+
+v0.6.0 adds **Test renderer display**. A retained native `CAMetalLayer` hosts the
+upstream `VulkanRenderer`, its real swapchain and helper SPIR-V shaders. The test
+clears four regions using the upstream GAL pipeline, reads back and verifies all
+36,864 pixels, then presents 120 frames. The expected display contains red,
+green, blue and white quadrants. No JIT activation is required for this check.
+The renderer runs on an explicit-stack worker, supports lifecycle cancellation,
+and saves `graphics-last-run.log` separately from the homebrew trace.
+
+This is host renderer conformance. A guest NRO's GPU command stream is not wired
+to this display test yet, so phase 12 remains incomplete. Apple CI checks two
+renderer initialization/teardown cycles, and an iOS simulator compositor screenshot
+must contain all four colours. Device confirmation remains a separate gate.
 
 v0.5.3 moves kernel startup off the Dispatch worker onto a pthread with an
 explicit 8 MiB stack. Upstream HID initialization returns a 256 KiB structure by
@@ -103,6 +116,12 @@ installed directly without AltStore/SideStore signing. The installed development
 profile must preserve `get-task-allow`.
 
 ## Test on the iPhone 16 and M1 11-inch iPad
+
+For v0.6.0, open **Test renderer display**, then **Run renderer test**. Confirm the
+four coloured regions are visible and the pixel/presentation checks pass. Run it
+again on the same screen, then repeat on the other device. Share diagnostics if
+anything fails. If the app closes, reopen and share its saved renderer trace
+before retrying. Keep the working v0.5.3 build 20 IPA for rollback.
 
 1. Use the existing StikDebug pairing setup and connect LocalDevVPN.
 2. Open **Ryu JIT** and tap **Enable JIT and test**.

@@ -19,6 +19,37 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  ios-graphics:
+    if: github.event.repository.private == false && !contains(github.event.head_commit.message, '[ios-runtime-only]')
+    runs-on: xcode-27
+    timeout-minutes: 25
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode 27
+        run: sudo xcode-select --switch /Applications/Xcode_27.0.app/Contents/Developer
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.403'
+      - name: Check production renderer and composed iOS frame
+        working-directory: ios
+        run: |
+          python3 scripts/prepare_core.py
+          bash scripts/check-ios-graphics.sh
+      - name: Preserve renderer diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RyuRenderer-iOS-proof
+          path: |
+            ios/build/graphics-simulator/renderer-screen.png
+            ios/build/graphics-simulator/renderer-process.log
+            ios/build/graphics-simulator/graphics-last-run.log
+            ios/build/graphics-simulator/graphics-result.json
+          if-no-files-found: ignore
+          retention-days: 1
   ios-logging:
     if: github.event.repository.private == false
     runs-on: xcode-27

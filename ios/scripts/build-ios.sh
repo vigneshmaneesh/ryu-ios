@@ -24,7 +24,7 @@ mkdir -p "$framework" "$out/native" "$out/managed" "$out/macos"
 core_framework="$app/Frameworks/RyuCore.framework"
 mkdir -p "$core_framework" "$out/core-macos" "$out/core-ios"
 python3 "$root/ios/scripts/prepare_core.py"
-python3 "$root/ios/scripts/prepare_native.py"
+python3 "$root/ios/scripts/prepare_native.py" --validation
 molten_root="$out/native-dependencies/MoltenVK/MoltenVK"
 cp -R "$molten_root/dynamic/MoltenVK.xcframework/ios-arm64/MoltenVK.framework" "$app/Frameworks/"
 mkdir -p "$app/ThirdParty"
@@ -56,6 +56,24 @@ xcrun --sdk macosx clang -arch arm64 -isysroot "$mac_sdk" -mmacosx-version-min=1
 codesign --force --sign - --entitlements "$root/ios/Native/HostJIT.entitlements" "$out/core-macos/HostCoreChecks"
 "$out/core-macos/HostCoreChecks" "$out/core-services"
 
+# Exercise the real renderer and swapchain on Apple Silicon, including all
+# helper SPIR-V shaders, pixel readback and two complete initialization cycles.
+mac_molten="$molten_root/dynamic/MoltenVK.xcframework/macos-arm64_x86_64"
+xcrun --sdk macosx clang -arch arm64 -isysroot "$mac_sdk" -mmacosx-version-min=14.0 \
+    -std=c11 -O2 -Wall -Wextra -Werror -I "$molten_root/include" \
+    -c "$root/ios/Native/MetalSurface.c" -o "$out/native/MetalSurface-mac.o"
+xcrun --sdk macosx clang -arch arm64 -isysroot "$mac_sdk" -mmacosx-version-min=14.0 \
+    -std=c11 -O2 -Wall -Wextra -Werror -I "$root/ios/Native" \
+    -c "$root/ios/Native/CoreWorker.c" -o "$out/native/CoreWorker-mac.o"
+xcrun --sdk macosx clang -arch arm64 -isysroot "$mac_sdk" -mmacosx-version-min=14.0 \
+    -std=gnu11 -fobjc-arc -O2 -Wall -Wextra -Werror -I "$root/ios/Native" \
+    -F "$mac_molten" -framework MoltenVK -framework Cocoa -framework QuartzCore -framework Metal \
+    "$root/ios/Native/HostGraphicsChecks.m" "$out/native/CoreWorker-mac.o" "$out/native/MetalSurface-mac.o" \
+    "$out/core-macos/RyuCore.dylib" -Wl,-rpath,"$out/core-macos" -Wl,-rpath,"$mac_molten" \
+    -o "$out/core-macos/HostGraphicsChecks"
+codesign --force --sign - "$out/core-macos/HostGraphicsChecks"
+"$out/core-macos/HostGraphicsChecks" "$mac_molten/MoltenVK.framework/MoltenVK" "$out/core-graphics"
+
 dotnet publish "$root/ios/Runtime/RyuCore.csproj" \
     -c Release -r ios-arm64 -o "$out/core-ios" \
     -p:PublishAot=true -p:PublishAotUsingRuntimePack=true \
@@ -86,15 +104,17 @@ xcrun clang -target "$target" -isysroot "$sdk" -std=c11 -O2 -Wall -Wextra -Werro
     -I "$root/ios/Native" -c "$root/ios/Native/CoreWorker.c" -o "$out/native/CoreWorker.o"
 xcrun clang -target "$target" -isysroot "$sdk" -std=c11 -O2 -Wall -Wextra -Werror \
     -I "$molten_root/include" -c "$root/ios/Native/VulkanProbe.c" -o "$out/native/VulkanProbe.o"
+xcrun clang -target "$target" -isysroot "$sdk" -std=c11 -O2 -Wall -Wextra -Werror \
+    -I "$molten_root/include" -c "$root/ios/Native/MetalSurface.c" -o "$out/native/MetalSurface.o"
 xcrun clang -target "$target" -isysroot "$sdk" \
     -c "$root/ios/Native/JITProtocol.S" -o "$out/native/JITProtocol.o"
 xcrun --sdk iphoneos swiftc -target "$target" -sdk "$sdk" -swift-version 5 -O -parse-as-library \
     -module-name RyuJIT -import-objc-header "$root/ios/Native/JITBridge.h" \
     -F "$app/Frameworks" -framework RyujinxEmitter -framework RyuCore -framework MoltenVK -framework SwiftUI -framework UIKit \
-    -framework Foundation -framework CoreFoundation \
+    -framework Foundation -framework CoreFoundation -framework Metal -framework QuartzCore \
     -Xlinker -rpath -Xlinker '@executable_path/Frameworks' \
-    "$root/ios/App/RyuJITApp.swift" "$root/ios/App/JITViewModel.swift" "$root/ios/App/ContentView.swift" "$root/ios/App/BackendChecks.swift" "$root/ios/App/GameLibrary.swift" \
-    "$out/native/JITBridge.o" "$out/native/CoreWorker.o" "$out/native/JITProtocol.o" "$out/native/VulkanProbe.o" -o "$app/RyuJIT"
+    "$root/ios/App/RyuJITApp.swift" "$root/ios/App/JITViewModel.swift" "$root/ios/App/ContentView.swift" "$root/ios/App/BackendChecks.swift" "$root/ios/App/GameLibrary.swift" "$root/ios/App/GraphicsCheck.swift" \
+    "$out/native/JITBridge.o" "$out/native/CoreWorker.o" "$out/native/JITProtocol.o" "$out/native/VulkanProbe.o" "$out/native/MetalSurface.o" -o "$app/RyuJIT"
 
 # Ad-hoc signatures preserve requested entitlements for the sideloading tool to inspect.
 # This IPA is re-signed by AltStore/SideStore with the user's development profile.

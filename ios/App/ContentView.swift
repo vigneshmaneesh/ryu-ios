@@ -6,7 +6,9 @@ struct ContentView: View {
     @StateObject private var backend = BackendChecks()
     @StateObject private var horizon = BackendChecks(isHorizon: true)
     @StateObject private var library = GameLibrary()
+    @StateObject private var graphics = GraphicsCheck()
     @State private var showingImporter = false
+    @State private var showingGraphics = false
 
     var body: some View {
         NavigationStack {
@@ -72,7 +74,7 @@ struct ContentView: View {
                                     .frame(maxWidth: .infinity).padding(.vertical, 6)
                             }
                             .buttonStyle(.borderedProminent)
-                            .disabled(model.isRunning || model.needsRestart || backend.isRunning || library.isImporting || horizon.isRunning || horizon.needsRestart)
+                            .disabled(model.isRunning || model.needsRestart || backend.isRunning || library.isImporting || horizon.isRunning || horizon.needsRestart || graphics.needsRestart)
                             if model.isRunning {
                                 Button("Cancel waiting", action: model.cancel)
                                     .disabled(ryu_jit_stage() != 1)
@@ -97,7 +99,21 @@ struct ContentView: View {
                             if backend.isRunning { ProgressView() }
                             Button("Test platform backends", action: backend.run)
                                 .buttonStyle(.bordered)
-                                .disabled(model.isRunning || backend.isRunning || library.isImporting || horizon.isRunning || horizon.needsRestart)
+                                .disabled(model.isRunning || backend.isRunning || library.isImporting || horizon.isRunning || horizon.needsRestart || graphics.needsRestart)
+                        }.frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                    GroupBox("Upstream renderer display") {
+                        VStack(alignment: .leading, spacing: 14) {
+                            Text("Draws and checks four coloured regions with the production Vulkan renderer, then presents them on screen. No JIT activation is required.")
+                                .foregroundStyle(.secondary)
+                            Button("Test renderer display") { showingGraphics = true }
+                                .buttonStyle(.borderedProminent)
+                                .disabled(model.isRunning || backend.isRunning || horizon.isRunning || library.isImporting || horizon.needsRestart || graphics.needsRestart)
+                            if !graphics.report.isEmpty {
+                                Text(graphics.passed ? "Renderer check passed." : graphics.report)
+                                    .font(.callout).textSelection(.enabled)
+                            }
                         }.frame(maxWidth: .infinity, alignment: .leading)
                     }
 
@@ -114,7 +130,7 @@ struct ContentView: View {
                             if horizon.isRunning { ProgressView() }
                             Button("Boot bundled homebrew", action: horizon.runHorizon)
                                 .buttonStyle(.borderedProminent)
-                                .disabled(!model.passed || model.isRunning || backend.isRunning || library.isImporting || horizon.isRunning || horizon.needsRestart)
+                                .disabled(!model.passed || model.isRunning || backend.isRunning || library.isImporting || horizon.isRunning || horizon.needsRestart || graphics.needsRestart)
                             if horizon.needsRestart {
                                 Text("Close and reopen this app before further execution tests.")
                                     .font(.callout)
@@ -140,7 +156,7 @@ struct ContentView: View {
                                 .textSelection(.enabled).padding(.top, 8)
                         }
                     }
-                    ShareLink(item: model.diagnostics + "\n\nPlatform backends:\n" + backend.report + "\n\nHorizon homebrew:\n" + horizon.report) {
+                    ShareLink(item: model.diagnostics + "\n\nPlatform backends:\n" + backend.report + "\n\nHorizon homebrew:\n" + horizon.report + "\n\nUpstream renderer:\n" + graphics.report) {
                         Label("Share diagnostics", systemImage: "square.and.arrow.up")
                     }
                     .buttonStyle(.bordered)
@@ -155,6 +171,7 @@ struct ContentView: View {
             .tint(.teal)
             .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.item],
                 allowsMultipleSelection: true, onCompletion: library.importSelection)
+            .fullScreenCover(isPresented: $showingGraphics) { GraphicsDisplay(model: graphics) }
         }
     }
 

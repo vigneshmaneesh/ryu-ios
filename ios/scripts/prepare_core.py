@@ -153,6 +153,36 @@ public static class StartupDiagnostics
             replace(path, prefix, f'{indentation}Ryujinx.HLE.StartupDiagnostics.Write("{message}");\n{prefix}')
 
 
+def adapt_vulkan():
+    renderer = "src/Ryujinx.Graphics.Vulkan/VulkanRenderer.cs"
+    replace(renderer, "IsMoltenVk = OperatingSystem.IsMacOS()", "IsMoltenVk = (OperatingSystem.IsMacOS() || OperatingSystem.IsIOS())")
+    replace(renderer, "SupportsMTL31 = OperatingSystem.IsMacOSVersionAtLeast(14);",
+            "SupportsMTL31 = OperatingSystem.IsMacOSVersionAtLeast(14) || OperatingSystem.IsIOSVersionAtLeast(17);")
+    replace(renderer, "hasDriverProperties && !OperatingSystem.IsMacOS()", "hasDriverProperties && !IsMoltenVk")
+    replace(renderer, "public uint ProgramCount { get; set; } = 0;",
+            "public uint ProgramCount { get; set; } = 0;\n        public ulong PresentedFrames { get; internal set; }")
+    replace("src/Ryujinx.Graphics.Vulkan/MoltenVK/MVKInitialization.cs", '[SupportedOSPlatform("macos")]',
+            '[SupportedOSPlatform("macos")]\n    [SupportedOSPlatform("ios")]')
+    initialization = "src/Ryujinx.Graphics.Vulkan/VulkanInitialization.cs"
+    replace(initialization, "string[] enabledExtensions = requiredExtensions;", '''bool portabilityEnumeration = instanceExtensions.Contains("VK_KHR_portability_enumeration");
+            string[] enabledExtensions = portabilityEnumeration
+                ? requiredExtensions.Append("VK_KHR_portability_enumeration").Distinct().ToArray()
+                : requiredExtensions;''')
+    replace(initialization, "PpEnabledExtensionNames = (byte**)ppEnabledExtensions,\n                PpEnabledLayerNames = (byte**)ppEnabledLayers,",
+            "Flags = portabilityEnumeration ? InstanceCreateFlags.EnumeratePortabilityBitKhr : 0,\n                PpEnabledExtensionNames = (byte**)ppEnabledExtensions,\n                PpEnabledLayerNames = (byte**)ppEnabledLayers,")
+    window = "src/Ryujinx.Graphics.Vulkan/Window.cs"
+    replace(window, "                    ulong.MaxValue,", "                    OperatingSystem.IsIOS() ? 250_000_000UL : ulong.MaxValue,")
+    replace(window, "                if (acquireResult == Result.ErrorOutOfDateKhr ||",
+            "                if (acquireResult == Result.Timeout) return; // Allow iOS lifecycle cancellation.\n\n                if (acquireResult == Result.ErrorOutOfDateKhr ||")
+    replace(window, "                _gd.SwapchainApi.QueuePresent(_gd.Queue, in presentInfo);", '''                Result queueResult = _gd.SwapchainApi.QueuePresent(_gd.Queue, in presentInfo);
+                if (queueResult != Result.SuboptimalKhr) queueResult.ThrowOnError();
+                if (result != Result.SuboptimalKhr) result.ThrowOnError();
+                _gd.PresentedFrames++;''')
+    replace("src/Ryujinx.Graphics.Vulkan/Shader.cs", "Shaderc api = Shaderc.GetApi();", '''if (OperatingSystem.IsIOS())
+                throw new PlatformNotSupportedException("The iOS renderer accepts SPIR-V shaders; the optional GLSL compiler is not packaged.");
+            Shaderc api = Shaderc.GetApi();''')
+
+
 def prepare(offline=False):
     lock = json.loads((ROOT / "ios/upstream.lock.json").read_text())
     revision = lock["revision"]
@@ -210,6 +240,7 @@ public interface IPreparedJitMemoryBlock : IJitMemoryBlock
                 "if (GetRegion(funcOffset).Block is IPreparedJitMemoryBlock prepared)\n                {\n                    prepared.Write((ulong)(funcOffset % (int)CacheSize), code);\n                }\n                else if (OperatingSystem.IsMacOS() && RuntimeInformation.ProcessArchitecture == Architecture.Arm64)")
     generate_callback_pointers()
     add_startup_diagnostics()
+    adapt_vulkan()
     # iOS/tvOS ConsolePal supports writing to NSLog, but colour APIs throw.
     # An exception on the upstream async logging thread terminates the process.
     console = "src/Ryujinx.Common/Logging/Targets/ConsoleLogTarget.cs"

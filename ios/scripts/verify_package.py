@@ -52,4 +52,6 @@ with (core / "Info.plist").open("rb") as file:
 assert (app / "upstream.lock.json").is_file()
 verify_ios_binary(app / "Frameworks/MoltenVK.framework/MoltenVK")
 assert (app / "ThirdParty/MoltenVK-LICENSE.txt").stat().st_size > 0
+assert (app / "ThirdParty/Silk.NET-LICENSE.txt").stat().st_size > 0
+assert (app / "ThirdParty/Ryubing-THIRDPARTY.md").stat().st_size > 0
 print("PASS: iOS ARM64 binaries, IPA contents, iPhone/iPad targets, and JIT entitlements.")

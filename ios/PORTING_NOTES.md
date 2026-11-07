@@ -39,7 +39,7 @@ constructor change must pass the overlay's exact-match checks during an update.
 
 Still required for a usable game release:
 
-- Wire the upstream Vulkan renderer to a retained CAMetalLayer and presentation.
+- Validate the new upstream VulkanRenderer / retained CAMetalLayer / swapchain bridge on devices, then wire real guest GPU command submission and frame presentation.
 - Validate shader translation, capabilities, texture formats and caches on both GPUs.
 - Integrate native audio and its session/interruption lifecycle.
 - Connect touch, controllers, motion and native applet/software-keyboard UI.
@@ -51,3 +51,12 @@ Still required for a usable game release:
 The fixed numbered scope and current evidence are maintained in `MILESTONES.md`
 and `DEVICE_RESULTS.md`. Phase 22 is not complete until the usable emulator and
 device/game acceptance criteria actually pass.
+
+v0.6 renderer bring-up uses the actual upstream Vulkan backend, not the small C
+Vulkan readback probe. Checked overlays enable the MoltenVK capability path on
+iOS, condition portability enumeration on advertised support, bound swapchain
+acquisition for lifecycle cancellation, check presentation results and count
+accepted frames. Silk.NET resolves the embedded signed framework, including on
+cloned contexts. Helper shaders use upstream embedded SPIR-V binaries. The optional
+GLSL compiler is not packaged; iOS rejects that path explicitly. Guest shader
+translation, GPU command submission and homebrew/game display remain later work.

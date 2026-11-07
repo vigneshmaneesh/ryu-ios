@@ -1,5 +1,10 @@
 {
   "schema": 1,
+  "moltenVkValidation": {
+    "version": "1.4.2",
+    "url": "https://github.com/KhronosGroup/MoltenVK/releases/download/v1.4.2/MoltenVK-all.tar",
+    "sha256": "562a15a29bc358446a56a4091c5f7e08f604184187c1d34f712148b61ef17276"
+  },
   "moltenVk": {
     "version": "1.4.2",
     "url": "https://github.com/KhronosGroup/MoltenVK/releases/download/v1.4.2/MoltenVK-ios.tar",

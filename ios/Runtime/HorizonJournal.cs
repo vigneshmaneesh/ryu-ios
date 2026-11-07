@@ -16,13 +16,13 @@ internal static class HorizonJournal
     private static bool _hooked;
     private static int _written;
 
-    internal static void Begin(string directory)
+    internal static void Begin(string directory, string filename = "horizon-last-run.log", string workload = "Horizon homebrew")
     {
         lock (Gate)
         {
             Directory.CreateDirectory(directory);
             _stream?.Dispose();
-            _stream = new FileStream(Path.Combine(directory, "horizon-last-run.log"), FileMode.Create,
+            _stream = new FileStream(Path.Combine(directory, filename), FileMode.Create,
                 FileAccess.Write, FileShare.Read, 4096, FileOptions.WriteThrough);
             _written = 0;
             if (!_hooked)
@@ -31,7 +31,7 @@ internal static class HorizonJournal
                     Write("UNHANDLED " + (args.ExceptionObject is Exception exception ? exception.ToString() : "Unknown exception"));
                 _hooked = true;
             }
-            Write("START Horizon homebrew; " + System.Runtime.InteropServices.RuntimeInformation.OSDescription);
+            Write("START " + workload + "; " + System.Runtime.InteropServices.RuntimeInformation.OSDescription);
             if (OperatingSystem.IsIOS() || OperatingSystem.IsMacOS())
                 Write("Host thread stack: " + GetStackSize(GetCurrentThread()) + " bytes");
         }

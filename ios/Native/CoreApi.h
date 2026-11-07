@@ -7,6 +7,9 @@
 // Return 0 on success; failures write a bounded, NUL-terminated report.
 // The caller keeps both aliases and callbacks alive throughout the call.
 uint32_t ryu_core_abi_version(void);
+int32_t ryu_core_graphics_check(const uint8_t *library, void *metal_layer, int width, int height,
+    int (*create_surface)(void *instance, void *layer, uint64_t *surface), int (*cancelled)(void),
+    const uint8_t *directory, uint8_t *report, uintptr_t report_capacity);
 int32_t ryu_core_services_check(const uint8_t *directory, uint8_t *report, uintptr_t report_capacity);
 int32_t ryu_core_startup_check(const uint8_t *directory, uint8_t *report, uintptr_t report_capacity);
 int32_t ryu_core_horizon_check(void *writable, void *executable, uintptr_t capacity,

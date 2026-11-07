@@ -12,5 +12,6 @@
     <TrimmerRootDescriptor Include="TrimmerRoots.xml" />
     <ProjectReference Include="../build/upstream/src/Ryujinx.Cpu/Ryujinx.Cpu.csproj" />
     <ProjectReference Include="../build/upstream/src/Ryujinx.HLE/Ryujinx.HLE.csproj" />
+    <ProjectReference Include="../build/upstream/src/Ryujinx.Graphics.Vulkan/Ryujinx.Graphics.Vulkan.csproj" />
   </ItemGroup>
 </Project>
