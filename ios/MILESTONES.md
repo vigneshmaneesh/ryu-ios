@@ -17,8 +17,8 @@ observed instrumentation. The original milestone numbers remain fixed.
 | 7 | Production translation cache and invalidation | Prepared RW/RX cache and stale-code regression pass Apple NativeAOT and both devices twice |
 | 8 | Production guest memory and permissions/tracking | Real software page tables and remapping pass both devices; game-sized address space, permission faults and fast tracking incomplete |
 | 9 | Threads, interrupts, timers and synchronization | Cooperative interrupt and concurrent guest TLS checks pass both devices; Horizon scheduling and synchronization incomplete |
-| 10 | Horizon kernel and services | LibHac filesystem/ARP/BCAT/account bootstrap implemented and passes desktop checks; Apple AOT/device validation underway; Switch kernel not integrated |
-| 11 | Real homebrew loading/execution | Not integrated; current embedded programs are CPU conformance tests |
+| 10 | Horizon kernel and services | Real kernel/service initialization integrated for bundled homebrew; two boots pass Apple Silicon NativeAOT; device validation pending; commercial service compatibility unverified |
+| 11 | Real homebrew loading/execution | Authored NRO executes real SetHeapSize, OutputDebugString and ExitProcess; passes twice on desktop and Apple NativeAOT; device test pending |
 | 12 | iOS Vulkan/MoltenVK graphics and first frame | Official iOS MoltenVK pinned; native offscreen GPU clear/readback probe implemented; emulated GPU and presentation not integrated |
 | 13 | Shader translation, cache and correctness | Not integrated |
 | 14 | Native audio | Not integrated |
@@ -40,9 +40,12 @@ cases and five production CPU groups with the 256 MiB virtual JIT pool.
 v0.3 was built from `c2bd777689f200484981a9a9c6fe28ebee864b9f`, run
 [42395234315](https://github.com/vigneshmaneesh/ryu-ios/actions/runs/42395234315).
 
-The next device check is v0.4's **Test platform backends**: actual emulated account
-persistence and offscreen MoltenVK/Metal clear/readback. This validates backend
-operations, not Switch graphics or a commercial game boot.
+The iPad v0.4 report passed RAM and service checks but Vulkan instance creation
+failed with an unavailable extension; see `DEVICE_RESULTS.md`.
+
+v0.5.1 combines the extension fix with **Boot bundled homebrew**. Device acceptance
+requires CPU, platform and homebrew checks to pass twice on both devices. This is
+real kernel execution, but does not yet test emulated graphics or a commercial game.
 
 Continue phases 8–17 with a small redistributable homebrew workload before using
 the commercial target to diagnose multiple unverified subsystems at once.

@@ -1,8 +1,20 @@
-# Ryu iOS: CPU and platform backends (v0.4)
+# Ryu iOS: Horizon homebrew integration (v0.5.1)
 
 This is an iOS 27 **CPU prototype**, not a playable Switch emulator yet.
 The first commercial compatibility target is **Tomodachi Life: Living the Dream**;
 no game boot or performance claim has been established.
+
+v0.5 adds **Boot bundled homebrew** after JIT activation. An authored NRO runs
+through the real Horizon scheduler/process loader, requests a 2 MiB heap, emits a
+marker through SVC 0x27 and exits through SVC 7. It has passed twice in the same
+process on desktop and Apple Silicon NativeAOT, including kernel teardown. Its
+diagnostic renderer rejects graphics operations; native audio and commercial game
+execution are not yet integrated. The NRO contains no Nintendo code or assets.
+
+v0.5.1 fixes iOS Vulkan initialization by enabling portability enumeration only
+when advertised. The user supplied iPadOS 27.2 evidence of v0.4's successful CPU,
+4 GiB virtual RAM and service checks, plus Vulkan error -7. Full recorded results
+and observed JIT memory costs are in [DEVICE_RESULTS.md](DEVICE_RESULTS.md).
 
 v0.4 adds the actual LibHac filesystem/ARP/BCAT/account bootstrap and a separate
 native Vulkan backend check. **Test platform backends** clears a 4×4 GPU image
@@ -144,7 +156,7 @@ production dispatcher, cache invalidation, page remapping, interrupts and two
 guest threads. Its [successful Apple build](https://github.com/vigneshmaneesh/ryu-ios/actions/runs/42395234315)
 is commit `c2bd777689f200484981a9a9c6fe28ebee864b9f`; IPA SHA-256
 `bd88a35e732c764148c395c16eadb517bee301f6da64db160081a39f30fc2199`.
-v0.4 platform backend hardware results remain pending.
+Updated Vulkan and Horizon homebrew hardware results remain pending.
 
 The native library supports importing NRO, NSO, NSP and XCI files using the iOS
 document picker. Imports are copied into the app with coordinated file access,
@@ -154,7 +166,7 @@ updates, saves and execution are later integration work.
 
 ## Next porting milestones
 
-- Validate the v0.4 filesystem/account and Vulkan backend checks on both devices.
+- Validate v0.5.1 CPU, platform and bundled homebrew checks twice on both devices.
 - Adapt memory reservation, aliasing, signal handling, and guest address spaces.
 - Bring up the emulator services and sandboxed file/firmware/key import.
 - Port the Vulkan renderer through an iOS MoltenVK build and a Metal surface.
