@@ -18,7 +18,7 @@ struct ContentView: View {
                             .foregroundStyle(.tint)
                         Text("Ryujinx on iOS")
                             .font(.largeTitle.bold())
-                        Text("Horizon homebrew · v0.5.2")
+                        Text("Horizon homebrew Â· v\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown")")
                             .font(.title3).foregroundStyle(.secondary)
                         Text("Tests the production dispatcher, cache invalidation, guest page tables, interrupts and two guest threads. Game loading and graphics are still being developed.")
                             .foregroundStyle(.secondary)
