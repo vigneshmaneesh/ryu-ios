@@ -4,7 +4,7 @@ Native iOS 27 port of Ryubing, currently a CPU, platform and Horizon homebrew pr
 
 The app runs upstream ARM64 translation and production dispatcher/cache/memory checks through StikDebug on non-jailbroken devices. It also tests LibHac services, virtual RAM reservation, MoltenVK GPU readback and an authored NRO through the real Horizon kernel. The NRO requests a heap, emits a marker and exits; it does not render graphics.
 
-CPU checks passed twice on the user's iPhone 16 and M1 11-inch iPad. The iPad's v0.4 report passed RAM/services and exposed a Vulkan extension request bug; the updated build queries the driver's supported extensions. Updated GPU and Horizon device validation is pending.
+**Current working baseline: v0.5.3 build 20.** The user confirmed bundled homebrew passes twice on both the iPhone 16 and M1 11-inch iPad; CPU and platform backends were previously reported working. The startup crash was reproduced under the iOS runtime on a small thread stack and resolved with an explicit-stack kernel worker. CI now checks two kernel/service startup and teardown cycles on that worker. The next major milestone is an emulated frame presented on the iOS screen.
 
 - [Build and device test instructions](ios/README.md)
 - [Numbered milestones and current status](ios/MILESTONES.md)

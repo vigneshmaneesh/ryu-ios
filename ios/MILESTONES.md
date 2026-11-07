@@ -16,9 +16,9 @@ observed instrumentation. The original milestone numbers remain fixed.
 | 6 | Production dispatcher | Integrated for software page tables; dispatcher/BL/RET/SVC checks pass Apple NativeAOT and both devices twice |
 | 7 | Production translation cache and invalidation | Prepared RW/RX cache and stale-code regression pass Apple NativeAOT and both devices twice |
 | 8 | Production guest memory and permissions/tracking | Real software page tables and remapping pass both devices; game-sized address space, permission faults and fast tracking incomplete |
-| 9 | Threads, interrupts, timers and synchronization | Cooperative interrupt and concurrent guest TLS checks pass both devices; Horizon scheduling and synchronization incomplete |
-| 10 | Horizon kernel and services | Real kernel/service initialization integrated for bundled homebrew; two boots pass Apple Silicon NativeAOT; device validation pending; commercial service compatibility unverified |
-| 11 | Real homebrew loading/execution | Authored NRO executes real SetHeapSize, OutputDebugString and ExitProcess; passes twice on desktop and Apple NativeAOT; device test pending |
+| 9 | Threads, interrupts, timers and synchronization | Interrupt/TLS checks and real Horizon scheduling for the authored NRO pass both devices; broader synchronization coverage incomplete |
+| 10 | Horizon kernel and services | Real initialization, service startup and teardown pass twice on both devices in v0.5.3 build 20; commercial service compatibility unverified |
+| 11 | Real homebrew loading/execution | Complete for the authored NRO: real SetHeapSize, OutputDebugString and ExitProcess pass twice on desktop, Apple NativeAOT and both devices |
 | 12 | iOS Vulkan/MoltenVK graphics and first frame | Official iOS MoltenVK pinned; user reports offscreen GPU clear/readback working on both devices; emulated GPU and presentation not integrated |
 | 13 | Shader translation, cache and correctness | Not integrated |
 | 14 | Native audio | Not integrated |
@@ -33,7 +33,12 @@ observed instrumentation. The original milestone numbers remain fixed.
 | 23 | Repeatable upstream updates | Lock/overlay mechanism implemented; full compatibility validation remains required |
 | 24 | Optional DLC, mods and multiplayer | Deferred |
 
-## Next hardware gate
+## Current baseline and next hardware gate
+
+**v0.5.3 build 20 passes bundled homebrew twice on both devices**, confirmed by the
+user. This is the accepted kernel/homebrew baseline. Next: phase 12, connecting
+the actual emulated GPU renderer to an iOS presentation surface and validating a
+visible homebrew frame. The existing offscreen clear/readback does not satisfy it.
 
 The user reported **v0.3 passed twice on both devices**, covering all 25 compiler
 cases and five production CPU groups with the 256 MiB virtual JIT pool.
@@ -49,8 +54,11 @@ actual iOS-runtime logger regression, and persists startup stages across relaunc
 Both devices still crash with v0.5.2 build 17; its trace narrows the failure to
 Switch construction. v0.5.3 adds an explicit-stack native worker, detailed
 constructor checkpoints and actual iOS-runtime kernel construction checks.
-Device acceptance requires homebrew to pass twice on both devices. This is real
-kernel execution, but does not yet test emulated graphics or a commercial game.
+The user confirmed that the new build passes perfectly on both devices when asked
+to run homebrew twice. This is real kernel execution, but does not yet test
+emulated graphics or a commercial game.
+The actual iOS-runtime constructor/readiness/teardown regression also passes
+twice in [CI](https://github.com/vigneshmaneesh/ryu-ios/actions/runs/42405407747).
 
 Continue phases 8–17 with a small redistributable homebrew workload before using
 the commercial target to diagnose multiple unverified subsystems at once.

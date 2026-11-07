@@ -9,12 +9,15 @@ if (args.Length == 2 && args[0] == "--journal-interrupt")
     HorizonJournal.Write("Interrupted-run persistence checkpoint");
     Environment.Exit(73); // No orderly Finish/Dispose, matching an interrupted run.
 }
+bool loadGuest = args.Length == 0;
+if (!loadGuest && (args.Length != 1 || args[0] != "--startup-only"))
+    throw new ArgumentException("Expected no arguments, --startup-only, or --journal-interrupt <directory>.");
 for (int run = 0; run < 2; run++)
 {
     HorizonJournal.Begin(directory);
     try
     {
-        Console.WriteLine(HorizonProbe.Run(directory));
+        Console.WriteLine(HorizonProbe.Run(directory, loadGuest));
         HorizonJournal.Finish(true);
     }
     catch (Exception error)

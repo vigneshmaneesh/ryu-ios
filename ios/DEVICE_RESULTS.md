@@ -11,6 +11,7 @@ Silicon NativeAOT tests run separately in GitHub Actions.
 | v0.4 build 10 | No v0.4 diagnostics supplied yet | CPU passed three runs; virtual RAM and service checks passed; Vulkan instance returned -7 |
 | v0.5.1 build 14 | CPU/platform checks reported working; bundled homebrew closes the app | Same reported outcome |
 | v0.5.2 build 17 | Bundled homebrew still crashes | Same reported outcome; recovered trace stops at Switch construction |
+| v0.5.3 build 20 | Bundled homebrew passes twice, user confirmed | Bundled homebrew passes twice, user confirmed |
 
 ## iPad v0.4 diagnostics
 
@@ -54,3 +55,22 @@ creates a 256 KiB HID shared-memory value with additional large temporaries.
 v0.5.3 supplies an explicit 8 MiB pthread stack and adds per-constructor checkpoints.
 CI tests actual kernel construction in the iOS runtime; device success is not
 inferred from simulator or Apple Silicon macOS results.
+
+The user subsequently confirmed **“Both pass perfectly”** when asked to run
+v0.5.3 build 20 homebrew twice on each device. This is the accepted device baseline
+for real NRO loading, heap/SVC execution, guest exit and kernel teardown. It does
+not establish emulated graphics, audio, input or commercial game compatibility.
+
+The [iOS 27.2 runtime comparison](https://github.com/vigneshmaneesh/ryu-ios/actions/runs/42404667450/job/128499671711)
+reproduced a bus error at `HID shared memory / input initialization` with a
+536,576-byte reported native stack (requested 512 KiB). With the requested 8 MiB
+stack (8,400,896 bytes reported), Switch construction completed. The constructor-only
+test then exposed a separate fixture error: it started shutdown before asynchronous
+service registration completed. The normal NRO loader already waits for those
+registrations in `ProcessLoaderHelper.LoadNsos`. The fixture now uses that same
+readiness barrier before teardown; the app's normal homebrew path is unchanged.
+
+The [corrected iOS-runtime regression](https://github.com/vigneshmaneesh/ryu-ios/actions/runs/42405407747/job/128501915738)
+then passed two construction/service-readiness/teardown cycles on the larger
+worker, while retaining the reproducing small-stack control. Its logging check
+also passed. The local `HorizonChecks --startup-only` mode passed twice as well.

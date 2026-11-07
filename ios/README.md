@@ -10,7 +10,10 @@ value and creates large temporary values; a small native caller stack is unsafe.
 CI now constructs and tears down the actual kernel twice under the iOS simulator
 runtime, comparing a 512 KiB control stack with the app's explicit stack. Saved
 diagnostics include the host stack size and checkpoints inside Switch, Horizon,
-the kernel and service initialization. Physical-device confirmation is required.
+the kernel and service initialization.
+The user has now confirmed homebrew passes twice on both the iPhone 16 and M1
+11-inch iPad with **v0.5.3 build 20**. This is the current working baseline. The
+next graphics milestone is an actual emulated frame presented on the iOS screen.
 
 v0.5.2 removes unsupported terminal colour calls from the iOS logger, addressing
 a process-terminating exception path reached during homebrew startup. CI includes
@@ -46,7 +49,8 @@ cooperative interrupt/stop, and two guest threads with isolated TLS. It prepares
 256 MiB virtual code pool plus a 1 MiB conformance region through StikDebug.
 Native code is written through RW aliases and published at stable RX addresses.
 Physical pages are touched on demand by the allocator; actual device footprint
-and debugger preparation behavior still require measurement.
+and debugger preparation costs observed on the iPad are recorded in
+[DEVICE_RESULTS.md](DEVICE_RESULTS.md). Game memory costs remain unmeasured.
 
 The core is pinned to a full upstream commit with checked platform overlays and
 a versioned C interface. See [the update process](UPSTREAM.md) and the original
@@ -172,7 +176,8 @@ production dispatcher, cache invalidation, page remapping, interrupts and two
 guest threads. Its [successful Apple build](https://github.com/vigneshmaneesh/ryu-ios/actions/runs/42395234315)
 is commit `c2bd777689f200484981a9a9c6fe28ebee864b9f`; IPA SHA-256
 `bd88a35e732c764148c395c16eadb517bee301f6da64db160081a39f30fc2199`.
-Updated Vulkan and Horizon homebrew hardware results remain pending.
+The user later reported platform backends working on both devices and confirmed
+v0.5.3 build 20 bundled homebrew passes twice on both devices.
 
 The native library supports importing NRO, NSO, NSP and XCI files using the iOS
 document picker. Imports are copied into the app with coordinated file access,
@@ -182,10 +187,10 @@ updates, saves and execution are later integration work.
 
 ## Next porting milestones
 
-- Validate v0.5.1 CPU, platform and bundled homebrew checks twice on both devices.
+- Preserve v0.5.3 build 20 as the two-device kernel/homebrew baseline.
+- Connect the upstream Vulkan renderer to an iOS Metal surface and display a real emulated frame.
 - Adapt memory reservation, aliasing, signal handling, and guest address spaces.
 - Bring up the emulator services and sandboxed file/firmware/key import.
-- Port the Vulkan renderer through an iOS MoltenVK build and a Metal surface.
 - Add iOS audio, touch/game controllers, lifecycle handling and memory limits.
 - Test game compatibility and performance separately on each device.
 

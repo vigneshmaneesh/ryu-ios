@@ -2,7 +2,9 @@
 
 ## v0.5.3 kernel worker stack investigation
 
-Device candidate: **v0.5.3 build 20**, source `0a6bbba6ed714daf28c0c2b77f8368bb10377996`.
+Accepted device baseline: **v0.5.3 build 20**, source `0a6bbba6ed714daf28c0c2b77f8368bb10377996`.
+The user confirmed bundled homebrew passes twice on both the iPhone 16 and M1
+11-inch iPad. This is kernel/homebrew conformance, not commercial game acceptance.
 
 - [Successful package/NativeAOT job](https://github.com/vigneshmaneesh/ryu-ios/actions/runs/42403680502/job/128496764374).
 - Artifact ID: `13586940115`; one-day retention.
@@ -17,6 +19,20 @@ homebrew execution remains the acceptance test; this is still a prototype.
 The first simulator attempt timed out during cold iOS boot, before executing the
 logger or constructor tests. Its 180-second bootstatus limit was increased to
 600 seconds; this CI-only change does not alter the packaged runtime sources.
+
+The [retry](https://github.com/vigneshmaneesh/ryu-ios/actions/runs/42404667450)
+reproduced the small-stack HID bus error and completed construction on the larger
+worker. It failed during constructor-only test teardown because that fixture did
+not wait for service registrations. The fixture was corrected to use the same
+barrier already called by the normal NRO loader in build 20. No additional device
+IPA is needed for that diagnostic-only correction.
+
+The [final iOS runtime regression](https://github.com/vigneshmaneesh/ryu-ios/actions/runs/42405407747)
+passed: the small-stack control reproduced the HID crash, the explicit-stack
+worker completed two real kernel/service construction and teardown cycles, and
+the actual iOS BCL logging regression passed. Source:
+`693332c6ae61ab3b14ea0b807a9708486aaaf69f`. The simulator executes no guest code;
+the user's two-device homebrew results provide that separate acceptance evidence.
 
 ## v0.5.2 logging fix and recovered crash trace
 
