@@ -61,7 +61,7 @@ GitHub Releases can host IPAs for longer-term downloads. Keep paid usage disable
 in your GitHub billing settings. Free standard public-repository compute does not
 remove GitHub's separate artifact/cache storage quotas.
 
-The build selects Xcode 27.0 and installs .NET 10.0.301, matching `global.json`.
+The build selects Xcode 27.0 and installs .NET 10.0.403, pinned by `ios/global.json`.
 The NativeAOT framework does not need the .NET iOS workload because the UI is Swift.
 CI compiles and checks the package; device-side JIT remains a hardware test.
 
@@ -145,6 +145,12 @@ guest threads. Its [successful Apple build](https://github.com/vigneshmaneesh/ry
 is commit `c2bd777689f200484981a9a9c6fe28ebee864b9f`; IPA SHA-256
 `bd88a35e732c764148c395c16eadb517bee301f6da64db160081a39f30fc2199`.
 v0.4 platform backend hardware results remain pending.
+
+The native library supports importing NRO, NSO, NSP and XCI files using the iOS
+document picker. Imports are copied into the app with coordinated file access,
+checked file signatures, and an atomic persistent index. Originals stay with the
+selected file provider. Imported games cannot be launched yet; firmware, keys,
+updates, saves and execution are later integration work.
 
 ## Next porting milestones
 

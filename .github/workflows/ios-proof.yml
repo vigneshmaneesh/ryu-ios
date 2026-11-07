@@ -39,7 +39,7 @@ jobs:
           xcrun --sdk iphoneos --show-sdk-version
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.301'
+          dotnet-version: '10.0.403'
       - name: Build and verify re-signable IPA
         run: bash ios/scripts/build-ios.sh
       - name: Upload IPA

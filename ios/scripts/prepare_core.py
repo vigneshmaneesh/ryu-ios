@@ -149,6 +149,8 @@ public interface IPreparedJitMemoryBlock : IJitMemoryBlock
         replace(path, "if (OperatingSystem.IsMacOS() && RuntimeInformation.ProcessArchitecture == Architecture.Arm64)",
                 "if (GetRegion(funcOffset).Block is IPreparedJitMemoryBlock prepared)\n                {\n                    prepared.Write((ulong)(funcOffset % (int)CacheSize), code);\n                }\n                else if (OperatingSystem.IsMacOS() && RuntimeInformation.ProcessArchitecture == Architecture.Arm64)")
     generate_callback_pointers()
+    replace("src/Ryujinx.Graphics.Gpu/Engine/MME/Macro.cs", "else if (GraphicsConfig.EnableMacroJit)",
+            "else if (System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported && GraphicsConfig.EnableMacroJit)")
     replace("src/ARMeilleure/CodeGen/Arm64/HardwareCapabilities.cs",
             "if (OperatingSystem.IsMacOS())", "if (OperatingSystem.IsMacOS() || OperatingSystem.IsIOS())")
     replace("src/ARMeilleure/CodeGen/Arm64/HardwareCapabilities.cs",

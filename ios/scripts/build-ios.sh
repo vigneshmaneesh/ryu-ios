@@ -91,7 +91,7 @@ xcrun --sdk iphoneos swiftc -target "$target" -sdk "$sdk" -swift-version 5 -O -p
     -F "$app/Frameworks" -framework RyujinxEmitter -framework RyuCore -framework MoltenVK -framework SwiftUI -framework UIKit \
     -framework Foundation -framework CoreFoundation \
     -Xlinker -rpath -Xlinker '@executable_path/Frameworks' \
-    "$root/ios/App/RyuJITApp.swift" "$root/ios/App/JITViewModel.swift" "$root/ios/App/ContentView.swift" "$root/ios/App/BackendChecks.swift" \
+    "$root/ios/App/RyuJITApp.swift" "$root/ios/App/JITViewModel.swift" "$root/ios/App/ContentView.swift" "$root/ios/App/BackendChecks.swift" "$root/ios/App/GameLibrary.swift" \
     "$out/native/JITBridge.o" "$out/native/JITProtocol.o" "$out/native/VulkanProbe.o" -o "$app/RyuJIT"
 
 # Ad-hoc signatures preserve requested entitlements for the sideloading tool to inspect.

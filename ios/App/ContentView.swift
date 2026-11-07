@@ -1,8 +1,11 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ContentView: View {
     @StateObject private var model = JITViewModel()
     @StateObject private var backend = BackendChecks()
+    @StateObject private var library = GameLibrary()
+    @State private var showingImporter = false
 
     var body: some View {
         NavigationStack {
@@ -18,6 +21,32 @@ struct ContentView: View {
                             .font(.title3).foregroundStyle(.secondary)
                         Text("Tests the production dispatcher, cache invalidation, guest page tables, interrupts and two guest threads. Game loading and graphics are still being developed.")
                             .foregroundStyle(.secondary)
+                    }
+
+                    GroupBox("Game library") {
+                        VStack(alignment: .leading, spacing: 14) {
+                            Text("First compatibility target: Tomodachi Life: Living the Dream")
+                                .font(.callout)
+                            ForEach(library.titles) { title in
+                                HStack {
+                                    Image(systemName: "gamecontroller")
+                                    VStack(alignment: .leading) {
+                                        Text(title.name)
+                                        Text(ByteCountFormatter.string(fromByteCount: title.byteCount, countStyle: .file))
+                                            .font(.caption).foregroundStyle(.secondary)
+                                    }
+                                }
+                            }
+                            if !library.message.isEmpty {
+                                Text(library.message).font(.callout).textSelection(.enabled)
+                            }
+                            if library.isImporting { ProgressView() }
+                            Button("Import game or homebrew") { showingImporter = true }
+                                .buttonStyle(.bordered)
+                                .disabled(library.isImporting || model.isRunning || backend.isRunning)
+                            Text("Files are copied into this app. Game execution is still being developed.")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }.frame(maxWidth: .infinity, alignment: .leading)
                     }
 
                     GroupBox {
@@ -42,7 +71,7 @@ struct ContentView: View {
                                     .frame(maxWidth: .infinity).padding(.vertical, 6)
                             }
                             .buttonStyle(.borderedProminent)
-                            .disabled(model.isRunning || model.needsRestart || backend.isRunning)
+                            .disabled(model.isRunning || model.needsRestart || backend.isRunning || library.isImporting)
                             if model.isRunning {
                                 Button("Cancel waiting", action: model.cancel)
                                     .disabled(ryu_jit_stage() != 1)
@@ -67,7 +96,7 @@ struct ContentView: View {
                             if backend.isRunning { ProgressView() }
                             Button("Test platform backends", action: backend.run)
                                 .buttonStyle(.bordered)
-                                .disabled(model.isRunning || backend.isRunning)
+                                .disabled(model.isRunning || backend.isRunning || library.isImporting)
                         }.frame(maxWidth: .infinity, alignment: .leading)
                     }
 
@@ -102,6 +131,8 @@ struct ContentView: View {
             .navigationTitle("Ryu JIT")
             .navigationBarTitleDisplayMode(.inline)
             .tint(.teal)
+            .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.item],
+                allowsMultipleSelection: true, onCompletion: library.importSelection)
         }
     }
 

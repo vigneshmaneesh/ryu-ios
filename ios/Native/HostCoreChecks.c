@@ -1,3 +1,4 @@
+#define _DARWIN_C_SOURCE 1
 #include "CoreApi.h"
 #include <errno.h>
 #include <libkern/OSCacheControl.h>

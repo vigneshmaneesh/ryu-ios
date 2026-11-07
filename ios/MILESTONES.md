@@ -23,9 +23,9 @@ observed instrumentation. The original milestone numbers remain fixed.
 | 13 | Shader translation, cache and correctness | Not integrated |
 | 14 | Native audio | Not integrated |
 | 15 | Controllers, touch and motion | Not integrated |
-| 16 | Sandboxed game, firmware, key and update imports | Not integrated |
+| 16 | Sandboxed game, firmware, key and update imports | Native game/homebrew importer and signature checks implemented; device validation pending; firmware/keys/updates not integrated |
 | 17 | First compatible commercial game boot | Not demonstrated; target above |
-| 18 | Game library, settings, saves and per-title configuration | Not integrated |
+| 18 | Game library, settings, saves and per-title configuration | Persistent native imported-title list implemented; settings/saves/per-title configuration not integrated |
 | 19 | Pause/resume, backgrounding, memory pressure | JIT activation has cancellation/background handling; emulator lifecycle incomplete |
 | 20 | Performance, memory, thermals and battery | Not characterized for games |
 | 21 | Device regression and upstream compatibility matrix | Prototype regression exists; full emulator matrix incomplete |
