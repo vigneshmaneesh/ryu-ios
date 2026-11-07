@@ -24,6 +24,7 @@ final class GraphicsCheck: ObservableObject {
 
     func run(layer: CAMetalLayer) {
         guard !isRunning, !needsRestart, layer.drawableSize.width > 0, layer.drawableSize.height > 0 else { return }
+        ryu_graphics_prepare()
         isRunning = true
         passed = false
         report = "Initializing the upstream Vulkan renderer…"

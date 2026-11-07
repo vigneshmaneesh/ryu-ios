@@ -7,6 +7,8 @@
 int ryu_graphics_check(const char *library, void *metal_layer, int width, int height,
     const char *directory, char *report, size_t report_capacity);
 void ryu_graphics_cancel(void);
+// Reset cancellation on the UI thread before scheduling the synchronous check.
+void ryu_graphics_prepare(void);
 
 enum RyuJITStage {
     RYU_JIT_IDLE, RYU_JIT_WAITING, RYU_JIT_PREPARING, RYU_JIT_EMITTING,

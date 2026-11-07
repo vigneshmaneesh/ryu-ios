@@ -59,6 +59,7 @@ codesign --force --sign - --entitlements "$root/ios/Native/HostJIT.entitlements"
 # Exercise the real renderer and swapchain on Apple Silicon, including all
 # helper SPIR-V shaders, pixel readback and two complete initialization cycles.
 mac_molten="$molten_root/dynamic/MoltenVK.xcframework/macos-arm64_x86_64"
+codesign --force --sign - "$mac_molten/MoltenVK.framework"
 xcrun --sdk macosx clang -arch arm64 -isysroot "$mac_sdk" -mmacosx-version-min=14.0 \
     -std=c11 -O2 -Wall -Wextra -Werror -I "$molten_root/include" \
     -c "$root/ios/Native/MetalSurface.c" -o "$out/native/MetalSurface-mac.o"
@@ -72,7 +73,16 @@ xcrun --sdk macosx clang -arch arm64 -isysroot "$mac_sdk" -mmacosx-version-min=1
     "$out/core-macos/RyuCore.dylib" -Wl,-rpath,"$out/core-macos" -Wl,-rpath,"$mac_molten" \
     -o "$out/core-macos/HostGraphicsChecks"
 codesign --force --sign - "$out/core-macos/HostGraphicsChecks"
-"$out/core-macos/HostGraphicsChecks" "$mac_molten/MoltenVK.framework/MoltenVK" "$out/core-graphics"
+python3 - "$out/core-macos/HostGraphicsChecks" "$mac_molten/MoltenVK.framework/MoltenVK" "$out/core-graphics" <<'PY'
+from pathlib import Path
+import subprocess, sys
+try:
+    subprocess.run(sys.argv[1:], check=True, timeout=120)
+finally:
+    trace = Path(sys.argv[3]) / "graphics-last-run.log"
+    if trace.exists():
+        print(trace.read_text(), flush=True)
+PY
 
 dotnet publish "$root/ios/Runtime/RyuCore.csproj" \
     -c Release -r ios-arm64 -o "$out/core-ios" \

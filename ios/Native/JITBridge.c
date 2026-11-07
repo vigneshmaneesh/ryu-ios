@@ -109,6 +109,7 @@ typedef struct {
 } GraphicsWork;
 
 void ryu_graphics_cancel(void) { atomic_store(&graphics_cancelled, true); }
+void ryu_graphics_prepare(void) { atomic_store(&graphics_cancelled, false); }
 static int is_graphics_cancelled(void) { return atomic_load(&graphics_cancelled) ? 1 : 0; }
 static void *run_graphics(void *context) {
     GraphicsWork *work = context;
@@ -129,7 +130,6 @@ int ryu_graphics_check(const char *library, void *metal_layer, int width, int he
         snprintf(report, report_capacity, "Another native check is running.");
         return -1;
     }
-    atomic_store(&graphics_cancelled, false);
     GraphicsWork work = { library, metal_layer, width, height, directory, report, report_capacity, -1 };
     int status = ryu_core_on_thread(run_graphics, &work, RYU_CORE_STACK_SIZE);
     if (status == 0) status = work.status;
