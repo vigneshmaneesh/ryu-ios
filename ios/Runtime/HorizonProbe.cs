@@ -20,6 +20,7 @@ public static class HorizonProbe
         }
         Logger.Updated += Observe;
         Switch device = null;
+        bool gpuReady = false;
         try
         {
             var renderer = new NoGraphicsRenderer();
@@ -30,6 +31,7 @@ public static class HorizonProbe
             if (!device.LoadProgram(executable)) throw new InvalidOperationException("The real NRO loader rejected the probe.");
             // The real CPU waits for this gate even when homebrew makes no GPU calls.
             device.Gpu.InitializeShaderCache(CancellationToken.None);
+            gpuReady = true;
             if (!reached.Wait(TimeSpan.FromSeconds(20))) throw new TimeoutException("Horizon did not emit the heap-success marker.");
             var deadline = DateTime.UtcNow.AddSeconds(10);
             while (device.Processes.ActiveApplication != null && DateTime.UtcNow < deadline) Thread.Sleep(10);
@@ -40,8 +42,11 @@ public static class HorizonProbe
         {
             if (device != null)
             {
-                device.Gpu.HostInitalized.Set();
-                device.Gpu.InitializeShaderCache(CancellationToken.None);
+                if (!gpuReady)
+                {
+                    device.Gpu.HostInitalized.Set();
+                    device.Gpu.InitializeShaderCache(CancellationToken.None);
+                }
                 device.Dispose();
                 device.DisposeGpu();
             }
