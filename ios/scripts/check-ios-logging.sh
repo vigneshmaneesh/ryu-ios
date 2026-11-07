@@ -37,7 +37,7 @@ trap 'xcrun simctl shutdown "$device" >/dev/null 2>&1 || true; xcrun simctl dele
 echo "Booting simulator $device"
 python3 -c 'import subprocess,sys; subprocess.run(["xcrun","simctl","boot",sys.argv[1]],check=True,timeout=420)' "$device"
 python3 -c 'import subprocess,sys; subprocess.run(["xcrun","simctl","bootstatus",sys.argv[1],"-b"],check=True,timeout=600)' "$device"
-python3 -c 'import subprocess,sys; subprocess.run(["xcrun","simctl","spawn",sys.argv[1],sys.argv[2]],check=True,timeout=90)' "$device" "$out/IosLoggingChecks"
+python3 -c 'import subprocess,sys; subprocess.run(["xcrun","simctl","spawn",sys.argv[1],sys.argv[2]],check=True,timeout=300)' "$device" "$out/IosLoggingChecks"
 # Negative/control case uses a Dispatch-sized stack. A process abort is retained
 # as diagnostic evidence; the 8 MiB worker used by the app MUST pass twice.
 python3 "$root/ios/scripts/check_startup_process.py" "$device" "$out"

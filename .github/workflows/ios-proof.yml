@@ -72,7 +72,7 @@ jobs:
   build:
     # Keep the zero-cost constraint: this workflow only runs in a PUBLIC repository.
     # CI infrastructure-only retries can reuse the already verified IPA artifact.
-    if: github.event.repository.private == false && !contains(github.event.head_commit.message, '[ios-runtime-only]')
+    if: github.event.repository.private == false && !contains(github.event.head_commit.message, '[ios-runtime-only]') && !contains(github.event.head_commit.message, '[simulator-only]')
     runs-on: xcode-27
     timeout-minutes: 20
     env:

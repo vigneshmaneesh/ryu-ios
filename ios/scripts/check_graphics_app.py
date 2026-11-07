@@ -31,7 +31,7 @@ with (out / "renderer-process.log").open("w") as log:
         print(json.dumps(result, indent=2), flush=True)
         if result["status"] != 0 or result["runs"] != 2:
             raise RuntimeError("Production iOS renderer checks failed.")
-        subprocess.run(["xcrun", "simctl", "io", device, "screenshot", str(out / "renderer-screen.png")],
+        subprocess.run(["xcrun", "simctl", "io", device, "screenshot", "--display=1", str(out / "renderer-screen.png")],
             check=True, timeout=60)
     finally:
         subprocess.run(["xcrun", "simctl", "terminate", device, bundle], check=False, timeout=30)
