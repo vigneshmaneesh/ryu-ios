@@ -25,7 +25,7 @@ internal static unsafe class GraphicsProbe
         try
         {
             HorizonJournal.Write("Loading Silk.NET bindings and production VulkanRenderer");
-            using Vk api = Vk.GetApi();
+            using Vk api = GraphicsBindings.CreateApi();
             using var renderer = new VulkanRenderer(api, (instance, _) =>
             {
                 ulong surface;

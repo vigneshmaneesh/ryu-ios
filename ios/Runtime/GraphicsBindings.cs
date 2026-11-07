@@ -1,14 +1,14 @@
 using Ryujinx.Graphics.Vulkan;
-using Silk.NET.Core.Loader;
+using Silk.NET.Core.Contexts;
+using Silk.NET.Vulkan;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
 
 namespace Ryu.iOS.Runtime;
 
-// Silk's iOS library name is __Internal. Resolve that name, including on cloned
-// Vulkan contexts, to the actual signed framework instead of the desktop loader.
+// Silk's __Internal iOS loader asks NativeAOT to load a null library path. Bind
+// commands directly from the retained signed framework, without that loader.
 internal static class GraphicsBindings
 {
     private static string _path;
@@ -25,16 +25,10 @@ internal static class GraphicsBindings
         if (!File.Exists(path)) throw new FileNotFoundException("The bundled MoltenVK library is missing.", path);
         _library = NativeLibrary.Load(path);
         _path = path;
-        if (PathResolver.Default is not DefaultPathResolver resolver)
-            throw new InvalidOperationException("Unexpected Vulkan library resolver.");
-        resolver.Resolvers.Insert(0, Resolve);
         NativeLibrary.SetDllImportResolver(typeof(VulkanRenderer).Assembly,
             (name, assembly, search) => name is "libMoltenVK.dylib" or "libvulkan.dylib" ? _library : 0);
     }
 
-    private static IEnumerable<string> Resolve(string name)
-    {
-        string file = Path.GetFileName(name);
-        return file is "__Internal" or "libvulkan.dylib" or "libMoltenVK.dylib" ? [_path] : [];
-    }
+    internal static Vk CreateApi() => new(new LamdaNativeContext(name =>
+        NativeLibrary.TryGetExport(_library, name, out nint address) ? address : 0));
 }

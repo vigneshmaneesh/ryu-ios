@@ -56,7 +56,8 @@ v0.6 renderer bring-up uses the actual upstream Vulkan backend, not the small C
 Vulkan readback probe. Checked overlays enable the MoltenVK capability path on
 iOS, condition portability enumeration on advertised support, bound swapchain
 acquisition for lifecycle cancellation, check presentation results and count
-accepted frames. Silk.NET resolves the embedded signed framework, including on
-cloned contexts. Helper shaders use upstream embedded SPIR-V binaries. The optional
+accepted frames. Silk.NET commands bind directly from the embedded signed framework,
+bypassing its default `__Internal` loader, which fails under iOS NativeAOT. Helper
+shaders use upstream embedded SPIR-V binaries. The optional
 GLSL compiler is not packaged; iOS rejects that path explicitly. Guest shader
 translation, GPU command submission and homebrew/game display remain later work.
