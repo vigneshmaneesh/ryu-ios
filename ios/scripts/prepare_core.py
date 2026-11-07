@@ -118,6 +118,13 @@ def prepare(offline=False):
     SOURCE.mkdir(exist_ok=True)
     with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
         tar.extractall(SOURCE, filter="data")
+    # Roslyn generators run on the build host. Global publish switches from the
+    # native library must not turn their netstandard2.0 assemblies into iOS AOT apps.
+    for name in ("Ryujinx.HLE.Generators", "Ryujinx.Horizon.Generators", "Ryujinx.Horizon.Kernel.Generators"):
+        path = f"src/{name}/{name}.csproj"
+        replace(path, '<Project Sdk="Microsoft.NET.Sdk">',
+                '<Project Sdk="Microsoft.NET.Sdk" TreatAsLocalProperty="PublishAot;PublishAotUsingRuntimePack;SelfContained;RuntimeIdentifier;IsAotCompatible;SupportedOSPlatformVersion">')
+        replace(path, "<PropertyGroup>", "<PropertyGroup>\n        <PublishAot>false</PublishAot>\n        <PublishAotUsingRuntimePack>false</PublishAotUsingRuntimePack>\n        <SelfContained>false</SelfContained>\n        <RuntimeIdentifier></RuntimeIdentifier>\n        <IsAotCompatible>false</IsAotCompatible>\n        <SupportedOSPlatformVersion></SupportedOSPlatformVersion>")
     # Inject a small, opt-in seam into the original assemblies. Desktop behavior
     # remains upstream's when no host supplies a prepared-code allocator.
     replace("src/Ryujinx.Cpu/Jit/JitMemoryAllocator.cs",

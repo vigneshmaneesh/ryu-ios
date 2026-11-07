@@ -2,6 +2,8 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/../.." && pwd)"
+cd "$root/ios"
+echo "iOS build SDK: $(dotnet --version)"
 out="$root/ios/build"
 app="$out/Payload/RyuJIT.app"
 framework="$app/Frameworks/RyujinxEmitter.framework"
