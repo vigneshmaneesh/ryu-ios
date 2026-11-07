@@ -83,6 +83,13 @@ codesign --force --sign - --entitlements "$root/ios/Native/HostJIT.entitlements"
 python3 - "$out/core-macos/HostGraphicsChecks" "$mac_molten/MoltenVK.framework/MoltenVK" "$out/core-graphics" "$out/homebrew/deko_basic.nro" <<'PY'
 from pathlib import Path
 import subprocess, sys
+program = Path(sys.argv[4])
+program.chmod(0o444)
+try:
+    with program.open("r+b"):
+        raise RuntimeError("Guest smoke requires a genuinely read-only NRO")
+except PermissionError:
+    print("Read-only NRO confirmed; smoke-booting with bundle-equivalent access", flush=True)
 try:
     subprocess.run(sys.argv[1:], check=True, timeout=90)
 finally:

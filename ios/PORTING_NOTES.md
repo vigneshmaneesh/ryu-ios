@@ -67,3 +67,8 @@ normal libnx exit, but applet AM's `ISelfController.Exit` was an upstream stub,
 leaving libnx asleep. The iOS overlay now exposes an application-exit request
 on Switch; the frontend observes it and performs kernel/GPU teardown on its own
 thread. No termination is performed inside the IPC service callback.
+
+v0.7.1 corrects NRO input access for signed iOS resources. The loader explicitly
+opens NROs read-only, retaining the stream for executable/assets/RomFS reads. The
+normal one-boot smoke uses an enforced read-only NRO to cover the reported device
+failure; extended regressions remain opt-in.

@@ -251,6 +251,11 @@ public interface IPreparedJitMemoryBlock : IJitMemoryBlock
     generate_callback_pointers()
     add_startup_diagnostics()
     add_application_exit()
+    # FileMode.Open alone defaults to read/write. NRO code and assets are input
+    # only, including the signed, read-only resource inside an iOS app bundle.
+    replace("src/Ryujinx.HLE/Loaders/Processes/ProcessLoader.cs",
+            "FileStream input = new(path, FileMode.Open);",
+            "FileStream input = new(path, FileMode.Open, FileAccess.Read, FileShare.Read);")
     adapt_vulkan()
     # iOS/tvOS ConsolePal supports writing to NSLog, but colour APIs throw.
     # An exception on the upstream async logging thread terminates the process.

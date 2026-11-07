@@ -92,3 +92,18 @@ Metal memory 55.25 MB, app memory 389.47 MB, available memory 4.98 GB, 120 Hz,
 nominal thermal state, Game Mode off and about 51.17 FPS. These are a single
 user-reported renderer-test snapshot. The test deliberately sleeps between frames;
 its rate is not a game performance result or a renderer throughput benchmark.
+
+## v0.7.0 bundled graphics homebrew: read-only bundle failure
+
+The user's iOS 27.2 screenshot reports `UnauthorizedAccessException` opening
+`App.app/deko_basic.nro`, with inner `IOException: Operation not permitted`.
+The trace constructs Switch and initializes Vulkan, then fails in
+`ProcessLoader.LoadNxo` before executing the NRO. Kernel/GPU teardown completes.
+This is a failed device guest-graphics result, not a successful guest frame.
+
+The upstream NRO stream uses `new(path, FileMode.Open)`, whose implicit access is
+read/write. v0.7.1 adds a checked overlay selecting `FileAccess.Read` and
+`FileShare.Read`; it preserves the stream lifetime needed for lazy RomFS reads.
+The existing single guest smoke boot now uses a file with write permissions
+removed and confirms a read/write open is denied before booting it. This replaces
+the writable-file smoke input, without adding another emulation run.
