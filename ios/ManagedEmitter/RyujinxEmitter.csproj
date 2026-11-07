@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsAotCompatible>true</IsAotCompatible>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <PublishAot Condition="'$(RuntimeIdentifier)' == 'ios-arm64'">true</PublishAot>
+    <PublishAotUsingRuntimePack Condition="'$(RuntimeIdentifier)' == 'ios-arm64'">true</PublishAotUsingRuntimePack>
+    <NativeLib>Shared</NativeLib>
+    <IlcTreatWarningsAsErrors>true</IlcTreatWarningsAsErrors>
+    <TrimmerSingleWarn>false</TrimmerSingleWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Emitter.cs" />
+    <!-- Compile the actual repository emitter, without copying or rewriting it. -->
+    <Compile Include="../../src/Ryujinx.Cpu/LightningJit/CodeWriter.cs" Link="LightningJit/CodeWriter.cs" />
+    <Compile Include="../../src/Ryujinx.Cpu/LightningJit/CodeGen/Operand.cs" />
+    <Compile Include="../../src/Ryujinx.Cpu/LightningJit/CodeGen/OperandKind.cs" />
+    <Compile Include="../../src/Ryujinx.Cpu/LightningJit/CodeGen/OperandType.cs" />
+    <Compile Include="../../src/Ryujinx.Cpu/LightningJit/CodeGen/Register.cs" />
+    <Compile Include="../../src/Ryujinx.Cpu/LightningJit/CodeGen/RegisterType.cs" />
+    <Compile Include="../../src/Ryujinx.Cpu/LightningJit/CodeGen/Arm64/Assembler.cs" />
+    <Compile Include="../../src/Ryujinx.Cpu/LightningJit/CodeGen/Arm64/ArmCondition.cs" />
+    <Compile Include="../../src/Ryujinx.Cpu/LightningJit/CodeGen/Arm64/ArmExtensionType.cs" />
+    <Compile Include="../../src/Ryujinx.Cpu/LightningJit/CodeGen/Arm64/ArmShiftType.cs" />
+    <Compile Include="../../src/Ryujinx.Cpu/LightningJit/CodeGen/Arm64/CodeGenCommon.cs" />
+  </ItemGroup>
+</Project>
