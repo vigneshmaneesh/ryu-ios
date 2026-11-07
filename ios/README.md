@@ -1,14 +1,25 @@
-# Ryu iOS: first JIT milestone
+# Ryu iOS: guest translation milestone (v0.2)
 
-This is an iOS 27 **proof of concept**, not a playable Switch emulator yet.
+This is an iOS 27 **CPU prototype**, not a playable Switch emulator yet.
 It is a native SwiftUI app for iPhone and iPad, with a small NativeAOT C# framework
-that compiles the **actual LightningJit ARM64 assembler from this repository**.
-After StikDebug activation it emits and executes `f(a, b) = a + b + bias` with
-a new random bias each run, checking four inputs including unsigned overflow.
+that compiles the **actual LightningJit AArch64 decoder, compiler, register
+allocator and native context from this repository**. After StikDebug activation
+it runs the original four-input arithmetic probe, then translates six embedded
+guest programs and executes 25 cases:
 
-The proof establishes the native UI → AOT C# emitter → writable code alias →
-prepared executable memory path. It does **not** yet translate guest programs,
-boot Horizon, render Switch graphics, or load games.
+- 64-bit addition and overflow.
+- Conditional branches, flags and a backwards loop.
+- Guest loads and stores in a bounded 64 KiB address space, with guard checks.
+- Guest X18/X29 remapping and host ABI preservation.
+- An SVC callback into managed code, changing registers and resuming the guest.
+- Emulated thread-local storage register reads.
+
+The memory adapter implements `IJitMemoryAllocator` over the native coordinator's
+prepared region, with a stable RX pointer and an explicit RW alias for writing.
+The callback adapter is a conformance harness, not an implementation of Horizon
+services. This version does not boot Horizon, render Switch graphics or load games.
+The production CPU dispatcher, large guest address spaces, mapping/page faults,
+and executable-cache invalidation still need integration.
 
 ## Build for £0 with GitHub Actions
 
@@ -40,8 +51,9 @@ profile must preserve `get-task-allow`.
 1. Use the existing StikDebug pairing setup and connect LocalDevVPN.
 2. Open **Ryu JIT** and tap **Enable JIT and test**.
 3. Let StikDebug process the request, then return to Ryu JIT if necessary.
-4. A successful test displays **ARM64 test passed** and a computed result. Run it
-   again to verify the prepared memory can be reused for newly generated code.
+4. A successful v0.2 test displays **Guest translation passed**, with all six
+   groups listed and **25 cases passed**. Run it again to check prepared-memory
+   reuse and a new random input seed.
 5. Use **Share diagnostics** to copy the OS version, protection/signing status,
    and test stages. Pairing files and Apple credentials are never read by this app.
 
@@ -70,9 +82,17 @@ The iOS build additionally compiles C/assembly/Swift, checks signatures, validat
 the native framework and Info.plist, and verifies `get-task-allow` is present in
 the packaged entitlements. AltStore re-signing must preserve it on-device.
 
+The local checks also compile all six guest programs using the upstream compiler
+and reject invalid guest-memory ranges. On the Apple Silicon CI host, the same
+managed library is compiled with NativeAOT for macOS and executes the guest suite
+with four seeds: **100 translated guest executions**. The host harness uses
+macOS `MAP_JIT` and per-thread write protection. The iOS app uses the already
+validated StikDebug/TXM protocol and separate memory aliases. Passing on macOS
+does not establish that the new guest suite passes on either iOS device.
+
 ## Reported device results
 
-On 7 November 2026, the user confirmed the first IPA passed on both devices:
+On 7 November 2026, the user confirmed the original v0.1 IPA passed on both devices:
 
 | Device | ARM64 probe | Development signing | TXM | JIT enabler |
 | --- | --- | --- | --- | --- |
@@ -86,8 +106,8 @@ translation, graphics, and game compatibility remain to be validated.
 
 ## Next porting milestones
 
-- Replace this probe allocator with an iOS implementation of `IJitMemoryAllocator`
-  and validate real guest instruction translation and managed callbacks.
+- Validate the v0.2 guest suite on both devices, then integrate the production CPU
+  dispatcher and translation cache with the prepared-memory allocator.
 - Adapt memory reservation, aliasing, signal handling, and guest address spaces.
 - Bring up the emulator services and sandboxed file/firmware/key import.
 - Port the Vulkan renderer through an iOS MoltenVK build and a Metal surface.

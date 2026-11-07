@@ -13,9 +13,9 @@ struct ContentView: View {
                             .foregroundStyle(.tint)
                         Text("Ryujinx on iOS")
                             .font(.largeTitle.bold())
-                        Text("ARM64 JIT proof of concept")
+                        Text("Guest translation · v0.2")
                             .font(.title3).foregroundStyle(.secondary)
-                        Text("This first build checks code generation and JIT activation. Game loading is planned for a later milestone.")
+                        Text("Tests real ARM64 guest translation, branches, memory access and managed callbacks. Game loading is planned for a later milestone.")
                             .foregroundStyle(.secondary)
                     }
 
@@ -25,6 +25,11 @@ struct ContentView: View {
                                 .font(.headline)
                                 .foregroundStyle(model.passed ? Color.green : Color.primary)
                             Text(model.detail).foregroundStyle(.secondary)
+                            if !model.guestReport.isEmpty {
+                                Text(model.guestReport)
+                                    .font(.system(.caption, design: .monospaced))
+                                    .textSelection(.enabled)
+                            }
                             if let result = model.result {
                                 Text("20 + 22 + \(model.bias) = \(result)")
                                     .font(.system(.body, design: .monospaced))

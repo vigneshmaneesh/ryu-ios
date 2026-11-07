@@ -5,7 +5,8 @@
 
 enum RyuJITStage {
     RYU_JIT_IDLE, RYU_JIT_WAITING, RYU_JIT_PREPARING, RYU_JIT_EMITTING,
-    RYU_JIT_EXECUTING, RYU_JIT_PASSED, RYU_JIT_FAILED, RYU_JIT_CANCELLED
+    RYU_JIT_EXECUTING, RYU_JIT_PASSED, RYU_JIT_FAILED, RYU_JIT_CANCELLED,
+    RYU_JIT_TRANSLATING, RYU_JIT_GUEST_EXECUTING
 };
 
 // TXM detection: 1 = present, 0 = absent, -1 = unknown. Unknown must block activation.
@@ -21,4 +22,7 @@ int ryu_jit_run(int txm, uint32_t timeout_ms, uint32_t bias,
 
 // NativeAOT export from the repository's LightningJit ARM64 emitter.
 int32_t ryu_emit_add(uint8_t *destination, uintptr_t capacity, uint32_t bias);
+int32_t ryu_guest_suite(void *writable, void *executable, uintptr_t capacity,
+                       void (*begin_write)(void), void (*publish)(void *, uintptr_t),
+                       uint32_t seed, uint8_t *report, uintptr_t report_capacity);
 #endif

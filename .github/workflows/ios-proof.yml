@@ -6,6 +6,7 @@ on:
     paths:
       - 'ios/**'
       - 'src/Ryujinx.Cpu/LightningJit/**'
+      - 'src/ARMeilleure/**'
       - '.github/workflows/ios-proof.yml'
       - 'Directory.Build.props'
       - 'global.json'

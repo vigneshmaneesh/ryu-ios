@@ -19,7 +19,7 @@ with (framework / "Info.plist").open("wb") as file:
         "CFBundleExecutable": "RyujinxEmitter",
         "CFBundleName": "RyujinxEmitter",
         "CFBundlePackageType": "FMWK",
-        "CFBundleShortVersionString": "0.1.0",
+        "CFBundleShortVersionString": "0.2.0",
         "CFBundleVersion": version,
         "MinimumOSVersion": "27.0",
         "CFBundleSupportedPlatforms": ["iPhoneOS"],

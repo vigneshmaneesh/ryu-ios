@@ -18,9 +18,22 @@ if [[ "${sdk_version%%.*}" -lt 27 ]]; then
     echo "Select Xcode 27 or newer; the selected iOS SDK is $sdk_version."
     exit 1
 fi
-mkdir -p "$framework" "$out/native" "$out/managed"
+mkdir -p "$framework" "$out/native" "$out/managed" "$out/macos"
 
 dotnet run --project "$root/ios/EmitterChecks/EmitterChecks.csproj" -c Release
+
+# Run actual translated guest code and reverse managed callbacks in NativeAOT on
+# the Apple Silicon host before producing the iOS framework. No simulator substitute.
+mac_sdk="$(xcrun --sdk macosx --show-sdk-path)"
+SDKROOT="$mac_sdk" dotnet publish "$root/ios/ManagedEmitter/RyujinxEmitter.csproj" \
+    -c Release -r osx-arm64 -o "$out/macos" -p:PublishAot=true
+xcrun --sdk macosx clang -arch arm64 -isysroot "$mac_sdk" -mmacosx-version-min=14.0 \
+    -std=c11 -O2 -Wall -Wextra -Werror -I "$root/ios/Native" \
+    "$root/ios/Native/HostGuestChecks.c" "$out/macos/RyujinxEmitter.dylib" \
+    -Wl,-rpath,"$out/macos" -o "$out/macos/HostGuestChecks"
+codesign --force --sign - --entitlements "$root/ios/Native/HostJIT.entitlements" "$out/macos/HostGuestChecks"
+"$out/macos/HostGuestChecks"
+
 dotnet publish "$root/ios/ManagedEmitter/RyujinxEmitter.csproj" \
     -c Release -r ios-arm64 -o "$out/managed" \
     -p:PublishAot=true -p:PublishAotUsingRuntimePack=true \

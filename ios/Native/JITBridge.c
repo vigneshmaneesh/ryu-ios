@@ -119,6 +119,16 @@ static kern_return_t allocate_regions(int txm) {
     return status;
 }
 
+static void begin_code_write(void) {
+    atomic_store(&stage, RYU_JIT_TRANSLATING);
+}
+
+static void publish_code(void *address, uintptr_t length) {
+    atomic_thread_fence(memory_order_seq_cst);
+    sys_icache_invalidate(address, length);
+    atomic_store(&stage, RYU_JIT_GUEST_EXECUTING);
+}
+
 int ryu_jit_run(int txm, uint32_t timeout_ms, uint32_t bias,
                 uint64_t *result, char *error, size_t error_capacity) {
     if (atomic_flag_test_and_set(&running)) return EBUSY;
@@ -169,9 +179,17 @@ int ryu_jit_run(int txm, uint32_t timeout_ms, uint32_t bias,
             return fail(error, error_capacity, "Generated ARM64 code returned an unexpected value", EIO);
         if (index == 0) *result = actual;
     }
+    atomic_store(&stage, RYU_JIT_TRANSLATING);
+    int32_t guest_status = ryu_guest_suite((void *)writable, (void *)executable,
+        allocation_size, begin_code_write, publish_code, bias,
+        (uint8_t *)error, error_capacity);
+    if (guest_status != 0) {
+        atomic_store(&stage, RYU_JIT_FAILED);
+        atomic_flag_clear(&running);
+        return guest_status;
+    }
     atomic_store(&ready, true);
     atomic_store(&stage, RYU_JIT_PASSED);
     atomic_flag_clear(&running);
     return 0;
 }
-

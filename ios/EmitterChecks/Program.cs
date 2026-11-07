@@ -71,3 +71,4 @@ unsafe
     checks += 5;
 }
 Console.WriteLine($"PASS: {checks} ARM64 semantics and native ABI checks.");
+Console.WriteLine($"PASS: {GuestSuite.ValidateTranslations()} guest compiler and memory-boundary checks.");

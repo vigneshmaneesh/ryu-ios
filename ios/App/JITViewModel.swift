@@ -15,6 +15,7 @@ final class JITViewModel: ObservableObject {
     @Published var entitlement = Int32(-1)
     @Published var logs: [String] = []
     @Published var needsRestart = false
+    @Published var guestReport = ""
     private var timer: Timer?
     private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
     private var lastStage = Int32(-1)
@@ -32,7 +33,7 @@ final class JITViewModel: ObservableObject {
     }
 
     var diagnostics: String {
-        "Ryu iOS JIT proof of concept\n" +
+        "Ryu iOS guest translation prototype \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") ?? "?") (\(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") ?? "?"))\n" +
         "System: \(UIDevice.current.systemName) \(UIDevice.current.systemVersion)\n" +
         "Device: \(UIDevice.current.model)\n" +
         "TXM: \(txm), get-task-allow: \(entitlement)\n" +
@@ -65,17 +66,13 @@ final class JITViewModel: ObservableObject {
             components.queryItems?.append(URLQueryItem(name: "script-name", value: "universal.js"))
         }
         guard let url = components.url else { return }
-        if !alreadyReady && !UIApplication.shared.canOpenURL(url) {
-            status = "StikDebug is unavailable"
-            detail = "Install StikDebug, finish its pairing setup, and connect LocalDevVPN before testing."
-            return
-        }
 
         bias = UInt32.random(in: 0...UInt32.max)
         let requestedBias = bias
         let requestedTXM = txm
         passed = false
         result = nil
+        guestReport = ""
         isRunning = true
         lastStage = -1
         status = alreadyReady ? "Generating new ARM64 code" : "Waiting for StikDebug"
@@ -122,7 +119,8 @@ final class JITViewModel: ObservableObject {
         let messages: [Int32: String] = [
             1: "Waiting for debugger", 2: "Preparing executable memory",
             3: "Generating ARM64 code", 4: "Executing generated code",
-            5: "ARM64 test passed", 6: "Test failed", 7: "Cancelled"
+            5: "Guest translation passed", 6: "Test failed", 7: "Cancelled",
+            8: "Translating guest programs", 9: "Executing translated guest code"
         ]
         if let message = messages[stage] { status = message; log(message) }
     }
@@ -136,8 +134,10 @@ final class JITViewModel: ObservableObject {
         if code == 0 {
             passed = true
             result = value
-            status = "ARM64 test passed"
-            detail = "All four inputs passed. Ryujinx emitted the code and your device executed it."
+            status = "Guest translation passed"
+            detail = "The arithmetic probe and all 25 translated guest cases passed."
+            guestReport = message
+            log(message)
             log("Verified result: 20 + 22 + \(bias) = \(value).")
         } else {
             status = ryu_jit_stage() == 7 ? "Cancelled" : "JIT test failed"

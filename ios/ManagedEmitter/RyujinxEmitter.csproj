@@ -10,18 +10,28 @@
     <TrimmerSingleWarn>false</TrimmerSingleWarn>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Emitter.cs" />
-    <!-- Compile the actual repository emitter, without copying or rewriting it. -->
-    <Compile Include="../../src/Ryujinx.Cpu/LightningJit/CodeWriter.cs" Link="LightningJit/CodeWriter.cs" />
-    <Compile Include="../../src/Ryujinx.Cpu/LightningJit/CodeGen/Operand.cs" />
-    <Compile Include="../../src/Ryujinx.Cpu/LightningJit/CodeGen/OperandKind.cs" />
-    <Compile Include="../../src/Ryujinx.Cpu/LightningJit/CodeGen/OperandType.cs" />
-    <Compile Include="../../src/Ryujinx.Cpu/LightningJit/CodeGen/Register.cs" />
-    <Compile Include="../../src/Ryujinx.Cpu/LightningJit/CodeGen/RegisterType.cs" />
-    <Compile Include="../../src/Ryujinx.Cpu/LightningJit/CodeGen/Arm64/Assembler.cs" />
-    <Compile Include="../../src/Ryujinx.Cpu/LightningJit/CodeGen/Arm64/ArmCondition.cs" />
-    <Compile Include="../../src/Ryujinx.Cpu/LightningJit/CodeGen/Arm64/ArmExtensionType.cs" />
-    <Compile Include="../../src/Ryujinx.Cpu/LightningJit/CodeGen/Arm64/ArmShiftType.cs" />
-    <Compile Include="../../src/Ryujinx.Cpu/LightningJit/CodeGen/Arm64/CodeGenCommon.cs" />
+    <Compile Include="*.cs" />
+    <!-- Actual upstream AArch64 decoder, compiler, register allocator and context. -->
+    <Compile Include="../../src/Ryujinx.Cpu/LightningJit/CodeWriter.cs" />
+    <Compile Include="../../src/Ryujinx.Cpu/LightningJit/AddressForm.cs" />
+    <Compile Include="../../src/Ryujinx.Cpu/LightningJit/CompiledFunction.cs" />
+    <Compile Include="../../src/Ryujinx.Cpu/LightningJit/CpuPreset.cs" />
+    <Compile Include="../../src/Ryujinx.Cpu/LightningJit/CpuPresets.cs" />
+    <Compile Include="../../src/Ryujinx.Cpu/LightningJit/IsaFeature.cs" />
+    <Compile Include="../../src/Ryujinx.Cpu/LightningJit/IsaVersion.cs" />
+    <Compile Include="../../src/Ryujinx.Cpu/LightningJit/NativeContextOffsets.cs" />
+    <Compile Include="../../src/Ryujinx.Cpu/LightningJit/State/NativeContext.cs" />
+    <Compile Include="../../src/Ryujinx.Cpu/LightningJit/CodeGen/**/*.cs" Exclude="../../src/Ryujinx.Cpu/LightningJit/CodeGen/Arm64/StackWalker.cs" />
+    <Compile Include="../../src/Ryujinx.Cpu/LightningJit/Arm64/**/*.cs" />
+    <Compile Include="../../src/Ryujinx.Cpu/LightningJit/Graph/*.cs" />
+    <Compile Include="../../src/Ryujinx.Cpu/LightningJit/Table/*.cs" />
+    <Compile Include="../../src/ARMeilleure/Memory/IMemoryManager.cs" />
+    <Compile Include="../../src/ARMeilleure/Memory/MemoryManagerType.cs" />
+    <Compile Include="../../src/ARMeilleure/Memory/IJitMemoryAllocator.cs" />
+    <Compile Include="../../src/ARMeilleure/Memory/IJitMemoryBlock.cs" />
+    <Compile Include="../../src/ARMeilleure/Common/IAddressTable.cs" />
+    <Compile Include="../../src/ARMeilleure/Common/AddressTableType.cs" />
+    <Compile Include="../../src/ARMeilleure/Common/AddressTableLevel.cs" />
+    <Compile Include="../../src/ARMeilleure/State/V128.cs" />
   </ItemGroup>
 </Project>
