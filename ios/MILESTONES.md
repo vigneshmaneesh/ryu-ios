@@ -19,7 +19,7 @@ observed instrumentation. The original milestone numbers remain fixed.
 | 9 | Threads, interrupts, timers and synchronization | Cooperative interrupt and concurrent guest TLS checks pass both devices; Horizon scheduling and synchronization incomplete |
 | 10 | Horizon kernel and services | Real kernel/service initialization integrated for bundled homebrew; two boots pass Apple Silicon NativeAOT; device validation pending; commercial service compatibility unverified |
 | 11 | Real homebrew loading/execution | Authored NRO executes real SetHeapSize, OutputDebugString and ExitProcess; passes twice on desktop and Apple NativeAOT; device test pending |
-| 12 | iOS Vulkan/MoltenVK graphics and first frame | Official iOS MoltenVK pinned; native offscreen GPU clear/readback probe implemented; emulated GPU and presentation not integrated |
+| 12 | iOS Vulkan/MoltenVK graphics and first frame | Official iOS MoltenVK pinned; user reports offscreen GPU clear/readback working on both devices; emulated GPU and presentation not integrated |
 | 13 | Shader translation, cache and correctness | Not integrated |
 | 14 | Native audio | Not integrated |
 | 15 | Controllers, touch and motion | Not integrated |
@@ -43,9 +43,11 @@ v0.3 was built from `c2bd777689f200484981a9a9c6fe28ebee864b9f`, run
 The iPad v0.4 report passed RAM and service checks but Vulkan instance creation
 failed with an unavailable extension; see `DEVICE_RESULTS.md`.
 
-v0.5.1 combines the extension fix with **Boot bundled homebrew**. Device acceptance
-requires CPU, platform and homebrew checks to pass twice on both devices. This is
-real kernel execution, but does not yet test emulated graphics or a commercial game.
+The user reports v0.5.1 CPU/platform checks working but homebrew crashing on both
+devices. v0.5.2 removes an unsupported mobile console-colour call path, adds an
+actual iOS-runtime logger regression, and persists startup stages across relaunch.
+Device acceptance requires homebrew to pass twice on both devices. This is real
+kernel execution, but does not yet test emulated graphics or a commercial game.
 
-Continue phases 8–17 with a small redistributable homebrew workload before using
+Continue phases 8â€“17 with a small redistributable homebrew workload before using
 the commercial target to diagnose multiple unverified subsystems at once.

@@ -1,5 +1,28 @@
 # Build provenance and rollback
 
+## v0.5.2 logging crash fix
+
+Device test: **v0.5.2 build 17**, source `9c24d6be2a3127c4ddafca482abfc6000653cd8c`.
+
+- [Successful package/NativeAOT checks](https://github.com/vigneshmaneesh/ryu-ios/actions/runs/42402085741).
+- Artifact ID: `13585658903`; one-day retention.
+- IPA SHA-256: `5a4a9fec188023b5d381a2bcda6e14cb58efed6e7c747c7dc8c1981e31d44970`.
+- ZIP SHA-256: `c762158a6695da1e67cedee0a56f853d2308e083b7c8c424c58448d3eced950f`.
+
+This removes unsupported terminal-colour operations on iOS/tvOS and saves a
+flushed Horizon startup/teardown trace, restored into diagnostics after reopening.
+Two desktop homebrew boots and interrupted-process journal recovery passed. The
+package build passed the compiler/CPU checks and two Apple Silicon NativeAOT
+Horizon boots. The actual iOS BCL logger check printed PASS in
+[run 42401085097](https://github.com/vigneshmaneesh/ryu-ios/actions/runs/42401085097)
+before that workflow was cancelled during the packaging restart. The package
+branch uses identical runtime sources without repeating simulator startup.
+
+The main workflow now runs mobile logging independently of IPA packaging and
+selects a compatible simulator from the runner inventory. Device confirmation of
+this homebrew fix remains pending. If it still closes, reopen and share diagnostics
+before another attempt so the prior `horizon-last-run.log` is preserved.
+
 ## Current device test
 
 **v0.5.1 build 14**, source `d3782005fcc240488d69f270cdc5d543b84714ac`.
