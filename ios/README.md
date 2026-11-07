@@ -1,8 +1,15 @@
-# Ryu iOS: production CPU integration (v0.3)
+# Ryu iOS: CPU and platform backends (v0.4)
 
 This is an iOS 27 **CPU prototype**, not a playable Switch emulator yet.
 The first commercial compatibility target is **Tomodachi Life: Living the Dream**;
 no game boot or performance claim has been established.
+
+v0.4 adds the actual LibHac filesystem/ARP/BCAT/account bootstrap and a separate
+native Vulkan backend check. **Test platform backends** clears a 4×4 GPU image
+through official MoltenVK 1.4.2, copies it back and verifies all 16 RGBA pixels.
+It requires no JIT activation. The framework download is checksum-pinned and its
+license is packaged with the app. This is an offscreen backend check; emulated
+Switch graphics, surface presentation and the Horizon kernel remain incomplete.
 
 v0.3 adds the complete upstream CPU engine, production dispatcher and translation
 cache, real software page tables, interrupts and concurrent guest contexts. Five
@@ -132,12 +139,16 @@ The user subsequently reported all 25 v0.2 guest cases passed on **both devices*
 and supplied an iPad screenshot showing the six passing groups, signing ready,
 TXM present and StikDebug selected. The v0.2 CI build is
 [run 42389244296](https://github.com/vigneshmaneesh/ryu-ios/actions/runs/42389244296).
-v0.3 production CPU hardware results remain pending.
+The user also reported v0.3 passed **twice on both devices**, covering the
+production dispatcher, cache invalidation, page remapping, interrupts and two
+guest threads. Its [successful Apple build](https://github.com/vigneshmaneesh/ryu-ios/actions/runs/42395234315)
+is commit `c2bd777689f200484981a9a9c6fe28ebee864b9f`; IPA SHA-256
+`bd88a35e732c764148c395c16eadb517bee301f6da64db160081a39f30fc2199`.
+v0.4 platform backend hardware results remain pending.
 
 ## Next porting milestones
 
-- Validate the v0.3 production CPU groups and enlarged prepared-memory pool on
-  both devices, including a second run and shared memory diagnostics.
+- Validate the v0.4 filesystem/account and Vulkan backend checks on both devices.
 - Adapt memory reservation, aliasing, signal handling, and guest address spaces.
 - Bring up the emulator services and sandboxed file/firmware/key import.
 - Port the Vulkan renderer through an iOS MoltenVK build and a Metal surface.
