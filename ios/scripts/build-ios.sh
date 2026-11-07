@@ -13,6 +13,7 @@ if [[ "$(uname -s)" != Darwin ]]; then
 fi
 sdk="$(xcrun --sdk iphoneos --show-sdk-path)"
 sdk_version="$(xcrun --sdk iphoneos --show-sdk-version)"
+export SDKROOT="$sdk"
 if [[ "${sdk_version%%.*}" -lt 27 ]]; then
     echo "Select Xcode 27 or newer; the selected iOS SDK is $sdk_version."
     exit 1
@@ -37,7 +38,7 @@ xcrun clang -target "$target" -isysroot "$sdk" -std=c11 -O2 -Wall -Wextra -Werro
     -I "$root/ios/Native" -c "$root/ios/Native/JITBridge.c" -o "$out/native/JITBridge.o"
 xcrun clang -target "$target" -isysroot "$sdk" \
     -c "$root/ios/Native/JITProtocol.S" -o "$out/native/JITProtocol.o"
-xcrun swiftc -target "$target" -sdk "$sdk" -swift-version 5 -O -parse-as-library \
+xcrun --sdk iphoneos swiftc -target "$target" -sdk "$sdk" -swift-version 5 -O -parse-as-library \
     -module-name RyuJIT -import-objc-header "$root/ios/Native/JITBridge.h" \
     -F "$app/Frameworks" -framework RyujinxEmitter -framework SwiftUI -framework UIKit \
     -framework Foundation -framework CoreFoundation \
