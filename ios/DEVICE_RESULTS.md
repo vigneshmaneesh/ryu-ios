@@ -10,6 +10,7 @@ Silicon NativeAOT tests run separately in GitHub Actions.
 | v0.3 | Five production CPU groups passed twice | Five production CPU groups passed twice |
 | v0.4 build 10 | No v0.4 diagnostics supplied yet | CPU passed three runs; virtual RAM and service checks passed; Vulkan instance returned -7 |
 | v0.5.1 build 14 | CPU/platform checks reported working; bundled homebrew closes the app | Same reported outcome |
+| v0.5.2 build 17 | Bundled homebrew still crashes | Same reported outcome; recovered trace stops at Switch construction |
 
 ## iPad v0.4 diagnostics
 
@@ -43,3 +44,13 @@ different exception type, so this path can terminate the process. v0.5.2 avoids
 those terminal operations on iOS/tvOS, exercises the actual iOS BCL in simulator CI,
 and writes a flushed startup/teardown trace for recovery after reopening the app.
 The exact device crash has not been confirmed with an Apple crash report yet.
+
+The user confirmed v0.5.2 build 17 still crashes on both devices. Its persisted
+trace ends at `Constructing Switch: RAM, kernel, scheduler and service threads`,
+before the NRO is loaded. The logger fix does not establish the crash's cause.
+
+Investigation found that the Swift Dispatch worker enters desktop core code that
+creates a 256 KiB HID shared-memory value with additional large temporaries.
+v0.5.3 supplies an explicit 8 MiB pthread stack and adds per-constructor checkpoints.
+CI tests actual kernel construction in the iOS runtime; device success is not
+inferred from simulator or Apple Silicon macOS results.

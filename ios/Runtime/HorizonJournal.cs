@@ -2,6 +2,7 @@ using Ryujinx.Common.Logging;
 using System;
 using System.IO;
 using System.Text;
+using System.Runtime.InteropServices;
 
 namespace Ryu.iOS.Runtime;
 
@@ -31,8 +32,15 @@ internal static class HorizonJournal
                 _hooked = true;
             }
             Write("START Horizon homebrew; " + System.Runtime.InteropServices.RuntimeInformation.OSDescription);
+            if (OperatingSystem.IsIOS() || OperatingSystem.IsMacOS())
+                Write("Host thread stack: " + GetStackSize(GetCurrentThread()) + " bytes");
         }
     }
+
+    [DllImport("/usr/lib/libSystem.B.dylib", EntryPoint = "pthread_self")]
+    private static extern nuint GetCurrentThread();
+    [DllImport("/usr/lib/libSystem.B.dylib", EntryPoint = "pthread_get_stacksize_np")]
+    private static extern nuint GetStackSize(nuint thread);
 
     internal static void Write(string message)
     {

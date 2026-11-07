@@ -46,8 +46,11 @@ failed with an unavailable extension; see `DEVICE_RESULTS.md`.
 The user reports v0.5.1 CPU/platform checks working but homebrew crashing on both
 devices. v0.5.2 removes an unsupported mobile console-colour call path, adds an
 actual iOS-runtime logger regression, and persists startup stages across relaunch.
+Both devices still crash with v0.5.2 build 17; its trace narrows the failure to
+Switch construction. v0.5.3 adds an explicit-stack native worker, detailed
+constructor checkpoints and actual iOS-runtime kernel construction checks.
 Device acceptance requires homebrew to pass twice on both devices. This is real
 kernel execution, but does not yet test emulated graphics or a commercial game.
 
-Continue phases 8â€“17 with a small redistributable homebrew workload before using
+Continue phases 8–17 with a small redistributable homebrew workload before using
 the commercial target to diagnose multiple unverified subsystems at once.

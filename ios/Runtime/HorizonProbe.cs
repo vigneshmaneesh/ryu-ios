@@ -10,7 +10,7 @@ namespace Ryu.iOS.Runtime;
 
 public static class HorizonProbe
 {
-    public static string Run(string directory)
+    public static string Run(string directory, bool loadGuest = true)
     {
         HorizonJournal.Write("Initializing filesystem/account services");
         ServiceBootstrap.Initialize(directory);
@@ -22,6 +22,7 @@ public static class HorizonProbe
         }
         Logger.Updated += Observe;
         Logger.Updated += HorizonJournal.Observe;
+        StartupDiagnostics.Checkpoint = HorizonJournal.Write;
         Switch device = null;
         bool gpuReady = false;
         try
@@ -32,6 +33,11 @@ public static class HorizonProbe
             File.WriteAllBytes(executable, KernelHomebrew.Create());
             HorizonJournal.Write("Constructing Switch: RAM, kernel, scheduler and service threads");
             device = new Switch(configuration);
+            if (!loadGuest)
+            {
+                HorizonJournal.Write("Kernel construction check completed; no guest executed");
+                return "PASS real Horizon kernel construction / services / HID / teardown";
+            }
             HorizonJournal.Write("Kernel/services constructed; loading authored NRO");
             if (!device.LoadProgram(executable)) throw new InvalidOperationException("The real NRO loader rejected the probe.");
             HorizonJournal.Write("NRO loaded; initializing shader-cache readiness gate");
@@ -63,6 +69,7 @@ public static class HorizonProbe
             }
             Logger.Updated -= Observe;
             Logger.Updated -= HorizonJournal.Observe;
+            StartupDiagnostics.Checkpoint = null;
         }
     }
 }

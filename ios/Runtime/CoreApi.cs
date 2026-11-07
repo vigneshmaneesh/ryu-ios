@@ -16,6 +16,32 @@ public static unsafe class CoreApi
     [UnmanagedCallersOnly(EntryPoint = "ryu_core_abi_version")]
     public static uint GetAbiVersion() => AbiVersion;
 
+    // Real iOS BCL/NativeAOT startup regression. No executable guest memory or
+    // debugger is needed to exercise the constructor that crashed on devices.
+    [UnmanagedCallersOnly(EntryPoint = "ryu_core_startup_check")]
+    public static int CheckStartup(byte* directory, byte* report, nuint reportCapacity)
+    {
+        if (directory == null || report == null || reportCapacity < 2 || reportCapacity > int.MaxValue) return -1;
+        report[0] = 0;
+        if (Interlocked.CompareExchange(ref _busy, 1, 0) != 0) return -2;
+        try
+        {
+            string path = Marshal.PtrToStringUTF8((nint)directory) ?? throw new ArgumentException("Missing directory");
+            HorizonJournal.Begin(path);
+            ConfigureDarwinLibraries();
+            WriteReport(report, reportCapacity, HorizonProbe.Run(path, loadGuest: false));
+            HorizonJournal.Finish(true);
+            return 0;
+        }
+        catch (Exception error)
+        {
+            HorizonJournal.Finish(false, error);
+            WriteReport(report, reportCapacity, $"FAIL startup {error.GetType().Name}: {error.Message}");
+            return -3;
+        }
+        finally { Volatile.Write(ref _busy, 0); }
+    }
+
     [UnmanagedCallersOnly(EntryPoint = "ryu_core_horizon_check")]
     public static int CheckHorizon(nint writable, nint executable, nuint capacity,
         delegate* unmanaged<void> beginWrite, delegate* unmanaged<nint, nuint, void> publish,

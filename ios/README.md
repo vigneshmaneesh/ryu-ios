@@ -1,15 +1,24 @@
-# Ryu iOS: Horizon homebrew integration (v0.5.2)
+# Ryu iOS: Horizon homebrew integration (v0.5.3)
 
 This is an iOS 27 **CPU prototype**, not a playable Switch emulator yet.
 The first commercial compatibility target is **Tomodachi Life: Living the Dream**;
 no game boot or performance claim has been established.
+
+v0.5.3 moves kernel startup off the Dispatch worker onto a pthread with an
+explicit 8 MiB stack. Upstream HID initialization returns a 256 KiB structure by
+value and creates large temporary values; a small native caller stack is unsafe.
+CI now constructs and tears down the actual kernel twice under the iOS simulator
+runtime, comparing a 512 KiB control stack with the app's explicit stack. Saved
+diagnostics include the host stack size and checkpoints inside Switch, Horizon,
+the kernel and service initialization. Physical-device confirmation is required.
 
 v0.5.2 removes unsupported terminal colour calls from the iOS logger, addressing
 a process-terminating exception path reached during homebrew startup. CI includes
 a real iOS simulator runtime check of async/direct logging and disposal. Homebrew
 startup stages and unhandled managed exceptions are written to app storage and
 flushed to disk; reopening the app restores that trace into Share diagnostics.
-Device confirmation of the homebrew fix remains required.
+Both devices still crashed in v0.5.2 build 17. Its recovered trace stopped during
+Switch construction, before loading the NRO; the logging fix was insufficient.
 
 v0.5 adds **Boot bundled homebrew** after JIT activation. An authored NRO runs
 through the real Horizon scheduler/process loader, requests a 2 MiB heap, emits a

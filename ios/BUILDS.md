@@ -1,6 +1,13 @@
 # Build provenance and rollback
 
-## v0.5.2 logging crash fix
+## v0.5.3 kernel worker stack investigation
+
+Moves the homebrew core call onto an explicit 8 MiB pthread stack, adds saved
+constructor checkpoints and tests actual kernel construction twice in the iOS
+simulator runtime. No guest JIT is used by that simulator regression. Device
+homebrew execution remains the acceptance test; this is still a prototype.
+
+## v0.5.2 logging fix and recovered crash trace
 
 Device test: **v0.5.2 build 17**, source `9c24d6be2a3127c4ddafca482abfc6000653cd8c`.
 
@@ -19,9 +26,10 @@ before that workflow was cancelled during the packaging restart. The package
 branch uses identical runtime sources without repeating simulator startup.
 
 The main workflow now runs mobile logging independently of IPA packaging and
-selects a compatible simulator from the runner inventory. The [full main-branch workflow](https://github.com/vigneshmaneesh/ryu-ios/actions/runs/42402239040) subsequently passed both IPA packaging and the separate iOS-runtime logging job. Device confirmation of
-this homebrew fix remains pending. If it still closes, reopen and share diagnostics
-before another attempt so the prior `horizon-last-run.log` is preserved.
+selects a compatible simulator from the runner inventory. The [full main-branch workflow](https://github.com/vigneshmaneesh/ryu-ios/actions/runs/42402239040) subsequently passed both IPA packaging and the separate iOS-runtime logging job.
+The user then confirmed build 17 still crashes on both devices. The recovered
+trace stops during Switch construction, before NRO loading. The logger fix alone
+was insufficient.
 
 ## Earlier v0.5.1 device build
 

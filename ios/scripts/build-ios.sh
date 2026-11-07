@@ -83,6 +83,8 @@ target="arm64-apple-ios$deployment_target"
 xcrun clang -target "$target" -isysroot "$sdk" -std=c11 -O2 -Wall -Wextra -Werror \
     -I "$root/ios/Native" -c "$root/ios/Native/JITBridge.c" -o "$out/native/JITBridge.o"
 xcrun clang -target "$target" -isysroot "$sdk" -std=c11 -O2 -Wall -Wextra -Werror \
+    -I "$root/ios/Native" -c "$root/ios/Native/CoreWorker.c" -o "$out/native/CoreWorker.o"
+xcrun clang -target "$target" -isysroot "$sdk" -std=c11 -O2 -Wall -Wextra -Werror \
     -I "$molten_root/include" -c "$root/ios/Native/VulkanProbe.c" -o "$out/native/VulkanProbe.o"
 xcrun clang -target "$target" -isysroot "$sdk" \
     -c "$root/ios/Native/JITProtocol.S" -o "$out/native/JITProtocol.o"
@@ -92,7 +94,7 @@ xcrun --sdk iphoneos swiftc -target "$target" -sdk "$sdk" -swift-version 5 -O -p
     -framework Foundation -framework CoreFoundation \
     -Xlinker -rpath -Xlinker '@executable_path/Frameworks' \
     "$root/ios/App/RyuJITApp.swift" "$root/ios/App/JITViewModel.swift" "$root/ios/App/ContentView.swift" "$root/ios/App/BackendChecks.swift" "$root/ios/App/GameLibrary.swift" \
-    "$out/native/JITBridge.o" "$out/native/JITProtocol.o" "$out/native/VulkanProbe.o" -o "$app/RyuJIT"
+    "$out/native/JITBridge.o" "$out/native/CoreWorker.o" "$out/native/JITProtocol.o" "$out/native/VulkanProbe.o" -o "$app/RyuJIT"
 
 # Ad-hoc signatures preserve requested entitlements for the sideloading tool to inspect.
 # This IPA is re-signed by AltStore/SideStore with the user's development profile.

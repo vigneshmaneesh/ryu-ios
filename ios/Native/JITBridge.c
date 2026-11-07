@@ -1,5 +1,6 @@
 #include "JITBridge.h"
 #include "CoreApi.h"
+#include "CoreWorker.h"
 #include <CoreFoundation/CoreFoundation.h>
 #include <dlfcn.h>
 #include <errno.h>
@@ -155,6 +156,23 @@ static void publish_code(void *address, uintptr_t length) {
     atomic_store(&stage, RYU_JIT_GUEST_EXECUTING);
 }
 
+typedef struct {
+    const char *directory;
+    char *report;
+    size_t report_capacity;
+    int status;
+} HorizonWork;
+
+static void *run_horizon(void *context) {
+    HorizonWork *work = context;
+    const size_t diagnostic_capacity = 1024 * 1024;
+    work->status = ryu_core_horizon_check((void *)(writable + diagnostic_capacity),
+        (void *)(executable + diagnostic_capacity), allocation_size - diagnostic_capacity,
+        begin_code_write, publish_code, (const uint8_t *)work->directory,
+        (uint8_t *)work->report, work->report_capacity);
+    return NULL;
+}
+
 int ryu_horizon_check(const char *data_directory, char *report, size_t report_capacity) {
     if (data_directory == NULL || report == NULL || report_capacity < 2) return EINVAL;
     if (!atomic_load(&ready)) {
@@ -166,10 +184,10 @@ int ryu_horizon_check(const char *data_directory, char *report, size_t report_ca
         return EALREADY;
     }
     if (atomic_flag_test_and_set(&running)) return EBUSY;
-    const size_t diagnostic_capacity = 1024 * 1024;
-    int status = ryu_core_horizon_check((void *)(writable + diagnostic_capacity),
-        (void *)(executable + diagnostic_capacity), allocation_size - diagnostic_capacity,
-        begin_code_write, publish_code, (const uint8_t *)data_directory, (uint8_t *)report, report_capacity);
+    HorizonWork work = { data_directory, report, report_capacity, -1 };
+    int status = ryu_core_on_thread(run_horizon, &work, RYU_CORE_STACK_SIZE);
+    if (status == 0) status = work.status;
+    else snprintf(report, report_capacity, "Could not start kernel worker: %s (%d).", strerror(status), status);
     if (status != 0) atomic_store(&horizon_failed, true);
     atomic_flag_clear(&running);
     return status;

@@ -93,6 +93,64 @@ def generate_callback_pointers():
     print(f"Rooted {len(entries)} native CPU callbacks with static function pointers.")
 
 
+def add_startup_diagnostics():
+    # An optional host hook: absent on desktop, and written through to app
+    # storage on iOS so a native fault retains the last constructor checkpoint.
+    (SOURCE / "src/Ryujinx.HLE/StartupDiagnostics.cs").write_text('''using System;
+namespace Ryujinx.HLE;
+public static class StartupDiagnostics
+{
+    public static Action<string> Checkpoint { get; set; }
+    public static void Write(string stage) => Checkpoint?.Invoke(stage);
+}
+''', encoding="utf-8")
+    stages = {
+        "src/Ryujinx.HLE/Switch.cs": [
+            ("            DirtyHacks        =", "Switch: dirty hacks and audio adapter"),
+            ("            Memory            =", "Switch: reserving guest RAM"),
+            ("            Gpu               =", "Switch: GPU bookkeeping"),
+            ("            System            =", "Switch: Horizon kernel"),
+            ("            Statistics        =", "Switch: performance statistics"),
+            ("            Hid               =", "Switch: HID shared memory / input initialization"),
+            ("            Processes         =", "Switch: process loader"),
+            ("            TamperMachine     =", "Switch: tamper machine"),
+            ("            System.InitializeServices();", "Switch: starting service processes"),
+            ("            System.State.SetLanguage", "Switch: applying language / region / clocks"),
+            ("            Shared = this;", "Switch: constructor complete"),
+        ],
+        "src/Ryujinx.HLE/HOS/Horizon.cs": [
+            ("            TickSource =", "Horizon: tick source"),
+            ("            KernelContext = new", "Horizon: kernel context"),
+            ("            State = new", "Horizon: system state"),
+            ("            SharedMemoryStorage hidStorage =", "Horizon: committing shared-memory pages"),
+            ("            TimeServiceManager.Instance.Initialize", "Horizon: time shared memory"),
+            ("            SharedFontManager = new", "Horizon: font / account / capture managers"),
+            ("            IRtcManager.GetExternalRtcValue", "Horizon: clocks"),
+            ("            DatabaseImpl.Instance.InitializeDatabase", "Horizon: settings database"),
+            ("            HostSyncpoint = new", "Horizon: host syncpoints"),
+            ("            SurfaceFlinger = new", "Horizon: compositor thread"),
+            ("            SmRegistry = new", "Services: registry / SM server"),
+            ("            SmServer.InitDone.WaitOne();", "Services: waiting for SM readiness"),
+            ("            BsdServer = new", "Services: BSD / filesystem / HID / NV / time / VI / LDN"),
+            ("            StartNewServices();", "Services: starting generated Horizon services"),
+            ("                KernelStatic.StartInitialProcess", "Services: starting process"),
+        ],
+        "src/Ryujinx.HLE/HOS/Kernel/KernelContext.cs": [
+            ("            Syscall = new", "Kernel: syscall table / resource limits"),
+            ("            MemoryManager = new", "Kernel: physical memory regions"),
+            ("            LargeMemoryBlockSlabManager =", "Kernel: memory slab managers"),
+            ("            CommitMemory(KernelConstants", "Kernel: committing user slab heap"),
+            ("            CriticalSection = new", "Kernel: scheduler structures / timer thread"),
+            ("            StartPreemptionThread();", "Kernel: starting preemption thread"),
+            ("            KernelInitialized = true;", "Kernel: context initialized"),
+        ],
+    }
+    for path, checkpoints in stages.items():
+        for prefix, message in checkpoints:
+            indentation = prefix[:len(prefix) - len(prefix.lstrip())]
+            replace(path, prefix, f'{indentation}Ryujinx.HLE.StartupDiagnostics.Write("{message}");\n{prefix}')
+
+
 def prepare(offline=False):
     lock = json.loads((ROOT / "ios/upstream.lock.json").read_text())
     revision = lock["revision"]
@@ -149,6 +207,7 @@ public interface IPreparedJitMemoryBlock : IJitMemoryBlock
         replace(path, "if (OperatingSystem.IsMacOS() && RuntimeInformation.ProcessArchitecture == Architecture.Arm64)",
                 "if (GetRegion(funcOffset).Block is IPreparedJitMemoryBlock prepared)\n                {\n                    prepared.Write((ulong)(funcOffset % (int)CacheSize), code);\n                }\n                else if (OperatingSystem.IsMacOS() && RuntimeInformation.ProcessArchitecture == Architecture.Arm64)")
     generate_callback_pointers()
+    add_startup_diagnostics()
     # iOS/tvOS ConsolePal supports writing to NSLog, but colour APIs throw.
     # An exception on the upstream async logging thread terminates the process.
     console = "src/Ryujinx.Common/Logging/Targets/ConsoleLogTarget.cs"
