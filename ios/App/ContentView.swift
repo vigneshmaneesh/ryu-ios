@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var model = JITViewModel()
+    @StateObject private var backend = BackendChecks()
 
     var body: some View {
         NavigationStack {
@@ -13,7 +14,7 @@ struct ContentView: View {
                             .foregroundStyle(.tint)
                         Text("Ryujinx on iOS")
                             .font(.largeTitle.bold())
-                        Text("Production CPU · v0.3")
+                        Text("CPU and platform backends · v0.4")
                             .font(.title3).foregroundStyle(.secondary)
                         Text("Tests the production dispatcher, cache invalidation, guest page tables, interrupts and two guest threads. Game loading and graphics are still being developed.")
                             .foregroundStyle(.secondary)
@@ -41,7 +42,7 @@ struct ContentView: View {
                                     .frame(maxWidth: .infinity).padding(.vertical, 6)
                             }
                             .buttonStyle(.borderedProminent)
-                            .disabled(model.isRunning || model.needsRestart)
+                            .disabled(model.isRunning || model.needsRestart || backend.isRunning)
                             if model.isRunning {
                                 Button("Cancel waiting", action: model.cancel)
                                     .disabled(ryu_jit_stage() != 1)
@@ -50,6 +51,23 @@ struct ContentView: View {
                                 Text("Close this app completely and reopen it before retrying.")
                                     .font(.callout)
                             }
+                        }.frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                    GroupBox("Filesystem and Vulkan backend") {
+                        VStack(alignment: .leading, spacing: 14) {
+                            Text("Checks emulated account persistence and an offscreen GPU image through MoltenVK and Metal. These checks do not run a game.")
+                                .foregroundStyle(.secondary)
+                            if !backend.report.isEmpty {
+                                Text(backend.report)
+                                    .font(.system(.caption, design: .monospaced))
+                                    .foregroundStyle(backend.passed ? Color.green : Color.primary)
+                                    .textSelection(.enabled)
+                            }
+                            if backend.isRunning { ProgressView() }
+                            Button("Test platform backends", action: backend.run)
+                                .buttonStyle(.bordered)
+                                .disabled(model.isRunning || backend.isRunning)
                         }.frame(maxWidth: .infinity, alignment: .leading)
                     }
 
@@ -71,7 +89,7 @@ struct ContentView: View {
                                 .textSelection(.enabled).padding(.top, 8)
                         }
                     }
-                    ShareLink(item: model.diagnostics) {
+                    ShareLink(item: model.diagnostics + "\n\nPlatform backends:\n" + backend.report) {
                         Label("Share diagnostics", systemImage: "square.and.arrow.up")
                     }
                     .buttonStyle(.bordered)

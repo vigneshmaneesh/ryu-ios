@@ -50,4 +50,6 @@ verify_ios_binary(core / "RyuCore")
 with (core / "Info.plist").open("rb") as file:
     assert plistlib.load(file)["CFBundleExecutable"] == "RyuCore"
 assert (app / "upstream.lock.json").is_file()
+verify_ios_binary(app / "Frameworks/MoltenVK.framework/MoltenVK")
+assert (app / "ThirdParty/MoltenVK-LICENSE.txt").stat().st_size > 0
 print("PASS: iOS ARM64 binaries, IPA contents, iPhone/iPad targets, and JIT entitlements.")

@@ -10,5 +10,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../build/upstream/src/Ryujinx.Cpu/Ryujinx.Cpu.csproj" />
+    <ProjectReference Include="../build/upstream/src/Ryujinx.HLE/Ryujinx.HLE.csproj" />
   </ItemGroup>
 </Project>

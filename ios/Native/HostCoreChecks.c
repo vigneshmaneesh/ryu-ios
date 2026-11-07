@@ -3,6 +3,7 @@
 #include <libkern/OSCacheControl.h>
 #include <pthread.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
 
@@ -27,5 +28,11 @@ int main(void) {
     }
     munmap(code, capacity);
     puts("PASS: all production CPU checks on Apple Silicon NativeAOT.");
+    char directory[] = "/tmp/ryu-services-XXXXXX";
+    if (mkdtemp(directory) == NULL) { perror("mkdtemp"); return 1; }
+    uint8_t report[2048] = {0};
+    int status = ryu_core_services_check((const uint8_t *)directory, report, sizeof(report));
+    printf("%s\n", report);
+    if (status != 0) return 1;
     return 0;
 }

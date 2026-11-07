@@ -18,6 +18,7 @@
 extern int csops(pid_t pid, unsigned int operation, void *address, size_t size);
 extern void *ryu_jit_prepare_region(void *address, size_t length);
 extern void ryu_jit_detach(void);
+extern int ryu_vulkan_probe(char *report, size_t capacity);
 
 static const uint32_t CS_OPS_STATUS = 0;
 static const uint32_t CS_GET_TASK_ALLOW = 0x00000004;
@@ -78,6 +79,18 @@ uint64_t ryu_memory_footprint(void) {
     mach_msg_type_number_t count = TASK_VM_INFO_COUNT;
     if (task_info(mach_task_self(), TASK_VM_INFO, (task_info_t)&info, &count) != KERN_SUCCESS) return 0;
     return info.phys_footprint;
+}
+
+int ryu_backend_check(const char *data_directory, char *report, size_t report_capacity) {
+    if (data_directory == NULL || report == NULL || report_capacity < 2) return EINVAL;
+    if (atomic_flag_test_and_set(&running)) return EBUSY;
+    uint8_t services[1024] = {0};
+    char graphics[1024] = {0};
+    int service_status = ryu_core_services_check((const uint8_t *)data_directory, services, sizeof(services));
+    int gpu_status = ryu_vulkan_probe(graphics, sizeof(graphics));
+    snprintf(report, report_capacity, "%s\n\n%s", services, graphics);
+    atomic_flag_clear(&running);
+    return service_status == 0 && gpu_status == 0 ? 0 : EIO;
 }
 
 static uint64_t milliseconds(void) {

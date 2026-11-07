@@ -1,0 +1,27 @@
+"""Materialize a checksum-pinned official iOS MoltenVK framework and headers."""
+import hashlib
+import json
+from pathlib import Path
+import tarfile
+import urllib.request
+
+ROOT = Path(__file__).resolve().parents[2]
+lock = json.loads((ROOT / "ios/native-dependencies.lock.json").read_text())["moltenVk"]
+output = ROOT / "ios/build/native-dependencies"
+output.mkdir(parents=True, exist_ok=True)
+archive = ROOT / f'ios/build/MoltenVK-ios-{lock["version"]}.tar'
+if not archive.exists():
+    request = urllib.request.Request(lock["url"], headers={"User-Agent": "ryu-ios-build/1"})
+    with urllib.request.urlopen(request, timeout=120) as response, archive.open("wb") as target:
+        while block := response.read(1024 * 1024):
+            target.write(block)
+actual = hashlib.sha256(archive.read_bytes()).hexdigest()
+if actual != lock["sha256"]:
+    raise RuntimeError(f"Native dependency checksum mismatch: {archive.name}")
+with tarfile.open(archive) as tar:
+    prefixes = (lock["framework"] + "/", lock["headers"] + "/")
+    members = [m for m in tar if m.name == "MoltenVK/LICENSE" or m.name.startswith(prefixes)]
+    tar.extractall(output, members=members, filter="data")
+assert (output / lock["framework"] / "MoltenVK").is_file()
+assert (output / lock["headers"] / "vulkan/vulkan.h").is_file()
+print(f'MoltenVK {lock["version"]}: official iOS ARM64 framework checksum verified.')
