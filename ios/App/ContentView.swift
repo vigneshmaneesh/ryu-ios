@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 struct ContentView: View {
     @StateObject private var model = JITViewModel()
     @StateObject private var backend = BackendChecks()
+    @StateObject private var horizon = BackendChecks()
     @StateObject private var library = GameLibrary()
     @State private var showingImporter = false
 
@@ -17,7 +18,7 @@ struct ContentView: View {
                             .foregroundStyle(.tint)
                         Text("Ryujinx on iOS")
                             .font(.largeTitle.bold())
-                        Text("CPU and platform backends · v0.4")
+                        Text("Horizon homebrew · v0.5")
                             .font(.title3).foregroundStyle(.secondary)
                         Text("Tests the production dispatcher, cache invalidation, guest page tables, interrupts and two guest threads. Game loading and graphics are still being developed.")
                             .foregroundStyle(.secondary)
@@ -43,7 +44,7 @@ struct ContentView: View {
                             if library.isImporting { ProgressView() }
                             Button("Import game or homebrew") { showingImporter = true }
                                 .buttonStyle(.bordered)
-                                .disabled(library.isImporting || model.isRunning || backend.isRunning)
+                                .disabled(library.isImporting || model.isRunning || backend.isRunning || horizon.isRunning)
                             Text("Files are copied into this app. Game execution is still being developed.")
                                 .font(.caption).foregroundStyle(.secondary)
                         }.frame(maxWidth: .infinity, alignment: .leading)
@@ -71,7 +72,7 @@ struct ContentView: View {
                                     .frame(maxWidth: .infinity).padding(.vertical, 6)
                             }
                             .buttonStyle(.borderedProminent)
-                            .disabled(model.isRunning || model.needsRestart || backend.isRunning || library.isImporting)
+                            .disabled(model.isRunning || model.needsRestart || backend.isRunning || library.isImporting || horizon.isRunning || horizon.needsRestart)
                             if model.isRunning {
                                 Button("Cancel waiting", action: model.cancel)
                                     .disabled(ryu_jit_stage() != 1)
@@ -96,7 +97,28 @@ struct ContentView: View {
                             if backend.isRunning { ProgressView() }
                             Button("Test platform backends", action: backend.run)
                                 .buttonStyle(.bordered)
-                                .disabled(model.isRunning || backend.isRunning || library.isImporting)
+                                .disabled(model.isRunning || backend.isRunning || library.isImporting || horizon.isRunning || horizon.needsRestart)
+                        }.frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                    GroupBox("Bundled homebrew") {
+                        VStack(alignment: .leading, spacing: 14) {
+                            Text("Boots a small NRO through the real Horizon kernel. It requests a heap, prints a marker and exits. Run the JIT test first.")
+                                .foregroundStyle(.secondary)
+                            if !horizon.report.isEmpty {
+                                Text(horizon.report)
+                                    .font(.system(.caption, design: .monospaced))
+                                    .foregroundStyle(horizon.passed ? Color.green : Color.primary)
+                                    .textSelection(.enabled)
+                            }
+                            if horizon.isRunning { ProgressView() }
+                            Button("Boot bundled homebrew", action: horizon.runHorizon)
+                                .buttonStyle(.borderedProminent)
+                                .disabled(!model.passed || model.isRunning || backend.isRunning || library.isImporting || horizon.isRunning || horizon.needsRestart)
+                            if horizon.needsRestart {
+                                Text("Close and reopen this app before further execution tests.")
+                                    .font(.callout)
+                            }
                         }.frame(maxWidth: .infinity, alignment: .leading)
                     }
 
@@ -118,7 +140,7 @@ struct ContentView: View {
                                 .textSelection(.enabled).padding(.top, 8)
                         }
                     }
-                    ShareLink(item: model.diagnostics + "\n\nPlatform backends:\n" + backend.report) {
+                    ShareLink(item: model.diagnostics + "\n\nPlatform backends:\n" + backend.report + "\n\nHorizon homebrew:\n" + horizon.report) {
                         Label("Share diagnostics", systemImage: "square.and.arrow.up")
                     }
                     .buttonStyle(.bordered)

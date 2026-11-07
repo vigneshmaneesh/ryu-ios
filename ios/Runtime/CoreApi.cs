@@ -16,6 +16,35 @@ public static unsafe class CoreApi
     [UnmanagedCallersOnly(EntryPoint = "ryu_core_abi_version")]
     public static uint GetAbiVersion() => AbiVersion;
 
+    [UnmanagedCallersOnly(EntryPoint = "ryu_core_horizon_check")]
+    public static int CheckHorizon(nint writable, nint executable, nuint capacity,
+        delegate* unmanaged<void> beginWrite, delegate* unmanaged<nint, nuint, void> publish,
+        byte* directory, byte* report, nuint reportCapacity)
+    {
+        if (directory == null || report == null || reportCapacity < 2 || reportCapacity > int.MaxValue) return -1;
+        report[0] = 0;
+        if (Interlocked.CompareExchange(ref _busy, 1, 0) != 0) return -2;
+        try
+        {
+            ConfigureDarwinLibraries();
+            var pool = new PreparedCodePool(writable, executable, capacity, beginWrite, publish);
+            JitMemoryAllocator.PreparedCodeAllocator = pool.Reserve;
+            string path = Marshal.PtrToStringUTF8((nint)directory) ?? throw new ArgumentException("Missing directory");
+            WriteReport(report, reportCapacity, HorizonProbe.Run(path));
+            return 0;
+        }
+        catch (Exception error)
+        {
+            WriteReport(report, reportCapacity, $"FAIL Horizon {error.GetType().Name}: {error.Message}");
+            return -3;
+        }
+        finally
+        {
+            JitMemoryAllocator.PreparedCodeAllocator = null;
+            Volatile.Write(ref _busy, 0);
+        }
+    }
+
     [UnmanagedCallersOnly(EntryPoint = "ryu_core_services_check")]
     public static int CheckServices(byte* directory, byte* report, nuint reportCapacity)
     {
@@ -81,5 +110,8 @@ public static unsafe class CoreApi
             name is "libc" or "libSystem.dylib" ? NativeLibrary.Load("/usr/lib/libSystem.B.dylib") : 0;
         NativeLibrary.SetDllImportResolver(typeof(MemoryBlock).Assembly, resolve);
         NativeLibrary.SetDllImportResolver(typeof(ARMeilleure.Memory.IMemoryManager).Assembly, resolve);
+        NativeLibrary.SetDllImportResolver(typeof(Ryujinx.Common.Configuration.AppDataManager).Assembly, resolve);
+        NativeLibrary.SetDllImportResolver(typeof(Ryujinx.Cpu.ICpuContext).Assembly, resolve);
+        NativeLibrary.SetDllImportResolver(typeof(Ryujinx.HLE.Switch).Assembly, resolve);
     }
 }

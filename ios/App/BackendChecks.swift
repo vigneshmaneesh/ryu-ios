@@ -6,12 +6,16 @@ final class BackendChecks: ObservableObject {
     @Published var isRunning = false
     @Published var report = ""
     @Published var passed = false
+    @Published var needsRestart = false
 
-    func run() {
-        guard !isRunning else { return }
+    func run() { perform(horizon: false) }
+    func runHorizon() { perform(horizon: true) }
+
+    private func perform(horizon: Bool) {
+        guard !isRunning, !needsRestart else { return }
         isRunning = true
         passed = false
-        report = "Initializing the emulated filesystem and checking GPU readback…"
+        report = horizon ? "Booting bundled homebrew through Horizon…" : "Initializing the emulated filesystem and checking GPU readback…"
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             var message: String
             var status: Int32 = -1
@@ -26,7 +30,8 @@ final class BackendChecks: ObservableObject {
                 var buffer = [CChar](repeating: 0, count: 4096)
                 status = directory.path.withCString { path in
                     buffer.withUnsafeMutableBufferPointer { output in
-                        ryu_backend_check(path, output.baseAddress, output.count)
+                        horizon ? ryu_horizon_check(path, output.baseAddress, output.count) :
+                            ryu_backend_check(path, output.baseAddress, output.count)
                     }
                 }
                 message = buffer.withUnsafeBufferPointer { String(cString: $0.baseAddress!) }
@@ -39,6 +44,7 @@ final class BackendChecks: ObservableObject {
             Task { @MainActor in
                 self?.isRunning = false
                 self?.passed = completedStatus == 0
+                self?.needsRestart = horizon && completedStatus != 0
                 self?.report = completedMessage
             }
         }

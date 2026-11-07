@@ -1,0 +1,6 @@
+<linker>
+  <!-- Legacy service discovery and dispatch require constructors and methods. -->
+  <assembly fullname="Ryujinx.HLE">
+    <type fullname="Ryujinx.HLE.HOS.Services.*" preserve="all" />
+  </assembly>
+</linker>

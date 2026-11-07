@@ -1,7 +1,13 @@
 using Ryujinx.Common.Configuration;
+using Ryujinx.Common.Configuration.Multiplayer;
+using Ryujinx.Audio.Integration;
+using Ryujinx.Graphics.GAL;
+using Ryujinx.HLE;
 using Ryujinx.HLE.FileSystem;
 using Ryujinx.HLE.HOS;
 using Ryujinx.HLE.HOS.Services.Account.Acc;
+using Ryujinx.HLE.HOS.SystemState;
+using LibHac.Tools.FsSystem;
 using Ryujinx.Memory;
 using System;
 using System.IO;
@@ -18,6 +24,21 @@ public static class ServiceBootstrap
     private static LibHacHorizonManager _horizon;
     private static ContentManager _content;
     private static AccountManager _accounts;
+
+    internal static HleConfiguration KernelProbeConfiguration(IRenderer renderer, IHardwareDeviceDriver audio)
+    {
+        lock (Gate)
+        {
+            if (_root == null) throw new InvalidOperationException("Initialize the filesystem first.");
+            var configuration = new HleConfiguration(
+                MemoryConfiguration.MemoryConfiguration4GiB, SystemLanguage.BritishEnglish, RegionCode.Europe,
+                VSyncMode.Switch, false, false, 100, false, IntegrityCheckLevel.ErrorOnInvalid, 0, 0, "UTC",
+                MemoryManagerMode.SoftwarePageTable, false, AspectRatio.Fixed16x9, 0, false, "",
+                MultiplayerMode.Disabled, true, "", "", false, 0, false, 60);
+            return configuration.Configure(_fileSystem, _horizon, _content, _accounts, new UserChannelPersistence(),
+                renderer, audio, null);
+        }
+    }
 
     public static string Initialize(string directory)
     {

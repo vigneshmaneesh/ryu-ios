@@ -26,6 +26,7 @@ static const uint32_t CS_DEBUGGED = 0x10000000;
 static atomic_int stage = RYU_JIT_IDLE;
 static atomic_bool cancelled = false;
 static atomic_bool ready = false;
+static atomic_bool horizon_failed = false;
 static atomic_flag running = ATOMIC_FLAG_INIT;
 static vm_address_t executable = 0;
 static vm_address_t writable = 0;
@@ -152,6 +153,26 @@ static void publish_code(void *address, uintptr_t length) {
     atomic_thread_fence(memory_order_seq_cst);
     sys_icache_invalidate(address, length);
     atomic_store(&stage, RYU_JIT_GUEST_EXECUTING);
+}
+
+int ryu_horizon_check(const char *data_directory, char *report, size_t report_capacity) {
+    if (data_directory == NULL || report == NULL || report_capacity < 2) return EINVAL;
+    if (!atomic_load(&ready)) {
+        snprintf(report, report_capacity, "Run Enable JIT and test successfully first.");
+        return EPERM;
+    }
+    if (atomic_load(&horizon_failed)) {
+        snprintf(report, report_capacity, "Restart this app after a failed kernel test before retrying.");
+        return EALREADY;
+    }
+    if (atomic_flag_test_and_set(&running)) return EBUSY;
+    const size_t diagnostic_capacity = 1024 * 1024;
+    int status = ryu_core_horizon_check((void *)(writable + diagnostic_capacity),
+        (void *)(executable + diagnostic_capacity), allocation_size - diagnostic_capacity,
+        begin_code_write, publish_code, (const uint8_t *)data_directory, (uint8_t *)report, report_capacity);
+    if (status != 0) atomic_store(&horizon_failed, true);
+    atomic_flag_clear(&running);
+    return status;
 }
 
 int ryu_jit_run(int txm, uint32_t timeout_ms, uint32_t bias,

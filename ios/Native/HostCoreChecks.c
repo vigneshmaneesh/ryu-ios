@@ -26,11 +26,17 @@ int main(int argc, char **argv) {
         printf("Core seed %u:\n%s\n", seeds[i], report);
         if (status != 0) { munmap(code, capacity); return 1; }
     }
-    munmap(code, capacity);
     puts("PASS: all production CPU checks on Apple Silicon NativeAOT.");
     uint8_t report[2048] = {0};
     int status = ryu_core_services_check((const uint8_t *)argv[1], report, sizeof(report));
     printf("%s\n", report);
     if (status != 0) return 1;
+    for (int i = 0; i < 2; i++) {
+        status = ryu_core_horizon_check(code, code, capacity, begin_write, publish,
+            (const uint8_t *)argv[1], report, sizeof(report));
+        printf("Horizon run %d:\n%s\n", i + 1, report);
+        if (status != 0) return 1;
+    }
+    munmap(code, capacity);
     return 0;
 }

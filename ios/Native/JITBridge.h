@@ -21,6 +21,7 @@ uint64_t ryu_available_memory(void);
 uint64_t ryu_prepared_code_capacity(void);
 // Independent filesystem/account and Vulkan roundtrip checks; no JIT required.
 int ryu_backend_check(const char *data_directory, char *report, size_t report_capacity);
+int ryu_horizon_check(const char *data_directory, char *report, size_t report_capacity);
 // Blocking; call on a background queue. Returns 0 only after generated code passes.
 int ryu_jit_run(int txm, uint32_t timeout_ms, uint32_t bias,
                 uint64_t *result, char *error, size_t error_capacity);
