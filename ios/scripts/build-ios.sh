@@ -54,7 +54,7 @@ xcrun --sdk macosx clang -arch arm64 -isysroot "$mac_sdk" -mmacosx-version-min=1
     "$root/ios/Native/HostCoreChecks.c" "$out/core-macos/RyuCore.dylib" \
     -Wl,-rpath,"$out/core-macos" -o "$out/core-macos/HostCoreChecks"
 codesign --force --sign - --entitlements "$root/ios/Native/HostJIT.entitlements" "$out/core-macos/HostCoreChecks"
-"$out/core-macos/HostCoreChecks"
+"$out/core-macos/HostCoreChecks" "$out/core-services"
 
 dotnet publish "$root/ios/Runtime/RyuCore.csproj" \
     -c Release -r ios-arm64 -o "$out/core-ios" \

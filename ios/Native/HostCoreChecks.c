@@ -1,10 +1,8 @@
-#define _DARWIN_C_SOURCE 1
 #include "CoreApi.h"
 #include <errno.h>
 #include <libkern/OSCacheControl.h>
 #include <pthread.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
 
@@ -14,7 +12,8 @@ static void publish(void *address, uintptr_t size) {
     pthread_jit_write_protect_np(1);
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    if (argc != 2) { fputs("Pass a build-local service data directory\n", stderr); return 1; }
     if (ryu_core_abi_version() != 1) { fputs("Unsupported core ABI\n", stderr); return 1; }
     const size_t capacity = 256UL * 1024 * 1024;
     void *code = mmap(NULL, capacity, PROT_READ | PROT_WRITE | PROT_EXEC,
@@ -29,10 +28,8 @@ int main(void) {
     }
     munmap(code, capacity);
     puts("PASS: all production CPU checks on Apple Silicon NativeAOT.");
-    char directory[] = "/tmp/ryu-services-XXXXXX";
-    if (mkdtemp(directory) == NULL) { perror("mkdtemp"); return 1; }
     uint8_t report[2048] = {0};
-    int status = ryu_core_services_check((const uint8_t *)directory, report, sizeof(report));
+    int status = ryu_core_services_check((const uint8_t *)argv[1], report, sizeof(report));
     printf("%s\n", report);
     if (status != 0) return 1;
     return 0;
