@@ -102,6 +102,8 @@ public static class StartupDiagnostics
 {
     public static Action<string> Checkpoint { get; set; }
     public static void Write(string stage) => Checkpoint?.Invoke(stage);
+    // The normal NRO loader waits on this same barrier before running a guest.
+    public static void WaitServicesReady(Switch device) => device.System.ServiceTable.WaitServicesReady();
 }
 ''', encoding="utf-8")
     stages = {

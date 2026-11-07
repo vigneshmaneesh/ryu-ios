@@ -35,6 +35,12 @@ public static class HorizonProbe
             device = new Switch(configuration);
             if (!loadGuest)
             {
+                // Match ProcessLoaderHelper: constructor return does not imply
+                // that asynchronous service registration has finished. Closing
+                // SM first would abort services still inside SmApi.Initialize.
+                HorizonJournal.Write("Waiting for all generated service registrations");
+                StartupDiagnostics.WaitServicesReady(device);
+                HorizonJournal.Write("All generated service registrations ready");
                 HorizonJournal.Write("Kernel construction check completed; no guest executed");
                 return "PASS real Horizon kernel construction / services / HID / teardown";
             }
