@@ -19,5 +19,5 @@ runtime="$(python3 -c 'import json,sys; r=[x for x in json.load(open(sys.argv[1]
 device="$(xcrun simctl create RyuLoggingRegression com.apple.CoreSimulator.SimDeviceType.iPhone-16 "$runtime")"
 trap 'xcrun simctl shutdown "$device" >/dev/null 2>&1 || true; xcrun simctl delete "$device" >/dev/null 2>&1 || true' EXIT
 xcrun simctl boot "$device"
-xcrun simctl bootstatus "$device" -b
-xcrun simctl spawn "$device" "$out/IosLoggingChecks"
+python3 -c 'import subprocess,sys; subprocess.run(["xcrun","simctl","bootstatus",sys.argv[1],"-b"],check=True,timeout=180)' "$device"
+python3 -c 'import subprocess,sys; subprocess.run(["xcrun","simctl","spawn",sys.argv[1],sys.argv[2]],check=True,timeout=90)' "$device" "$out/IosLoggingChecks"
