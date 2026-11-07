@@ -70,6 +70,20 @@ The iOS build additionally compiles C/assembly/Swift, checks signatures, validat
 the native framework and Info.plist, and verifies `get-task-allow` is present in
 the packaged entitlements. AltStore re-signing must preserve it on-device.
 
+## Reported device results
+
+On 7 November 2026, the user confirmed the first IPA passed on both devices:
+
+| Device | ARM64 probe | Development signing | TXM | JIT enabler |
+| --- | --- | --- | --- | --- |
+| iPhone 16 | All four inputs passed | Ready | Present | StikDebug |
+| M1 11-inch iPad | All four inputs passed | Ready | Present | StikDebug |
+
+These are user-reported results for the [first validated prototype build](https://github.com/vigneshmaneesh/ryu-ios/actions/runs/42386337979),
+from commit `235f4b0b5ec132061cca7b62a0fe009ec7052b48`. Exact OS build numbers
+were not captured. This verifies the arithmetic/code-emission probe; guest-code
+translation, graphics, and game compatibility remain to be validated.
+
 ## Next porting milestones
 
 - Replace this probe allocator with an iOS implementation of `IJitMemoryAllocator`
