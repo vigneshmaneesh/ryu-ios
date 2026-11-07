@@ -40,3 +40,5 @@ with (core / "Info.plist").open("wb") as file:
 shutil.copyfile(root / "ios/upstream.lock.json", app / "upstream.lock.json")
 shutil.copyfile(root / "ios/build/upstream/distribution/legal/THIRDPARTY.md", app / "ThirdParty/Ryubing-THIRDPARTY.md")
 shutil.copyfile(root / "ios/ThirdParty/Silk.NET-LICENSE.txt", app / "ThirdParty/Silk.NET-LICENSE.txt")
+for notice in (root / "ios/ThirdParty").glob("*.txt"):
+    shutil.copyfile(notice, app / "ThirdParty" / notice.name)

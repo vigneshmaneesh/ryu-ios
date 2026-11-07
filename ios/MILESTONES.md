@@ -19,8 +19,8 @@ observed instrumentation. The original milestone numbers remain fixed.
 | 9 | Threads, interrupts, timers and synchronization | Interrupt/TLS checks and real Horizon scheduling for the authored NRO pass both devices; broader synchronization coverage incomplete |
 | 10 | Horizon kernel and services | Real initialization, service startup and teardown pass twice on both devices in v0.5.3 build 20; commercial service compatibility unverified |
 | 11 | Real homebrew loading/execution | Complete for the authored NRO: real SetHeapSize, OutputDebugString and ExitProcess pass twice on desktop, Apple NativeAOT and both devices |
-| 12 | iOS Vulkan/MoltenVK graphics and first frame | Upstream VulkanRenderer / Metal surface / swapchain conformance passes both devices in v0.6 build 26; M1 repeat and trace confirmed; guest GPU commands and a real homebrew frame remain unintegrated |
-| 13 | Shader translation, cache and correctness | Not integrated |
+| 12 | iOS Vulkan/MoltenVK graphics and first frame | Upstream VulkanRenderer / Metal surface / swapchain conformance passes both devices in v0.6 build 26; M1 repeat and trace confirmed; v0.7 build 30 presents 178 real guest frames and exits cleanly on Apple NativeAOT; device guest display pending |
+| 13 | Shader translation, cache and correctness | Upstream SPIR-V guest shader translation runs in the v0.7 triangle smoke boot; broader shader/cache correctness unverified |
 | 14 | Native audio | Not integrated |
 | 15 | Controllers, touch and motion | Not integrated |
 | 16 | Sandboxed game, firmware, key and update imports | Native game/homebrew importer and signature checks implemented; device validation pending; firmware/keys/updates not integrated |
@@ -70,10 +70,9 @@ the commercial target to diagnose multiple unverified subsystems at once.
 
 ## v0.7 work in progress
 
-The next build connects real NRO execution to the GPU FIFO, shader translator and
+v0.7 build 30 connects real NRO execution to the GPU FIFO, shader translator and
 Metal presentation loop, with a bundled public-domain deko3d triangle and launch
-buttons for imported NROs. This integration is awaiting its first smoke boot; it
-is not yet evidence of commercial game compatibility.
+buttons for imported NROs. The Apple NativeAOT smoke boot presented 178 guest frames and completed kernel/GPU teardown. Device guest graphics and commercial game compatibility are still unverified.
 
 Routine CI now builds the homebrew and IPA with one actual guest boot. The full
 CPU/kernel and simulator regression suite is opt-in using `extended_checks`.

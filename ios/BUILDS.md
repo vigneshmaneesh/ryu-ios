@@ -122,3 +122,16 @@ Expired Actions artifacts can be rebuilt from their immutable source commit on a
 public development branch. Keep the last working IPA outside the transient Actions
 artifact store. AltStore re-signing changes the package; hashes above identify the
 original CI download.
+
+## v0.7.0 graphics homebrew candidate
+
+Built from `3efd2129e8e8e07ad5dc61b9673021ee3d7798bd`, run
+[42415982300](https://github.com/vigneshmaneesh/ryu-ios/actions/runs/42415982300),
+version 0.7.0 build 30. The one Apple NativeAOT guest smoke boot presented **178
+frames**, observed libnx's applet exit request and completed kernel/GPU teardown.
+The iOS ARM64 IPA and entitlement/content verification succeeded. Device guest
+rendering is pending; audio/input and commercial game compatibility remain work.
+
+Routine CI skips the extended CPU/kernel/simulator suite. A delivery-only job
+adds the bundled homebrew libraries' notices alongside this unchanged IPA; it
+performs no further emulator tests. Later builds embed these notices in the app.

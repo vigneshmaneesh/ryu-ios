@@ -59,8 +59,7 @@ acquisition for lifecycle cancellation, check presentation results and count
 accepted frames. Silk.NET commands bind directly from the embedded signed framework,
 bypassing its default `__Internal` loader, which fails under iOS NativeAOT. Helper
 shaders use upstream embedded SPIR-V binaries. The optional
-GLSL compiler is not packaged; iOS rejects that path explicitly. Guest shader
-translation, GPU command submission and homebrew/game display remain later work.
+GLSL compiler is not packaged; iOS rejects that path explicitly. v0.7 connects guest SPIR-V translation, GPU command submission and homebrew display. Its first Apple NativeAOT smoke boot presents 178 frames and shuts down cleanly; device homebrew display and game compatibility remain unverified.
 
 v0.7's first real guest smoke boot presented an emulated GPU frame at
 21:24:02 UTC in run 42415436349. The deko3d program compiled and reached its

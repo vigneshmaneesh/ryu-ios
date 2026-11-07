@@ -23,7 +23,7 @@ concurrency:
 
 jobs:
   homebrew:
-    if: github.event.repository.private == false
+    if: github.event.repository.private == false && !contains(github.event.head_commit.message, '[notices-only]')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     container:

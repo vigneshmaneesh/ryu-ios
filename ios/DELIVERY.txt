@@ -1,0 +1,19 @@
+Ryu iOS v0.7.0 build 30
+
+Install RyuJIT-iOS27.ipa with AltStore and enable JIT with your existing StikDebug
+setup. Open Boot triangle homebrew, then Launch homebrew. A coloured triangle
+should appear on blue, then the program should finish. One run is enough.
+
+This is the first graphics homebrew build, not a commercial-game release.
+Imported NRO files can also be launched. Audio and controller/touch input are
+not connected yet.
+
+Original build source: 3efd2129e8e8e07ad5dc61b9673021ee3d7798bd
+https://github.com/vigneshmaneesh/ryu-ios/actions/runs/42415982300
+The Apple NativeAOT smoke boot presented 178 guest GPU frames, handled the libnx
+applet exit request and completed kernel/GPU teardown. The IPA passed device
+ARM64/platform/contents/entitlement packaging checks.
+
+This bundle adds third-party notices alongside the unchanged, signed IPA.
+Keep ThirdParty with copies of this distribution. Future builds also embed the
+homebrew runtime notices inside the app.

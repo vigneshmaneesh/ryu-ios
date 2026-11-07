@@ -1,0 +1,43 @@
+name: Package existing iOS build with notices
+on:
+  workflow_dispatch:
+    inputs:
+      source_run:
+        description: Successful Native iOS build run ID
+        default: '42415982300'
+        required: true
+        type: string
+  push:
+    paths:
+      - '.github/workflows/ios-delivery.yml'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  delivery:
+    if: github.event.repository.private == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: RyuJIT-iOS27
+          run-id: ${{ inputs.source_run || '42415982300' }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: delivery
+      - name: Include homebrew runtime notices without changing the signed IPA
+        run: |
+          mkdir -p delivery/ThirdParty
+          cp ios/ThirdParty/*.txt delivery/ThirdParty/
+          cp ios/HomebrewGraphics/NOTICE.txt delivery/ThirdParty/GraphicsHomebrew-NOTICE.txt
+          cp ios/DELIVERY.txt delivery/README.txt
+          cd delivery
+          sha256sum --check RyuJIT-iOS27.ipa.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RyuJIT-iOS27-with-notices
+          path: delivery/
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
