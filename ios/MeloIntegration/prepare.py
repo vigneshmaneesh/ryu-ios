@@ -183,10 +183,12 @@ def prepare(offline=False):
     edit('src/Ryujinx.Common/Logging/Targets/ConsoleLogTarget.cs',
          '            Console.ResetColor();\n        }\n    }',
          '            if (!OperatingSystem.IsIOS()) Console.ResetColor();\n        }\n    }')
-    # Reuse FoW's bundle identity, as requested, for the same sideloaded app slot.
+    # Retain stock MeloNX identities so AltStore can reuse its existing app and
+    # RAM helper registrations. AltStore adds the user's team suffix itself.
     project = 'src/MeloNX/MeloNX.xcodeproj/project.pbxproj'
-    edit(project, 'com.stossy11.MeloNX', 'app.fow.explorer')
     text = (DEST / project).read_text()
+    assert text.count('PRODUCT_BUNDLE_IDENTIFIER = com.stossy11.MeloNX;') == 2
+    assert text.count('PRODUCT_BUNDLE_IDENTIFIER = com.stossy11.MeloNX.RamDonor;') == 2
     text = re.sub(r'IPHONEOS_DEPLOYMENT_TARGET = [\d.]+;', 'IPHONEOS_DEPLOYMENT_TARGET = 27.0;', text)
     text = re.sub(r'DEVELOPMENT_TEAM = [^;]*;', 'DEVELOPMENT_TEAM = "";', text)
     # Build the engine explicitly. Never invoke the supplied profile-sourcing
@@ -199,22 +201,19 @@ def prepare(offline=False):
     with info.open('rb') as stream: data = plistlib.load(stream)
     data['CFBundleDisplayName'] = 'Ryu MeloNX'
     data['CFBundleShortVersionString'] = '1.0.0'
-    for url_type in data.get('CFBundleURLTypes', []):
-        name = url_type.get('CFBundleURLName', '')
-        if name.startswith('com.stossy11.MeloNX'):
-            url_type['CFBundleURLName'] = name.replace('com.stossy11.MeloNX', 'app.fow.explorer', 1)
     data['LSApplicationQueriesSchemes'] = sorted(set(data.get('LSApplicationQueriesSchemes', []) + ['stikdebug', 'stikjit']))
     with info.open('wb') as stream: plistlib.dump(data, stream)
     # Retain all upstream notices; provenance travels with the app and IPA.
     provenance = dict(melonx=MELO, ryubing=RYU, common_ancestor=BASE, merged_tree=tree,
-                      bundle_id='app.fow.explorer',
+                      bundle_id='com.stossy11.MeloNX',
+                      sideload_identity='stock MeloNX base IDs; AltStore adds account suffix and reuses matching registrations',
                       security_fixes=[],
                       review_runtime_changes='reverted at user request',
                       jit_helper='original BreakpointJIT.framework; StikDebug universal.js with process-local readiness',
                       jit_flow='single activation handoff, explicit retry, cancelled view polling',
                       cpu_tables='multi-level on iOS for both CPU backends; no 1 TiB sparse reservation',
                       guest_ram='stock MeloNX allocation flags; startup rollback and error details',
-                      ram_donor='stock MeloNXRamDonor.appex, app.fow.explorer.RamDonor',
+                      ram_donor='stock MeloNXRamDonor.appex, com.stossy11.MeloNX.RamDonor',
                       signing='ad-hoc entitlement request for AltStore re-signing; increased-memory-limit and get-task-allow; device grants must be verified after installation',
                       molten_vk='original MeloNX bundled libMoltenVK.dylib',
                       native_dependencies='supplied binary dependencies require independent provenance verification')

@@ -15,8 +15,10 @@ cause of the crash. MeloNX's original ZIP extractor, library callback, encoded
 JIT script, BreakpointJIT framework, bundled MoltenVK and memory-donation
 defaults are restored. The ZIP/callback findings below therefore apply again.
 The source review and its findings are retained as a historical record.
-The Ryubing merge, iOS build/ABI compatibility fixes, 8 MiB worker stacks and
-the requested FoW App ID remain. A later memory fix restores the stock RAM donor
+The Ryubing merge, iOS build/ABI compatibility fixes and 8 MiB worker stacks
+remain. Builds through 10 used the requested FoW App ID; the current candidate
+restores the stock MeloNX app/helper IDs to reuse the user's MeloNX registrations.
+A later memory fix restores the stock RAM donor
 extension, guest RAM allocation flags and capability gates. The package embeds
 MeloNX's increased-memory-limit entitlement request and development debugger
 access for AltStore re-signing; final device capabilities are not granted by CI.

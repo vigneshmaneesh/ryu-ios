@@ -24,12 +24,20 @@ native memory preparation for the current process. JIT readiness is never
 inferred merely from returning from StikDebug. The original BreakpointJIT
 framework, encoded legacy script and MoltenVK binary remain present.
 
-This candidate reuses FoW's bundle ID, `app.fow.explorer`, at the user's request.
-The identifier was verified in FoW's project configuration and built IPA.
-Signing with the same AltStore account is intended to replace FoW and reuse its
-main app ID. The app remains named Ryu MeloNX and does not migrate FoW data.
+This candidate uses stock MeloNX's bundle ID, `com.stossy11.MeloNX`, at the
+user's request to reuse the existing MeloNX registrations. This replaces the
+FoW identity used in builds through 10. AltStore adds the Apple team identifier
+to the parent ID and preserves the `.RamDonor` extension suffix, yielding
+`com.stossy11.MeloNX.TEAMID` and `com.stossy11.MeloNX.TEAMID.RamDonor`.
+The account suffix must not be hard-coded into the input IPA, since AltStore
+would append it again for a new registration. Use the same Apple ID as the
+existing MeloNX installation and keep bundle-ID randomization disabled to reuse
+the existing registrations. Installing this candidate updates MeloNX rather
+than FoW. The app remains named Ryu MeloNX.
+AltStore's implementation is documented in its
+[provisioning operation](https://github.com/altstoreio/AltStore/blob/develop/AltStore/Operations/FetchProvisioningProfilesOperation.swift).
 Keys, firmware and games remain local to the device. The stock memory donor
-extension is embedded as `app.fow.explorer.RamDonor`, preserving the original
+extension is embedded as `com.stossy11.MeloNX.RamDonor`, preserving the original
 memory-donation defaults and helper code. It uses an additional extension App ID;
 it is not a separately launched app. Keep the extension when sideloading.
 The stock memory-capability gates are restored and log the permissions reported

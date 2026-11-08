@@ -8,13 +8,13 @@ import sys
 
 app = Path(sys.argv[1]).resolve()
 info = plistlib.loads((app / 'Info.plist').read_bytes())
-assert info['CFBundleIdentifier'] == 'app.fow.explorer', info['CFBundleIdentifier']
+assert info['CFBundleIdentifier'] == 'com.stossy11.MeloNX', info['CFBundleIdentifier']
 assert float(info['MinimumOSVersion']) >= 27
 helpers = list((app / 'PlugIns').iterdir())
 assert len(helpers) == 1 and helpers[0].name == 'MeloNXRamDonor.appex', helpers
 helper = helpers[0]
 helper_info = plistlib.loads((helper / 'Info.plist').read_bytes())
-assert helper_info['CFBundleIdentifier'] == 'app.fow.explorer.RamDonor', helper_info
+assert helper_info['CFBundleIdentifier'] == 'com.stossy11.MeloNX.RamDonor', helper_info
 assert float(helper_info['MinimumOSVersion']) >= 27
 assert helper_info['NSExtension']['NSExtensionPrincipalClass'] == 'MLXRamDonorHandler'
 assert helper_info['NSExtension']['NSExtensionPointIdentifier'] == 'com.apple.ar.viewer'
