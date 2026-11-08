@@ -1,0 +1,56 @@
+# MeloNX source review and integration
+
+Source supplied in `MeloNX Source Code/MeloNX`; clean working tree at
+`13700519f3abc4e6d7ed8a065b118b2cc59bcd67` (2026-10-11).
+The original checkout is kept unchanged. The file hashes are recorded in
+`melonx-source-manifest.json` (4,990 files, including 21 native libraries).
+
+Latest official Ryubing HEAD was queried directly over Git on 2026-11-08:
+`a61a42681119bf15fe8f3297677ae48bda83e70f`. This matches the existing iOS pin.
+
+## Confirmed findings — user alerted immediately
+
+1. **Game-library disclosure through an unauthenticated callback.**
+   `src/MeloNX/MeloNX/Common/AppEnvironment.swift`, `handleDeepLink`,
+   `gameInfo` case: accepts an arbitrary callback scheme, encodes every
+   `GameScheme`, and opens that scheme without confirmation. Fields include
+   title names/IDs, developer/version, icons and host bundle ID. It also exits
+   the app when JIT is absent. This is a privacy/availability exposure;
+   malicious intent has not been established. Disable this callback.
+2. **ZIP extraction directory-boundary bypass.**
+   `src/Ryujinx.Library/Compression/NativeZip.cs`: plain
+   `entryDestPath.StartsWith(destFull)` accepts a sibling with the same prefix,
+   e.g. destination `/data/mod` and entry `../mod-other/file`. Replace with a
+   proper normalized relative-path check, reject unsafe/link entries and bound
+   extraction size/count before using archive import.
+
+## Review observations and limits
+
+- No key/password upload, telemetry endpoint or malicious build command has
+  been identified in the source reviewed so far. This is not a clean-bill-of-
+  health claim: review and native dependency verification are still in progress.
+- The encoded StikDebug script was decoded, not executed. Its SHA-256 is
+  `fffd376fcbab381e303ac2034eab246047868301271c119b38c9b44d9f011c35`.
+  It implements debugger protocol/register/memory preparation. Its `eval`
+  executes script text obtained from the target process; do not treat the
+  base64 encoding alone as proof of malware. Prefer the already verified JIT
+  path, or a reviewed source build, for this integration.
+- Native frameworks/binaries cannot be declared malware-free from source and
+  string scanning. Provenance/hash verification or rebuilding is required for
+  stronger assurance. No supplied native binary has been executed locally.
+- Swift package manifests at their pinned revisions contain ordinary source
+  targets and no build plugins: Melo-Controller
+  `c049ce88a5635bddcd88e1965c42aa8fc92fe961`; navigation-stack-backport
+  `55acfe7693c233ddc7f62f887f0df6ebd779ef01`.
+- The supplied README describes GPLv3 while `LICENSE.txt` contains the Ryujinx
+  MIT license. Preserve supplied notices and record the inconsistency; do not
+  silently replace licensing information.
+- The supplied build script sources interactive shell profiles. The new CI
+  build should use an explicit toolchain and environment instead.
+
+## Integration work
+
+Preserve MeloNX's native frontend and iOS-specific platform work, merge the
+latest pinned Ryubing engine changes, apply the security fixes, then build an
+iOS 27 IPA in the public GitHub repository. Existing Ryu work remains available
+on `feature/ios-parity`; no device-test requests until a complete candidate.

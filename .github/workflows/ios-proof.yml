@@ -8,6 +8,7 @@ on:
         type: boolean
         default: false
   push:
+    branches-ignore: ['feature/melonx-*']
     paths:
       - 'ios/**'
       - '.github/workflows/ios-proof.yml'

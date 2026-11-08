@@ -1,0 +1,136 @@
+{
+  "commit": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+  "sourceFiles": 4990,
+  "fullManifestSha256": "ebb920bcd2ac8466d808e33ae66b6b6bca803429f002cdb4d0f7e9e84a5bdb46",
+  "nativeBinaries": [
+    {
+      "path": "src/MeloNX/MeloNX/Dependencies/libavcodec.dylib",
+      "sha256": "71314eabbd13d5677e3551c3bd8721122baf9a999a94db92556426f746a500c9",
+      "hosts": [
+        "www.w3.org"
+      ]
+    },
+    {
+      "path": "src/MeloNX/MeloNX/Dependencies/libavutil.dylib",
+      "sha256": "0fe22603850a760f8451240b433f7b41eed48cc68bfd0b0705edcd864c6597c1",
+      "hosts": [
+        "streams.videolan.org"
+      ]
+    },
+    {
+      "path": "src/MeloNX/MeloNX/Dependencies/libMoltenVK.dylib",
+      "sha256": "5735ca4aee60ed7e0475b80b8ecdcfc952e4e0b7d49018f11781e51e5106bfa5",
+      "hosts": []
+    },
+    {
+      "path": "src/MeloNX/MeloNX/Dependencies/BreakpointJIT.framework/BreakpointJIT",
+      "sha256": "eb27dafb98f5cc352d8ec453ee839e8c6a95e552952015930dab09fe83371b0d",
+      "hosts": []
+    },
+    {
+      "path": "src/MeloNX/MeloNX/Dependencies/libavcodec.xcframework/ios-arm64/libavcodec.framework/libavcodec",
+      "sha256": "71314eabbd13d5677e3551c3bd8721122baf9a999a94db92556426f746a500c9",
+      "hosts": [
+        "www.w3.org"
+      ]
+    },
+    {
+      "path": "src/MeloNX/MeloNX/Dependencies/libavcodec.xcframework/ios-arm64_x86_64-simulator/libavcodec.framework/libavcodec",
+      "sha256": "4f14ef461e2583197321256e21479bd2c587379b9d42e1851da4acee9d28bd51",
+      "hosts": [
+        "lame.sf.net",
+        "www.twolame.org",
+        "www.w3.org"
+      ]
+    },
+    {
+      "path": "src/MeloNX/MeloNX/Dependencies/libavfilter.xcframework/ios-arm64/libavfilter.framework/libavfilter",
+      "sha256": "8b634c714270baf9f2a027c92da87007039c5a98028866457d506612d9d0ff02",
+      "hosts": []
+    },
+    {
+      "path": "src/MeloNX/MeloNX/Dependencies/libavfilter.xcframework/ios-arm64_x86_64-simulator/libavfilter.framework/libavfilter",
+      "sha256": "cd304d87c5ae8507ff17cbe2ba7d81d3071c6b4063be3e29aff3162103ad2cc5",
+      "hosts": []
+    },
+    {
+      "path": "src/MeloNX/MeloNX/Dependencies/libavformat.xcframework/ios-arm64/libavformat.framework/libavformat",
+      "sha256": "fb81dc4de11e8d9a21132b350b9bddf6714c801489272d93c0c5a6fb36ed7a67",
+      "hosts": [
+        "dashif.org",
+        "ns.adobe.com",
+        "standards.iso.org",
+        "www.w3.org"
+      ]
+    },
+    {
+      "path": "src/MeloNX/MeloNX/Dependencies/libavformat.xcframework/ios-arm64_x86_64-simulator/libavformat.framework/libavformat",
+      "sha256": "3cba678433e42878b3b55638deeaedb9b45f92cc14b46ba2bed7b75e0a327333",
+      "hosts": [
+        "dashif.org",
+        "ns.adobe.com",
+        "standards.iso.org",
+        "www.w3.org"
+      ]
+    },
+    {
+      "path": "src/MeloNX/MeloNX/Dependencies/libavutil.xcframework/ios-arm64/libavutil.framework/libavutil",
+      "sha256": "0fe22603850a760f8451240b433f7b41eed48cc68bfd0b0705edcd864c6597c1",
+      "hosts": [
+        "streams.videolan.org"
+      ]
+    },
+    {
+      "path": "src/MeloNX/MeloNX/Dependencies/libavutil.xcframework/ios-arm64_x86_64-simulator/libavutil.framework/libavutil",
+      "sha256": "3c8bf599a75879ec0a918b1d2879247057bade794dbc4afc5c106b56ed6e6dbf",
+      "hosts": [
+        "streams.videolan.org"
+      ]
+    },
+    {
+      "path": "src/MeloNX/MeloNX/Dependencies/libSPIRV.xcframework/ios-arm64/libSPIRV.a",
+      "sha256": "f5b15a5a7675f5e816f3f6b42c8c854ed6807d8e955cdf9e9a7b5b905bab2eb6",
+      "hosts": []
+    },
+    {
+      "path": "src/MeloNX/MeloNX/Dependencies/libSPIRV.xcframework/ios-x86_64-simulator/libSPIRV.a",
+      "sha256": "d153417d0c14bfefa494fd36983b24e7ddad4dc3a820a82ba9ae8575bf558ef9",
+      "hosts": []
+    },
+    {
+      "path": "src/MeloNX/MeloNX/Dependencies/libswresample.xcframework/ios-arm64/libswresample.framework/libswresample",
+      "sha256": "bd972e55d88368c7fe39be47c33d9d3bd14bc697ac51473fc746547a16a23f5c",
+      "hosts": []
+    },
+    {
+      "path": "src/MeloNX/MeloNX/Dependencies/libswresample.xcframework/ios-arm64_x86_64-simulator/libswresample.framework/libswresample",
+      "sha256": "9b86c7936a18a7fee6135d1c72b9d9a8d4220053e078c74f41fca01c695b1373",
+      "hosts": []
+    },
+    {
+      "path": "src/MeloNX/MeloNX/Dependencies/libswscale.xcframework/ios-arm64/libswscale.framework/libswscale",
+      "sha256": "2cd61945fe77fb5f3cc1f60bc1a4785e79a00de788c327d9c4464bdb238d2e0b",
+      "hosts": []
+    },
+    {
+      "path": "src/MeloNX/MeloNX/Dependencies/libswscale.xcframework/ios-arm64_x86_64-simulator/libswscale.framework/libswscale",
+      "sha256": "39482ef05b78d664ec3f8350e40cc99d28c5dd9997bfc1be4b978b859b65fe50",
+      "hosts": []
+    },
+    {
+      "path": "src/MeloNX/MeloNX/Dependencies/libteakra.xcframework/ios-arm64/libteakra.a",
+      "sha256": "8960800232dddce0d9fbff8882c6976bde0e93dd7df269971890fdf4c61b73fa",
+      "hosts": []
+    },
+    {
+      "path": "src/MeloNX/MeloNX/Dependencies/libteakra.xcframework/ios-x86_64-simulator/libteakra.a",
+      "sha256": "5e837fea4804d54f6a2490597ec2a486e4867b03b577c4c2e44236b59d1190bd",
+      "hosts": []
+    },
+    {
+      "path": "src/MeloNX/MeloNX/Dependencies/SDL3.xcframework/ios-arm64/SDL3.framework/SDL3",
+      "sha256": "c8589c64af9c8acfbe916f95ff00188249bdd1749e84c4ea6c55aeec0148ba54",
+      "hosts": []
+    }
+  ]
+}

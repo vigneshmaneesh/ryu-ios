@@ -1,0 +1,137 @@
+[
+  {
+    "path": "README.md",
+    "blocks": [
+      {
+        "ours": "<body>\n  <p align=\"center\">\n    <a href=\"https://melonx.org\">\n      <img src=\"https://starforgejo.dev/projects/MeloNX/raw/branch/master/src/MeloNX/MeloNX/Assets/Assets.xcassets/AppIcon.appiconset/nxgradientpng.png\" alt=\"MeloNX Logo\" width=\"120\">\n    </a>\n  </p>\n  <h1 align=\"center\">MeloNX</h1>\n  <p align=\"center\">\n    MeloNX enables Nintendo Switch game emulation on iOS using Ryujinx as a base.\n  </p>\n  <p align=\"center\">\n    MeloNX is an iOS Nintendo Switch emulator based on Ryujinx, written primarily in C# and Swift. Designed to bring accurate performance and a user-friendly interface to iOS, MeloNX makes Switch games accessible on Apple devices.\n    Developed from the ground up, MeloNX is open-source and available on Github under the <a href=\"LICENSE.txt\" target=\"_blank\">GPLv3 license</a>.\n  </p>\n</body>\n",
+        "theirs": "<table align=\"center\">\n    <tr>\n        <td align=\"center\" width=\"25%\">\n            <img src=\"https://raw.githubusercontent.com/Ryubing/Assets/refs/heads/main/RyujinxApp_1024.png\" alt=\"Ryujinx\" >\n        </td>\n        <td align=\"center\" width=\"75%\">\n          \n<h1 class=\"ryu-gradient-text\">Ryujinx</h1>\n",
+        "resolution": "<body>\n  <p align=\"center\">\n    <a href=\"https://melonx.org\">\n      <img src=\"https://starforgejo.dev/projects/MeloNX/raw/branch/master/src/MeloNX/MeloNX/Assets/Assets.xcassets/AppIcon.appiconset/nxgradientpng.png\" alt=\"MeloNX Logo\" width=\"120\">\n    </a>\n  </p>\n  <h1 align=\"center\">MeloNX</h1>\n  <p align=\"center\">\n    MeloNX enables Nintendo Switch game emulation on iOS using Ryujinx as a base.\n  </p>\n  <p align=\"center\">\n    MeloNX is an iOS Nintendo Switch emulator based on Ryujinx, written primarily in C# and Swift. Designed to bring accurate performance and a user-friendly interface to iOS, MeloNX makes Switch games accessible on Apple devices.\n    Developed from the ground up, MeloNX is open-source and available on Github under the <a href=\"LICENSE.txt\" target=\"_blank\">GPLv3 license</a>.\n  </p>\n</body>\n"
+      },
+      {
+        "ours": "#### **Where's the prod.keys file?/Where can I download \\[game]?**\n**We do not support piracy**, It is forbidden to request copyrighted content \n(Firmware/Games/Keys/Shaders) on our repositories or on the MeloNX Discord.\n",
+        "theirs": "<p align=\"center\">\n  Ryujinx is an open-source Nintendo Switch emulator, originally created by gdkchan, written in C#.\n  This emulator aims at providing excellent accuracy and performance, a user-friendly interface and consistent builds.\n  It was written from scratch and development on the project began in September 2017.\n  Ryujinx is available on a self-managed <a class=\"forgejo-gradient-text\" href=\"https://github.com/Ryubing/forgejo\" target=\"_blank\">modified Forgejo</a> instance under the <a href=\"https://git.ryujinx.app/projects/Ryubing/src/branch/master/LICENSE.txt\" target=\"_blank\">MIT license</a>.\n  <br />\n</p>\n<p align=\"center\">\n  On October 1st 2024, Ryujinx was discontinued as the creator was forced to abandon the project.\n  <br>\n  This fork is intended to be a QoL uplift for existing Ryujinx users.\n  <br>\n  This is not a Ryujinx revival project. This is not a Phoenix project.\n  <br>\n  Guides and documentation can be found on the <a href=\"https://git.ryujinx.app/projects/Ryubing/wiki/Home\">Wiki tab</a>.\n</p>\n",
+        "resolution": "#### **Where's the prod.keys file?/Where can I download \\[game]?**\n**We do not support piracy**, It is forbidden to request copyrighted content \n(Firmware/Games/Keys/Shaders) on our repositories or on the MeloNX Discord.\n"
+      },
+      {
+        "ours": "Once you have hacked your Switch, backed up your keys and dumped your firmware, you may follow these guides to dump keys, updates and DLC, firmware and games:\n",
+        "theirs": "To run this emulator, your PC must be equipped with at least:\n- 8GiB of RAM \n- 6 cores\n- A GPU released within the last 10 years.\n- OpenGL 4.6 | Vulkan 1.4\n- Windows 10 version 20H1 | macOS Big Sur (Apple Silicon)\n\nFailing to meet these requirements may result in a poor gameplay experience or unexpected crashes.\n",
+        "resolution": "Once you have hacked your Switch, backed up your keys and dumped your firmware, you may follow these guides to dump keys, updates and DLC, firmware and games:\n"
+      }
+    ]
+  },
+  {
+    "path": "src/Ryujinx.Cpu/AddressTable.cs",
+    "blocks": [
+      {
+        "ours": "            // Assume software memory means that we don't want to use any signal handlers.\n            bool sparse = type is not MemoryManagerType.SoftwareMmu and not MemoryManagerType.SoftwarePageTable && !OperatingSystem.IsIOS();\n\n            return new AddressTable<TEntry>(AddressTablePresets.GetArmPreset(for64Bits, sparse), sparse);\n        }\n\n        /// <summary>\n        /// Update the fill value for the bottom level of the table.\n        /// </summary>\n        /// <param name=\"fillValue\">New fill value</param>\n        private void UpdateFill(TEntry fillValue)\n        {\n            if (_sparseFill != null)\n            {\n                Span<byte> span = _sparseFill.GetSpan(0, (int)_sparseFill.Size);\n                MemoryMarshal.Cast<byte, TEntry>(span).Fill(fillValue);\n            }\n\n            _fill = fillValue;\n",
+        "theirs": "            return new AddressTable<TEntry>(AddressTablePresets.GetArmPreset(for64Bits, false));\n",
+        "resolution": "            return new AddressTable<TEntry>(AddressTablePresets.GetArmPreset(for64Bits, false));\n"
+      }
+    ]
+  },
+  {
+    "path": "src/Ryujinx.Graphics.Vulkan/TextureStorage.cs",
+    "blocks": [
+      {
+        "ours": "            if ((format.IsImageCompatible || extendedUsage) && isMsImageStorageSupported)\n",
+        "theirs": "            if (format.IsImageCompatible && isMsImageStorageSupported)\n",
+        "resolution": "            if (format.IsImageCompatible && isMsImageStorageSupported)\n"
+      }
+    ]
+  },
+  {
+    "path": "src/Ryujinx.Graphics.Vulkan/VulkanRenderer.cs",
+    "blocks": [
+      {
+        "ours": "                featuresRobustness2.NullDescriptor,\n                supportsPushDescriptors,\n                IsMoltenVk ? 8 : propertiesPushDescriptor.MaxPushDescriptors,\n",
+        "theirs": "                featuresRobustness2.NullDescriptor || IsMoltenVk,\n                supportsPushDescriptors,\n                IsMoltenVk ? 16 : propertiesPushDescriptor.MaxPushDescriptors, // Prevents vertex explosions on MoltenVK.\n",
+        "resolution": "                featuresRobustness2.NullDescriptor || IsMoltenVk,\n                supportsPushDescriptors,\n                IsMoltenVk ? 16 : propertiesPushDescriptor.MaxPushDescriptors, // Prevents vertex explosions on MoltenVK.\n"
+      },
+      {
+        "ours": "",
+        "theirs": "\n                supportsShaderNonUniformIndexing:\n                    featuresVk12.ShaderSampledImageArrayNonUniformIndexing &&\n                    featuresVk12.ShaderStorageImageArrayNonUniformIndexing,\n",
+        "resolution": "\n                supportsShaderNonUniformIndexing:\n                    featuresVk12.ShaderSampledImageArrayNonUniformIndexing &&\n                    featuresVk12.ShaderStorageImageArrayNonUniformIndexing,\n"
+      }
+    ]
+  },
+  {
+    "path": "src/Ryujinx.Input/HLE/NpadController.cs",
+    "blocks": [
+      {
+        "ours": "                bool needsMotionInputUpdate = _config is not StandardControllerInputConfig oldControllerConfig ||\n                    ((oldControllerConfig.Motion.EnableMotion != controllerConfig.Motion.EnableMotion) ||\n                    (oldControllerConfig.Motion.MotionBackend != controllerConfig.Motion.MotionBackend));\n\n                if (needsMotionInputUpdate)\n",
+        "theirs": "                if (controllerConfig.Motion == null)\n                {\n                    _leftMotionInput = null;\n                    _rightMotionInput = null;\n                }\n                else if (NeedsMotionInputUpdate(oldConfig as StandardControllerInputConfig, controllerConfig))\n",
+        "resolution": "                if (controllerConfig.Motion == null)\n                {\n                    _leftMotionInput = null;\n                    _rightMotionInput = null;\n                }\n                else if (NeedsMotionInputUpdate(oldConfig as StandardControllerInputConfig, controllerConfig))\n"
+      },
+      {
+        "ours": "            if (!motionConfig.EnableMotion)\n            {\n                _leftMotionInput = null;\n                _rightMotionInput = null;\n            }\n            else if (motionConfig.MotionBackend != MotionInputBackendType.CemuHook)\n",
+        "theirs": "            if (motionConfig == null)\n            {\n                _leftMotionInput = null;\n                _rightMotionInput = null;\n                return;\n            }\n\n            if (motionConfig.MotionBackend != MotionInputBackendType.CemuHook)\n",
+        "resolution": "            if (motionConfig == null || !motionConfig.EnableMotion)\n            {\n                _leftMotionInput = null;\n                _rightMotionInput = null;\n                return;\n            }\n\n            if (motionConfig.MotionBackend != MotionInputBackendType.CemuHook)\n"
+      },
+      {
+        "ours": "                    VibrationValue leftVibrationValue = dualVibrationValue.Item1;\n                    VibrationValue rightVibrationValue = dualVibrationValue.Item2;\n\n                    if (_gamepad is IHighDefinitionRumbleGamepad hdRumbleGamepad)\n                    {\n                        hdRumbleGamepad.Rumble(\n                            ToGamepadVibrationValue(leftVibrationValue, controllerConfig),\n                            ToGamepadVibrationValue(rightVibrationValue, controllerConfig),\n                            uint.MaxValue);\n                    }\n                    else\n                    {\n                        (float low, float high) = GetFallbackRumble(leftVibrationValue, rightVibrationValue, controllerConfig);\n                        _gamepad.Rumble(low, high, uint.MaxValue);\n                    }\n\n                    Logger.Debug?.Print(LogClass.Hid, $\"Effect for {controllerConfig.PlayerIndex} \" +\n                        $\"L.low.amp={leftVibrationValue.AmplitudeLow}, \" +\n                        $\"L.low.freq={leftVibrationValue.FrequencyLow}, \" +\n                        $\"L.high.amp={leftVibrationValue.AmplitudeHigh}, \" +\n                        $\"L.high.freq={leftVibrationValue.FrequencyHigh}, \" +\n                        $\"R.low.amp={rightVibrationValue.AmplitudeLow}, \" +\n                        $\"R.low.freq={rightVibrationValue.FrequencyLow}, \" +\n                        $\"R.high.amp={rightVibrationValue.AmplitudeHigh} \" +\n                        $\"R.high.freq={rightVibrationValue.FrequencyHigh}\");\n",
+        "theirs": "                    ApplyRumble(_controllerGamepad ?? _assignedControllerGamepads.FirstOrDefault(), dynamicControllerConfig, dualVibrationValue);\n",
+        "resolution": "                    ApplyRumble(_controllerGamepad ?? _assignedControllerGamepads.FirstOrDefault(), dynamicControllerConfig, dualVibrationValue);\n"
+      }
+    ]
+  },
+  {
+    "path": "src/Ryujinx.HLE/HOS/Services/Caps/IScreenShotApplicationService.cs",
+    "blocks": [
+      {
+        "ours": "    partial class IScreenShotApplicationService : IpcService\n",
+        "theirs": "    internal class IScreenShotApplicationService : IpcService\n",
+        "resolution": "    internal partial class IScreenShotApplicationService : IpcService\n"
+      }
+    ]
+  },
+  {
+    "path": "src/Ryujinx.HLE/HOS/Services/Sdb/Pl/ISharedFontManager.cs",
+    "blocks": [
+      {
+        "ours": "            context.ResponseData.Write(1);\n            context.ResponseData.Write(loadedCount);\n",
+        "theirs": "            // The first return value is a boolean \"fonts_are_loaded\" flag (u8), not a count.\n            // Some titles (e.g. newer SDK builds) validate it strictly against 1, so writing\n            // the font count here (e.g. 6) makes them reject the result and spin re-opening pl:u.\n            context.ResponseData.Write(1);\n            context.ResponseData.Write(loadedCount);\n            // context.ResponseData.Write((int)SharedFontType.Count);\n",
+        "resolution": "            // The first return value is a boolean \"fonts_are_loaded\" flag (u8), not a count.\n            // Some titles (e.g. newer SDK builds) validate it strictly against 1, so writing\n            // the font count here (e.g. 6) makes them reject the result and spin re-opening pl:u.\n            context.ResponseData.Write(1);\n            context.ResponseData.Write(loadedCount);\n            // context.ResponseData.Write((int)SharedFontType.Count);\n"
+      }
+    ]
+  },
+  {
+    "path": "src/Ryujinx.Graphics.Shader/CodeGen/Spirv/Instructions.cs",
+    "blocks": [
+      {
+        "ours": "            // Fix for white background animal crossing :3\n",
+        "theirs": "",
+        "resolution": ""
+      },
+      {
+        "ours": "",
+        "theirs": "\n",
+        "resolution": "\n"
+      },
+      {
+        "ours": "",
+        "theirs": "\n",
+        "resolution": "\n"
+      }
+    ]
+  },
+  {
+    "path": "src/Ryujinx.Graphics.Gpu/Image/AutoDeleteCache.cs",
+    "blocks": [
+      {
+        "ours": "        private const ulong MinUnifiedTextureSizeCapacity = 256 * MiB;\n        private const ulong MaxUnifiedTextureSizeCapacity = 768 * MiB;\n        private const ulong TextureSizeCapacity6GiB = 4 * GiB;\n        private const ulong TextureSizeCapacity8GiB = 6 * GiB;\n        private const ulong TextureSizeCapacity12GiB = 12 * GiB;\n",
+        "theirs": "",
+        "resolution": "        private const ulong MinUnifiedTextureSizeCapacity = 256 * MiB;\n        private const ulong MaxUnifiedTextureSizeCapacity = 768 * MiB;\n        private const ulong TextureSizeCapacity6GiB = 4 * GiB;\n        private const ulong TextureSizeCapacity8GiB = 6 * GiB;\n        private const ulong TextureSizeCapacity12GiB = 12 * GiB;\n"
+      }
+    ]
+  },
+  {
+    "path": "src/Ryujinx.Cpu/LightningJit/Translator.cs",
+    "blocks": [
+      {
+        "ours": "            Stubs = _dualMappedNoWxCache == null ? new TranslatorStubs(FunctionTable, _noWxCache) : new TranslatorStubs(FunctionTable, _dualMappedNoWxCache);\n",
+        "theirs": "            \n            Stubs = new TranslatorStubs(_jitCache, FunctionTable, _noWxCache);\n",
+        "resolution": "            Stubs = _dualMappedNoWxCache == null ? new TranslatorStubs(_jitCache, FunctionTable, _noWxCache) : new TranslatorStubs(_jitCache, FunctionTable, _dualMappedNoWxCache);\n"
+      }
+    ]
+  }
+]

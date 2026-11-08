@@ -1,0 +1,64 @@
+name: MeloNX plus latest Ryubing iOS 27
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['feature/melonx-*']
+    paths:
+      - 'ios/MeloIntegration/**'
+      - 'ios/SecurityReview/**'
+      - '.github/workflows/melonx-ios.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: melonx-ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ipa:
+    if: github.event.repository.private == false
+    runs-on: xcode-27
+    timeout-minutes: 45
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo xcode-select --switch /Applications/Xcode_27.0.app/Contents/Developer
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.403'
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.nuget/packages
+            ios/build/melonx-merge.git
+            ios/build/MoltenVK-ios-*.tar
+          key: melonx-ryubing-a61a426-13700519-v1
+      - name: Merge pinned sources and apply reviewed fixes
+        run: python3 ios/MeloIntegration/prepare.py
+      - name: ZIP security regression checks
+        run: dotnet run --project ios/MeloIntegration/SecurityChecks -c Release
+      - name: Build native engine and IPA
+        run: bash ios/MeloIntegration/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Ryu-MeloNX-iOS27
+          path: |
+            ios/build/Ryu-MeloNX-iOS27.ipa
+            ios/build/Ryu-MeloNX-iOS27.ipa.sha256
+            ios/build/melonx/integration-provenance.json
+            ios/SecurityReview/MELO-NX-REVIEW.md
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: MeloNX-build-diagnostics
+          path: |
+            ios/build/melonx-*.log
+            ios/build/melonx/integration-provenance.json
+          retention-days: 1
