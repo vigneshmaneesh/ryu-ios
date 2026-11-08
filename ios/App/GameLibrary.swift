@@ -3,10 +3,17 @@ import Foundation
 
 struct ImportedTitle: Codable, Identifiable {
     let id: UUID
-    let name: String
+    var name: String
     let storedFilename: String
     let byteCount: Int64
     let importedAt: Date
+    var favorite: Bool? = nil
+    var lastPlayedAt: Date? = nil
+    var secondsPlayed: Double? = nil
+    var titleID: String? = nil
+    var publisher: String? = nil
+    var displayVersion: String? = nil
+    var icon: String? = nil
 }
 
 @MainActor
@@ -14,6 +21,43 @@ final class GameLibrary: ObservableObject {
     @Published private(set) var titles: [ImportedTitle] = []
     @Published var isImporting = false
     @Published var message = ""
+    private var playing: (UUID, Date)?
+
+    func toggleFavorite(_ title: ImportedTitle) { change(title.id) { $0.favorite = !($0.favorite ?? false) } }
+    func rename(_ title: ImportedTitle, to name: String) {
+        let value = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty else { return }; change(title.id) { $0.name = value }
+    }
+    func metadata(_ title: ImportedTitle, information: [String: Any]) {
+        change(title.id) {
+            if let name = information["name"] as? String, !name.isEmpty { $0.name = name }
+            $0.titleID = information["titleId"] as? String; $0.publisher = information["publisher"] as? String
+            $0.displayVersion = information["version"] as? String; $0.icon = information["icon"] as? String
+        }
+    }
+    func beginPlaying(_ title: ImportedTitle) {
+        playing = (title.id, Date()); change(title.id) { $0.lastPlayedAt = Date() }
+    }
+    func endPlaying() {
+        guard let (id, began) = playing else { return }; playing = nil
+        change(id) { $0.secondsPlayed = ($0.secondsPlayed ?? 0) + max(0, Date().timeIntervalSince(began)) }
+    }
+    private func change(_ id: UUID, mutate: (inout ImportedTitle) -> Void) {
+        guard let index = titles.firstIndex(where: { $0.id == id }) else { return }
+        var updated = titles; mutate(&updated[index])
+        do { try Self.save(updated); titles = updated } catch { message = error.localizedDescription }
+    }
+    func remove(_ title: ImportedTitle) {
+        guard let source = executableURL(for: title) else { return }
+        do {
+            let trash = try Self.directory().appendingPathComponent("remove-" + UUID().uuidString)
+            try FileManager.default.moveItem(at: source, to: trash)
+            do { let updated = titles.filter { $0.id != title.id }; try Self.save(updated); titles = updated }
+            catch { try? FileManager.default.moveItem(at: trash, to: source); throw error }
+            try FileManager.default.removeItem(at: trash)
+            message = "Removed \(title.name). Its saves, settings and imported add-on content are retained."
+        } catch { message = error.localizedDescription }
+    }
 
     init() {
         do { titles = try Self.readIndex() }

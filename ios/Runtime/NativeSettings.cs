@@ -160,7 +160,15 @@ internal sealed class NativeSettings
         internal SessionLog(string root, bool enabled)
         {
             _enabled = enabled;
-            if (enabled) Logger.AddTarget(new AsyncLogTargetWrapper(new FileLogTarget("ios-session", FileLogTarget.PrepareLogFile(Path.Combine(root, "Logs")) ?? throw new IOException("Could not create session log.")), 1000));
+            if (enabled)
+            {
+                string directory = Path.Combine(root, "Logs"); Directory.CreateDirectory(directory);
+                foreach (var old in new DirectoryInfo(directory).GetFiles("Ryu-*.log").OrderByDescending(x => x.LastWriteTimeUtc).Skip(2)) old.Delete();
+                // NativeAOT shared libraries have no managed entry assembly.
+                // Upstream PrepareLogFile queries that assembly for its version.
+                string path = Path.Combine(directory, $"Ryu-{DateTime.UtcNow:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}.log");
+                Logger.AddTarget(new AsyncLogTargetWrapper(new FileLogTarget("ios-session", new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.Read)), 1000));
+            }
         }
         public void Dispose() { if (_enabled) { Logger.Flush(); Logger.RemoveTarget("ios-session"); } }
     }

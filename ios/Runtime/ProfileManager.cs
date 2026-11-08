@@ -46,7 +46,7 @@ internal static class ProfileManager
             else throw new ArgumentException("Unknown profile operation.");
         }
         var result = new JsonArray();
-        foreach (var user in accounts.GetAllUsers()) result.Add(new JsonObject { ["id"] = user.UserId.ToString(), ["name"] = user.Name, ["selected"] = accounts.LastOpenedUser.UserId == user.UserId, ["image"] = Convert.ToBase64String(user.Image) });
+        foreach (var user in accounts.GetAllUsers()) result.Add((JsonNode)new JsonObject { ["id"] = user.UserId.ToString(), ["name"] = user.Name, ["selected"] = accounts.LastOpenedUser.UserId == user.UserId, ["image"] = Convert.ToBase64String(user.Image) });
         return new() { ["profiles"] = result };
     }
 }

@@ -13,6 +13,7 @@ struct ContentView: View {
     @State private var showingImporter = false
     @State private var showingGraphics = false
     @State private var showingGuest = false
+    @State private var activeTitle: ImportedTitle?
 
     private var blocked: Bool {
         model.isRunning || backend.isRunning || horizon.isRunning || guest.isRunning || graphics.isRunning || library.isImporting || system.isBusy || appActivity.pending > 0 ||
@@ -49,37 +50,13 @@ struct ContentView: View {
                             Label("A playable Switch homebrew game", systemImage: "gamecontroller.fill").font(.headline)
                             Text("Move your ship and collect targets. Use the touch stick, tap the game screen, or connect a controller. A boosts and beeps; B resets. Green pips show your score.")
                                 .foregroundStyle(.secondary)
-                            Button("Play Ryu Catch") { guest.programURL = nil; guest.displayTitle = "Ryu Catch"; showingGuest = true }
+                            Button("Play Ryu Catch") { activeTitle = nil; guest.programURL = nil; guest.displayTitle = "Ryu Catch"; showingGuest = true }
                                 .buttonStyle(.borderedProminent).disabled(!model.passed || blocked)
                             if !model.passed { Text("Enable JIT to play.").font(.caption).foregroundStyle(.secondary) }
                         }.frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    GroupBox("Library") {
-                        VStack(alignment: .leading, spacing: 14) {
-                            if library.titles.isEmpty { Text("Import your homebrew to get started.").foregroundStyle(.secondary) }
-                            ForEach(library.titles) { title in
-                                HStack {
-                                    Image(systemName: "gamecontroller")
-                                    VStack(alignment: .leading) {
-                                        if let executable = library.executableURL(for: title) {
-                                            NavigationLink(title.name) { TitleDetails(title: title, program: executable, library: library, launchEnabled: model.passed && !blocked) { guest.programURL = executable; guest.displayTitle = title.name; showingGuest = true } }
-                                        } else { Text(title.name) }
-                                        Text(ByteCountFormatter.string(fromByteCount: title.byteCount, countStyle: .file))
-                                            .font(.caption).foregroundStyle(.secondary)
-                                    }
-                                    Spacer()
-                                    if let executable = library.executableURL(for: title) {
-                                        Button("Play") { guest.programURL = executable; guest.displayTitle = title.name; showingGuest = true }
-                                            .disabled(!model.passed || blocked)
-                                    } else { Text("Import only").font(.caption).foregroundStyle(.secondary) }
-                                }
-                            }
-                            if !library.message.isEmpty { Text(library.message).font(.callout).textSelection(.enabled) }
-                            if library.isImporting { ProgressView() }
-                            Button("Import game or homebrew") { showingImporter = true }.buttonStyle(.bordered).disabled(blocked)
-                            Text("Launch base games in NSP/XCI format, or NRO/NSO homebrew. Commercial games need your keys and firmware below. Title compatibility is being developed; updates and DLC are not connected yet.")
-                                .font(.caption).foregroundStyle(.secondary)
-                        }.frame(maxWidth: .infinity, alignment: .leading)
+                    LibraryPanel(library: library, blocked: blocked, jitReady: model.passed, importGames: { showingImporter = true }) { title, executable in
+                        activeTitle = title; guest.programURL = executable; guest.displayTitle = title.name; showingGuest = true
                     }
                     SystemFilesPanel(system: system, blocked: blocked)
                     NavigationLink("User profiles") { ProfilesView() }.disabled(blocked)
@@ -109,6 +86,10 @@ struct ContentView: View {
             .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.item], allowsMultipleSelection: true, onCompletion: library.importSelection)
             .fullScreenCover(isPresented: $showingGraphics) { GraphicsDisplay(model: graphics) }
             .fullScreenCover(isPresented: $showingGuest) { GraphicsDisplay(model: guest) }
+            .onChange(of: guest.isRunning) { _, running in
+                if running { if let activeTitle { library.beginPlaying(activeTitle) } }
+                else { library.endPlaying() }
+            }
         }
     }
 }

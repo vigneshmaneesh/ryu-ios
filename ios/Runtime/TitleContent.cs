@@ -85,7 +85,7 @@ internal static class TitleContent
                         { byte[] image = new byte[(int)size]; icon.Get.Read(out long read, 0, image, ReadOption.None).ThrowIfFailure(); if (read == size) title["icon"] = Convert.ToBase64String(image); }
                     }
                 }
-                titles.Add(title);
+                titles.Add((JsonNode)title);
             }
             if (titles.Count == 0) throw new InvalidDataException("No base application metadata was found. Select a base game, not an update or DLC package.");
             return new JsonObject { ["titles"] = titles, ["format"] = extension, ["size"] = new FileInfo(program).Length };
@@ -104,11 +104,11 @@ internal static class TitleContent
         foreach (var value in saved["paths"]!.AsArray())
         {
             string path = value!.GetValue<string>();
-            updates.Add(new JsonObject { ["path"] = path, ["name"] = Path.GetFileName(path), ["selected"] = saved["selected"]!.GetValue<string>() == path, ["available"] = File.Exists(path) });
+            updates.Add((JsonNode)new JsonObject { ["path"] = path, ["name"] = Path.GetFileName(path), ["selected"] = saved["selected"]!.GetValue<string>() == path, ["available"] = File.Exists(path) });
         }
         var dlc = new JsonArray();
         foreach (var container in Dlc(id)) foreach (var item in container!["dlc_nca_list"]!.AsArray())
-            dlc.Add(new JsonObject { ["container"] = container["path"]!.DeepClone(), ["path"] = item!["path"]!.DeepClone(), ["titleId"] = item["title_id"]!.GetValue<ulong>().ToString("x16"), ["enabled"] = item["is_enabled"]!.DeepClone() });
+            dlc.Add((JsonNode)new JsonObject { ["container"] = container["path"]!.DeepClone(), ["path"] = item!["path"]!.DeepClone(), ["titleId"] = item["title_id"]!.GetValue<ulong>().ToString("x16"), ["enabled"] = item["is_enabled"]!.DeepClone() });
         return new() { ["metadata"] = metadata, ["updates"] = updates, ["dlc"] = dlc };
     }
     internal static JsonObject Add(string root, string program, string source, bool update)
@@ -132,7 +132,7 @@ internal static class TitleContent
                 if (count > 0)
                 {
                     var state = Updates(id);
-                    if (!state["paths"]!.AsArray().Any(x => x!.GetValue<string>() == source)) state["paths"]!.AsArray().Add(source);
+                    if (!state["paths"]!.AsArray().Any(x => x!.GetValue<string>() == source)) state["paths"]!.AsArray().Add((JsonNode)JsonValue.Create(source));
                     state["selected"] = source;
                     NativeSettings.AtomicJson(DataPath(id, "updates.json"), state);
                 }
@@ -146,13 +146,13 @@ internal static class TitleContent
                     fs.OpenFile(ref file.Ref, entry.FullPath.ToU8Span(), OpenMode.Read).ThrowIfFailure();
                     Nca nca = new(ServiceBootstrap.FileSystem.KeySet, file.Get.AsStorage());
                     if (nca.Header.ContentType != NcaContentType.PublicData || (nca.Header.TitleId & ~0x1FFFUL).ToString("x16") != id) continue;
-                    items.Add(new JsonObject { ["path"] = entry.FullPath, ["title_id"] = nca.Header.TitleId, ["is_enabled"] = true }); count++;
+                    items.Add((JsonNode)new JsonObject { ["path"] = entry.FullPath, ["title_id"] = nca.Header.TitleId, ["is_enabled"] = true }); count++;
                 }
                 if (count > 0)
                 {
                     var state = Dlc(id);
                     if (state.Any(x => x!["path"]!.GetValue<string>() == source)) throw new ArgumentException("This DLC container is already registered.");
-                    state.Add(new JsonObject { ["path"] = source, ["dlc_nca_list"] = items });
+                    state.Add((JsonNode)new JsonObject { ["path"] = source, ["dlc_nca_list"] = items });
                     NativeSettings.AtomicJson(DataPath(id, "dlc.json"), state);
                 }
             }

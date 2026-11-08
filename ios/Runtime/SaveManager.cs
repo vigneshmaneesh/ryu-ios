@@ -43,7 +43,7 @@ internal static class SaveManager
             if (info.Type == SaveDataType.Account && info.UserId != ServiceBootstrap.Accounts.LastOpenedUser.UserId.ToLibHac()) continue;
             string folder = Folder(info.SaveDataId);
             long size = Directory.Exists(folder) ? Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories).Sum(p => new FileInfo(p).Length) : 0;
-            result.Add(new JsonObject { ["id"] = info.SaveDataId.ToString("x16"), ["titleId"] = info.ProgramId.Value.ToString("x16"), ["type"] = info.Type.ToString(), ["size"] = size });
+            result.Add((JsonNode)new JsonObject { ["id"] = info.SaveDataId.ToString("x16"), ["titleId"] = info.ProgramId.Value.ToString("x16"), ["type"] = info.Type.ToString(), ["size"] = size });
         }
         return new() { ["saves"] = result, ["profile"] = ServiceBootstrap.Accounts.LastOpenedUser.Name };
     }

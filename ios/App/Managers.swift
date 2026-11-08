@@ -112,7 +112,7 @@ struct TitleDetails: View {
         .task { refresh() }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.item], allowsMultipleSelection: false) { manager.importFile($0, operation: importOperation) }
     }
-    private func refresh() { manager.call("title.content") }
+    private func refresh() { manager.call("title.content") { library.metadata(title, information: information) } }
 }
 
 struct ModsView: View {

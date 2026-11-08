@@ -19,7 +19,7 @@ internal static class ModManager
         foreach (string path in Directory.GetDirectories(folder).Where(p => Path.GetFileName(p) != "cheats"))
         {
             var saved = metadata["mods"]!.AsArray().FirstOrDefault(x => x!["path"]!.GetValue<string>() == path);
-            mods.Add(new JsonObject { ["name"] = Path.GetFileName(path), ["path"] = path, ["enabled"] = saved?["enabled"]?.GetValue<bool>() ?? true });
+            mods.Add((JsonNode)new JsonObject { ["name"] = Path.GetFileName(path), ["path"] = path, ["enabled"] = saved?["enabled"]?.GetValue<bool>() ?? true });
         }
         var cache = new ModLoader.ModCache();
         ModLoader.QueryContentsDir(cache, new DirectoryInfo(Path.Combine(ModLoader.GetModsBasePath(), "contents")), Convert.ToUInt64(id, 16), []);
@@ -29,7 +29,7 @@ internal static class ModManager
         foreach (var cheat in cache.Cheats)
         {
             string build = Path.GetFileNameWithoutExtension(cheat.Path.Name).ToUpperInvariant(), key = build + "-" + cheat.Name;
-            cheats.Add(new JsonObject { ["name"] = cheat.Name, ["buildId"] = build, ["key"] = key, ["enabled"] = enabled.Contains(key), ["path"] = cheat.Path.FullName });
+            cheats.Add((JsonNode)new JsonObject { ["name"] = cheat.Name, ["buildId"] = build, ["key"] = key, ["enabled"] = enabled.Contains(key), ["path"] = cheat.Path.FullName });
         }
         return new() { ["mods"] = mods, ["cheats"] = cheats, ["titleId"] = id };
     }
@@ -67,7 +67,7 @@ internal static class ModManager
             var item = mods.FirstOrDefault(x => x!["path"]!.GetValue<string>() == path);
             if (item != null) mods.Remove(item);
             if (operation == "mods.remove") OwnedFiles.Delete(folder, path);
-            else mods.Add(new JsonObject { ["name"] = Path.GetFileName(path), ["path"] = path, ["enabled"] = request["enabled"]!.GetValue<bool>() });
+            else mods.Add((JsonNode)new JsonObject { ["name"] = Path.GetFileName(path), ["path"] = path, ["enabled"] = request["enabled"]!.GetValue<bool>() });
             NativeSettings.AtomicJson(TitleContent.DataPath(id, "mods.json"), metadata);
         }
         else if (operation == "cheats.import")
