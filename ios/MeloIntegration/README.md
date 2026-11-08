@@ -48,6 +48,16 @@ native input and rendering code are preserved. This does not establish complete
 desktop feature parity or compatibility with any commercial title. Build checks
 and the security review are separate from device and gameplay validation.
 
+The in-game host menu is always visible at the top-right, above the Metal view,
+virtual controller and loading overlay. It uses a native, labelled Menu with a
+44-point minimum touch target, safe-area margins and a dark contrasting
+background. The previous menu was gated by a setting, rendered below virtual
+controls and hidden by a five-second timer; those paths and their touch-driven
+visibility publishers are removed. Global/per-game settings now display
+"Always visible" instead of offering to hide the only exit control. Existing
+Pause/Resume, Stop Emulation, controller configuration and iPhone rotation lock
+actions remain. Restart and full in-game settings have not been added.
+
 Security findings, the rollback status, binary provenance limits and inconsistent
 supplied license notices are documented in `../SecurityReview/MELO-NX-REVIEW.md`.
 All original notices are retained. The IPA contains source provenance and a
