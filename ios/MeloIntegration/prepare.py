@@ -72,6 +72,7 @@ def prepare(offline=False):
              'IAddressTable<ulong> functionTable = ArmAddressTableFactory.Create(memory.Type, for64Bit, System.OperatingSystem.IsIOS());')
     swift = 'src/MeloNX/MeloNX/'
     apply_jit_flow_fix(swift)
+    apply_guest_ram_fix(swift)
     path = DEST / (swift + 'Core/RyujinxController.swift')
     source = path.read_text(encoding='utf-8-sig')
     # These optional entitlements are not a reliable capability test with free
@@ -200,6 +201,7 @@ def prepare(offline=False):
                       jit_helper='original BreakpointJIT.framework; StikDebug universal.js with process-local readiness',
                       jit_flow='single activation handoff, explicit retry, cancelled view polling',
                       cpu_tables='multi-level on iOS for both CPU backends; no 1 TiB sparse reservation',
+                      guest_ram='4 GiB address reservation with kernel page commits; startup rollback and error details',
                       molten_vk='original MeloNX bundled libMoltenVK.dylib',
                       native_dependencies='supplied binary dependencies require independent provenance verification')
     (DEST / 'integration-provenance.json').write_text(json.dumps(provenance, indent=2) + '\n')
@@ -207,6 +209,116 @@ def prepare(offline=False):
         if re.search(r'^<<<<<<< |^>>>>>>> ', path.read_text(encoding='utf-8-sig'), re.M):
             raise RuntimeError('Unresolved conflict: ' + str(path))
     print('Prepared MeloNX', MELO, '+ latest Ryubing', RYU)
+
+def apply_guest_ram_fix(swift):
+    path = 'src/Ryujinx.HLE/Switch.cs'
+    edit(path, '''            MemoryAllocationFlags memoryAllocationFlags = OperatingSystem.IsIOS() ||
+                    configuration.MemoryManagerMode == MemoryManagerMode.SoftwarePageTable
+                ? MemoryAllocationFlags.None
+                : MemoryAllocationFlags.Reserve | MemoryAllocationFlags.Mirrorable;''',
+         '            using var startup = new StartupResourceScope();')
+    edit(path, 'new CompatLayerHardwareDeviceDriver(Configuration.AudioDeviceDriver);',
+         'startup.Track(new CompatLayerHardwareDeviceDriver(Configuration.AudioDeviceDriver));')
+    edit(path, 'new MemoryBlock(Configuration.MemoryConfiguration.DramSize, memoryAllocationFlags);',
+         'startup.Track(GuestRamAllocator.Create(Configuration.MemoryConfiguration.DramSize, configuration.MemoryManagerMode, OperatingSystem.IsIOS()));')
+    edit(path, 'new GpuContext(Configuration.GpuRenderer, DirtyHacks);',
+         'startup.Track(new GpuContext(Configuration.GpuRenderer, DirtyHacks));')
+    edit(path, 'new HOS.Horizon(this);', 'startup.Track(new HOS.Horizon(this));')
+    edit(path, '            Shared = this;', '            startup.Commit();\n            Shared = this;')
+    edit(path, '        public DirtyHacks DirtyHacks { get; }',
+         '        private int _disposed;\n        public DirtyHacks DirtyHacks { get; }')
+    edit(path, '            if (disposing)\n            {',
+         '            if (disposing && global::System.Threading.Interlocked.Exchange(ref _disposed, 1) == 0)\n            {')
+    edit(path, '                FileSystem.Dispose();',
+         '                if (!OperatingSystem.IsIOS()) FileSystem.Dispose();')
+    library = 'src/Ryujinx.Library/Library.cs'
+    edit(library, 'using CommandLine;', 'using CommandLine;\nusing Ryujinx.Common;')
+    edit(library, '                Options managed = OptionsNativeHelper.FromNative(nativeOptions);',
+         '                StartupErrors.Clear();\n                Options managed = OptionsNativeHelper.FromNative(nativeOptions);')
+    edit(library, '                Console.WriteLine(e.ToString());\n                return -1;',
+         '                StartupErrors.Set(e);\n                Console.WriteLine(e.ToString());\n                return -1;')
+    edit(library, '            _inputManager.Dispose();',
+         '            if (!OperatingSystem.IsIOS()) _inputManager.Dispose();')
+    edit(library, '''            _libHacHorizonManager = new LibHacHorizonManager();
+            _libHacHorizonManager.InitializeFsServer(_virtualFileSystem);
+            _libHacHorizonManager.InitializeArpServer();
+            _libHacHorizonManager.InitializeBcatServer();
+            _libHacHorizonManager.InitializeSystemClients();''',
+         '''            if (!OperatingSystem.IsIOS())
+            {
+                _libHacHorizonManager = new LibHacHorizonManager();
+                _libHacHorizonManager.InitializeFsServer(_virtualFileSystem);
+                _libHacHorizonManager.InitializeArpServer();
+                _libHacHorizonManager.InitializeBcatServer();
+                _libHacHorizonManager.InitializeSystemClients();
+            }''')
+    edit(library, '                LoadApplication(option);',
+         '                if (!LoadApplication(option)) throw new InvalidOperationException("The title loader could not start this game. See the session log for its load error.");')
+    edit(library, '            _emulationContext.Dispose();\n            _window.Dispose();', '')
+    p = DEST / library
+    source = p.read_text(encoding='utf-8-sig')
+    start = source.index('        private static bool LoadApplication(Options options)')
+    end = source.index('        // GameInfo', start)
+    block = source[start:end]
+    block = block.replace('            string path = options.InputPath;',
+        '            using var startup = new StartupResourceScope();\n            startup.Defer(() => { _emulationContext = null; _window = null; });\n            string path = options.InputPath;')
+    block = block.replace('WindowBase window = CreateWindow(options);',
+        'WindowBase window = startup.Track(CreateWindow(options));')
+    block = block.replace('IRenderer renderer = CreateRenderer(options, window);',
+        'IRenderer renderer = startup.Track(CreateRenderer(options, window));')
+    block = block.replace('            _emulationContext = InitializeEmulationContext(window, renderer, options);',
+        '''            _emulationContext = null;
+            Switch context = InitializeEmulationContext(window, renderer, options);
+            _emulationContext = context;
+            startup.Release(renderer); // Owned by context.Gpu after construction.
+            startup.Defer(() => CleanupSession(context));''')
+    block = block.replace('_emulationContext.Dispose(); ', '').replace('                _emulationContext.Dispose();\n', '').replace('                                _emulationContext.Dispose();\n', '')
+    assert 'startup.Release(renderer)' in block and '_emulationContext.Dispose();' not in block
+    helper = '''        private static void CleanupSession(Switch context)
+        {
+            void Release(string name, Action action)
+            {
+                try { action(); }
+                catch (ObjectDisposedException) { }
+                catch (Exception error) { Console.WriteLine($"[Cleanup] {name}: {error.Message}"); }
+            }
+            // Stop guest CPU/service threads before releasing GPU resources,
+            // then release guest RAM. Keep app-owned files/input available.
+            Release("processes", context.Processes.ClearAllProcesses);
+            Release("kernel", context.System.Dispose);
+            Release("GPU", context.DisposeGpu);
+            Release("guest RAM/audio", context.Dispose);
+            Console.WriteLine("[Cleanup] Guest session released.");
+        }
+
+'''
+    source = source[:start] + block + helper + source[end:]
+    p.write_text(source, encoding='utf-8', newline='\n')
+    window = 'src/Ryujinx.Library/Window/WindowBase.cs'
+    # Exit requests stop; resource disposal belongs to the owning session after
+    # the GPU worker has finished, not to the UI caller issuing the stop.
+    edit(window, '            Device.Dispose();\n\n            if (_isStopped)',
+         '            if (_isStopped)')
+    edit(library, '                _window.Exit();\n                _emulationContext.Dispose();',
+         '                _window.Exit();')
+    edit(window, '        private bool _isStopped;', '        private bool _isStopped;\n        private bool _disposed;')
+    edit(window, '            if (disposing)\n            {',
+         '            if (disposing && !_disposed)\n            {\n                _disposed = true;')
+    # Expose the managed exception text to the native UI instead of only -1.
+    bridge = swift + 'Core/Ryujinx.swift'
+    edit(bridge, '    static func stopEmulation() {', '''    static var lastStartupError: String {
+        var buffer = [CChar](repeating: 0, count: 4096)
+        _ = buffer.withUnsafeMutableBufferPointer {
+            MeloNX.copy_last_startup_error($0.baseAddress, Int32($0.count))
+        }
+        return buffer.withUnsafeBufferPointer { String(cString: $0.baseAddress!) }
+    }
+
+    static func stopEmulation() {''')
+    with (DEST / bridge).open('a', encoding='utf-8', newline='\n') as target:
+        target.write('\n@_silgen_name("copy_last_startup_error")\nfileprivate func copy_last_startup_error(_ buffer: UnsafeMutablePointer<CChar>?, _ capacity: Int32) -> Int32\n')
+    edit(swift + 'Core/RyujinxController.swift', 'self.isRunning = .crashed(result: "Code: \\(response)")',
+         'let detail = Ryujinx.lastStartupError\n                    self.isRunning = .crashed(result: detail.isEmpty ? "Code: \\(response)" : detail)')
 
 def apply_jit_flow_fix(swift):
     # The original framework uses BRK 0xf00d/x16=1. Select its matching

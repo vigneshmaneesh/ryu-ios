@@ -1,6 +1,10 @@
 using ARMeilleure.Common;
 using ARMeilleure.Memory;
 using Ryujinx.Cpu;
+using Ryujinx.HLE;
+using Ryujinx.Common;
+using Ryujinx.Common.Configuration;
+using Ryujinx.Memory;
 using System;
 
 int configurations = 0, lookups = 0;
@@ -33,3 +37,39 @@ foreach (bool for64Bits in new[] { false, true })
     configurations++;
 }
 Console.WriteLine($"PASS iOS CPU tables: {configurations} memory-mode/CPU-width configurations; {lookups} distant mappings, default dispatch, isolation and invalidation; no flat sparse reservation.");
+
+const ulong ramSize = 4UL * 1024 * 1024 * 1024;
+foreach (MemoryManagerMode mode in new[] { MemoryManagerMode.HostMappedUnsafe, MemoryManagerMode.SoftwarePageTable })
+{
+    for (int attempt = 0; attempt < 3; attempt++)
+    {
+        MemoryBlock memory = null;
+        try
+        {
+            using var startup = new StartupResourceScope();
+            memory = startup.Track(GuestRamAllocator.Create(ramSize, mode, isIOS: true));
+            ulong page = MemoryBlock.GetPageSize();
+            memory.Commit(0, page);
+            memory.Commit(ramSize / 2, page);
+            memory.Commit(ramSize - page, page);
+            memory.Write<ulong>(0, 0x12345678);
+            memory.Write<ulong>(ramSize / 2, 0x98765432);
+            memory.Write<ulong>(ramSize - 8, 0xabcdef01);
+            if (memory.Read<ulong>(0) != 0x12345678 || memory.Read<ulong>(ramSize / 2) != 0x98765432 || memory.Read<ulong>(ramSize - 8) != 0xabcdef01)
+                throw new Exception("Guest physical pages aliased.");
+            throw new TestStartupFailure();
+        }
+        catch (TestStartupFailure) { }
+        if (memory == null || memory.Pointer != 0) throw new Exception("Failed startup retained its 4 GiB guest allocation.");
+    }
+}
+using (var transferred = GuestRamAllocator.Create(ramSize, MemoryManagerMode.HostMappedUnsafe, isIOS: true))
+{
+    using (var startup = new StartupResourceScope()) { startup.Track(transferred); startup.Commit(); }
+    transferred.Commit(0, MemoryBlock.GetPageSize());
+    transferred.Write<ulong>(0, 42);
+    if (transferred.Read<ulong>(0) != 42) throw new Exception("Successful startup disposed transferred RAM.");
+}
+Console.WriteLine("PASS 4 GiB lazy guest RAM: edge/middle page commits, six failed-startup releases/retries, successful ownership transfer.");
+
+sealed class TestStartupFailure : Exception { }

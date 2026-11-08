@@ -60,3 +60,20 @@ and checks dispatcher defaults, isolation and invalidation. The device logs
 identify the shared last startup operation; they do not contain Apple's final
 termination reason, so this is not proof of the exact OS termination mechanism
 or a guarantee that no later game-compatibility issue will appear.
+
+The subsequent iPhone 16 logs reported `Cannot allocate memory` in the Switch
+constructor before title loading. The iOS guest-RAM path had requested a 4 GiB
+read/write mapping. `GuestRamAllocator` now reserves the same full address range
+and relies on the kernel's existing page-commit calls to make used pages
+accessible. It logs requested size, mode and allocation flags. Allocation
+failure is not proof that the phone physically ran out of RAM; the logs do not
+report its current address-space or memory-limit state.
+
+Construction/startup scopes now unwind resources after exceptions and rejected
+loads. Teardown stops guest processes and the kernel, releases GPU resources,
+then releases guest RAM/audio. App-owned filesystem, service clients and input
+survive iOS game sessions. Native UI alerts include the captured startup
+exception rather than just `-1`. The memory checks exercise real 4 GiB
+reservations, first/middle/last page access, repeated failed-startup releases,
+retry and successful ownership transfer. These checks are host regressions;
+they do not establish available RAM or successful gameplay on an iPhone.

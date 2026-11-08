@@ -6,6 +6,6 @@
     <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../../build/melonx/src/Ryujinx.Cpu/Ryujinx.Cpu.csproj" />
+    <ProjectReference Include="../../build/melonx/src/Ryujinx.HLE/Ryujinx.HLE.csproj" />
   </ItemGroup>
 </Project>
