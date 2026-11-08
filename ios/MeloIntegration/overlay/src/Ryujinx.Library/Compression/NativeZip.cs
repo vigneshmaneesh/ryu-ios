@@ -111,6 +111,8 @@ namespace Ryujinx.Library
                 if ((File.Exists(current) || Directory.Exists(current)) &&
                     (File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0)
                     throw new InvalidDataException("Linked extraction path: " + current);
+                // System aliases above the selected root are not archive paths.
+                if (current == root) break;
             }
         }
 

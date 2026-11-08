@@ -155,6 +155,31 @@ def prepare(offline=False):
     spec.loader.exec_module(helper)
     helper.SOURCE = DEST
     helper.generate_callback_pointers()
+    # Carry forward the reproduced LibHac short-read fix for game inputs.
+    stream = (ROOT / 'ios/Overlays/ReadOnlyGameStream.cs').read_text(encoding='utf-8-sig')
+    stream = stream.replace('StartupDiagnostics.Write(',
+        'Ryujinx.Common.Logging.Logger.Error?.Print(Ryujinx.Common.Logging.LogClass.Loader, ')
+    (DEST / 'src/Ryujinx.HLE/Loaders/ReadOnlyGameStream.cs').write_text(stream, encoding='utf-8', newline='\n')
+    loader = 'src/Ryujinx.HLE/Loaders/Processes/ProcessLoader.cs'
+    edit(loader, 'FileStream stream = new(path, FileMode.Open, FileAccess.Read);',
+         'Stream stream = new Ryujinx.HLE.Loaders.ReadOnlyGameStream(path);')
+    edit(loader, 'FileStream file = new(path, FileMode.Open, FileAccess.Read);',
+         'Stream file = new Ryujinx.HLE.Loaders.ReadOnlyGameStream(path);')
+    edit(loader, 'FileStream input = new(path, FileMode.Open);',
+         'Stream input = new Ryujinx.HLE.Loaders.ReadOnlyGameStream(path);')
+    edit('src/Ryujinx.HLE/Utilities/PartitionFileSystemUtils.cs',
+         'FileStream file = File.OpenRead(path);', 'Stream file = new Ryujinx.HLE.Loaders.ReadOnlyGameStream(path);')
+    edit('src/Ryujinx.Library/Library.cs', 'private static FileStream OpenFile(int descriptor)',
+         'private static Stream OpenFile(int descriptor)')
+    edit('src/Ryujinx.Library/Library.cs', 'return new FileStream(safeHandle, FileAccess.ReadWrite);',
+         'return new Ryujinx.HLE.Loaders.ReadOnlyGameStream(new FileStream(safeHandle, FileAccess.Read));')
+    # Assembly.GetEntryAssembly is null in an embedded NativeAOT dylib.
+    for key, value in [('BUILD_VERSION', '1.0.0'), ('BUILD_GIT_HASH', RYU),
+                       ('TARGET_RELEASE_CHANNEL_NAME', 'ios-melonx'), ('CONFIG_FILE_NAME', 'Config.json')]:
+        edit('src/Ryujinx.Common/ReleaseInformation.cs', '%%RYUJINX_' + key + '%%', value)
+    edit('src/Ryujinx.Common/Logging/Targets/ConsoleLogTarget.cs',
+         '            Console.ResetColor();\n        }\n    }',
+         '            if (!OperatingSystem.IsIOS()) Console.ResetColor();\n        }\n    }')
     # Use a dedicated bundle identity so the existing tested Ryu app stays installed.
     project = 'src/MeloNX/MeloNX.xcodeproj/project.pbxproj'
     edit(project, 'com.stossy11.MeloNX', 'app.ryu.ios.melonx')
