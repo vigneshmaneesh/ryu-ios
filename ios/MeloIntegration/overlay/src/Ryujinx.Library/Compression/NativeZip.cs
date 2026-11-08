@@ -108,9 +108,14 @@ namespace Ryujinx.Library
         {
             for (string? current = target; current != null; current = Path.GetDirectoryName(current))
             {
-                if ((File.Exists(current) || Directory.Exists(current)) &&
-                    (File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0)
-                    throw new InvalidDataException("Linked extraction path: " + current);
+                // GetAttributes also detects dangling links; Exists may be false.
+                try
+                {
+                    if ((File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0)
+                        throw new InvalidDataException("Linked extraction path: " + current);
+                }
+                catch (FileNotFoundException) { }
+                catch (DirectoryNotFoundException) { }
                 // System aliases above the selected root are not archive paths.
                 if (current == root) break;
             }

@@ -14,6 +14,7 @@ install_name_tool -id @rpath/libMoltenVK.dylib "$deps/libMoltenVK.dylib"
 
 # Rebuild the complete JIT helper from the reviewed, tiny assembly implementation.
 sdk="$(xcrun --sdk iphoneos --show-sdk-path)"
+export SDKROOT="$sdk"
 rm -f "$deps/BreakpointJIT.framework/BreakpointJIT"
 xcrun --sdk iphoneos clang -arch arm64 -target arm64-apple-ios27.0 -isysroot "$sdk" \
   -dynamiclib ios/MeloIntegration/BreakpointJIT.S \

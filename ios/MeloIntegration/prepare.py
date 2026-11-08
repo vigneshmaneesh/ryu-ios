@@ -48,6 +48,13 @@ def prepare(offline=False):
     DEST.mkdir(parents=True)
     with tarfile.open(fileobj=io.BytesIO(git('archive', tree).stdout)) as archive:
         archive.extractall(DEST, filter='data')
+    # Confirm the native input identities match the supplied source inventory.
+    inventory = json.loads((ROOT / 'ios/SecurityReview/native-dependencies.json').read_text(encoding='utf-8-sig'))
+    assert inventory['commit'] == MELO
+    for binary in inventory['nativeBinaries']:
+        actual_hash = hashlib.sha256((DEST / binary['path']).read_bytes()).hexdigest()
+        if actual_hash != binary['sha256']:
+            raise RuntimeError('Native input differs from reviewed inventory: ' + binary['path'])
     resolutions = json.loads((HERE / 'resolutions.json').read_text(encoding='utf-8-sig'))
     pattern = re.compile(r'^<<<<<<< [^\n]+\n(.*?)^=======\n(.*?)^>>>>>>> [^\n]+\n', re.M | re.S)
     for file in resolutions:
@@ -99,6 +106,11 @@ def prepare(offline=False):
     source = source.replace(needle, '\n        }\n        gameThread.name = "Ryu emulation"\n        gameThread.stackSize = 8 * 1024 * 1024\n        gameThread.start()\n    }\n    \n    \n    func redirectStdIOToFile()', 1)
     path.write_text(source, encoding='utf-8', newline='\n')
     edit(swift + 'Core/Memory/RamDonor.swift', '"donateGuestMemory", default: true', '"donateGuestMemory", default: false')
+    for path in (DEST / swift).rglob('*.swift'):
+        source = path.read_text(encoding='utf-8-sig')
+        updated = source.replace('donateGuestMemory(true)', 'donateGuestMemory(false)').replace('donateGpuBuffers(true)', 'donateGpuBuffers(false)')
+        updated = updated.replace('jitProvider(JITProvider.disabled)', 'jitProvider(JITProvider.stikdebug)')
+        if updated != source: path.write_text(updated, encoding='utf-8', newline='\n')
     edit('src/Ryujinx.Cpu/LightningJit/TranslatorStubs.cs',
          'public TranslatorStubs(IAddressTable<ulong> functionTable, DualMappedNoWxCache dualMappedNoWxCache)',
          'public TranslatorStubs(JitCache jitCache, IAddressTable<ulong> functionTable, DualMappedNoWxCache dualMappedNoWxCache)')

@@ -35,6 +35,18 @@ try
     try { ZipNative.ExtractManaged(linkZip, destination, false); }
     catch (InvalidDataException) { linkRejected = true; }
     if (!linkRejected) throw new Exception("ZIP symbolic link accepted.");
+    if (!OperatingSystem.IsWindows())
+    {
+        string linked = Path.Combine(destination, "nested/test.txt");
+        File.Delete(linked);
+        File.CreateSymbolicLink(linked, Path.Combine(temporary, "outside-missing.txt"));
+        bool danglingRejected = false;
+        try { ZipNative.ExtractManaged(valid, destination, true); }
+        catch (InvalidDataException) { danglingRejected = true; }
+        if (!danglingRejected || File.Exists(Path.Combine(temporary, "outside-missing.txt")))
+            throw new Exception("Dangling extraction link was followed.");
+        File.Delete(linked);
+    }
     Console.WriteLine("PASS ZIP sibling-prefix traversal, parent traversal, absolute paths, backslash traversal, symlink rejection and valid extraction.");
 }
 finally { Directory.Delete(temporary, recursive: true); }
