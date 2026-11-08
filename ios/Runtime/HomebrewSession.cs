@@ -3,6 +3,7 @@ using Ryujinx.Audio.Integration;
 using Ryujinx.Common.Logging;
 using Ryujinx.Common.Configuration;
 using Ryujinx.Graphics.GAL;
+using Ryujinx.Graphics.GAL.Multithreading;
 using Ryujinx.Graphics.Vulkan;
 using Ryujinx.HLE;
 using Silk.NET.Vulkan;
@@ -24,6 +25,9 @@ internal static unsafe class HomebrewSession
             throw new ArgumentException("Select an NRO, NSO, NSP or XCI file.");
         HorizonJournal.Write("Mounting filesystem and account services");
         ServiceBootstrap.Initialize(directory);
+        var settings = NativeSettings.Load(directory, program);
+        settings.ApplyGraphics(directory);
+        using var sessionLog = settings.StartLog(directory);
         if (extension is ".nsp" or ".xci") ContentImports.RequireGameSystem();
         GraphicsBindings.Configure(library);
         using Vk api = GraphicsBindings.CreateApi();
@@ -56,30 +60,34 @@ internal static unsafe class HomebrewSession
             }, () => ["VK_KHR_surface", "VK_EXT_metal_surface"], "");
             HorizonJournal.Write("Constructing Switch with the real Vulkan renderer");
             audio = AppleAudioDriver.Available ? new AppleAudioDriver() : new DummyHardwareDeviceDriver();
-            device = new Switch(ServiceBootstrap.KernelProbeConfiguration(renderer, audio));
+            IRenderer gameRenderer = ((IRenderer)renderer).TryMakeThreaded(settings.Choice<BackendThreading>("BackendThreading"));
+            device = new Switch(ServiceBootstrap.GameConfiguration(gameRenderer, audio, settings));
             var input = new PlayerInput.Writer(device);
             HorizonJournal.Write(AppleAudioDriver.Available ? "Native Apple AudioQueue output and player-one HID connected" : "Audio callbacks unavailable; using silent backend");
             device.ApplicationExitRequested += RequestExit;
             HorizonJournal.Write("Initializing Vulkan and the GPU thread");
-            renderer.Initialize(GraphicsDebugLevel.None);
+            renderer.Initialize(settings.Choice<GraphicsDebugLevel>("LoggingGraphicsDebugLevel"));
+            settings.ApplyWindow(renderer.Window);
             renderer.Window.SetSize(width, height);
             renderer.Window.ChangeVSyncMode(device.VSyncMode);
-            device.Gpu.SetGpuThread();
             HorizonJournal.Write("Loading guest " + extension + ": " + Path.GetFileName(program));
             HorizonJournal.Write($"Container size: {new FileInfo(program).Length} bytes");
             using var loadErrors = new LoaderErrorCapture();
             bool loaded = extension switch { ".nsp" => device.LoadNsp(program), ".xci" => device.LoadXci(program), _ => device.LoadProgram(program) };
             if (!loaded) throw new InvalidOperationException(loadErrors.Failure);
             ulong applicationPid = device.Processes.ActiveApplication?.ProcessId ?? 0;
-            device.Gpu.InitializeShaderCache(CancellationToken.None);
-            gpuReady = true;
-            HorizonJournal.Write("CPU and GPU ready; processing the guest command stream");
             var boot = Stopwatch.StartNew();
             bool firstFrame = false;
             bool stopped = false;
             long nextInput = 0;
-            while (device.Processes.ActiveApplication != null)
+            void RunGpu()
             {
+              device.Gpu.SetGpuThread();
+              device.Gpu.InitializeShaderCache(CancellationToken.None);
+              gpuReady = true;
+              HorizonJournal.Write("CPU and GPU ready; processing the guest command stream");
+              while (device.Processes.ActiveApplication != null)
+              {
                 if (unchecked((ulong)Volatile.Read(ref requestedExit)) == applicationPid)
                 {
                     HorizonJournal.Write("Guest requested application exit through applet AM");
@@ -103,8 +111,10 @@ internal static unsafe class HomebrewSession
                     }
                 }
                 if (!firstFrame && boot.Elapsed > TimeSpan.FromSeconds(60))
-                    throw new TimeoutException("Homebrew has not produced a guest frame within 60 seconds. Share the saved log.");
+                    throw new TimeoutException("This title has not produced a guest frame within 60 seconds. See the saved session log.");
+              }
             }
+            if (gameRenderer is ThreadedRenderer threaded) threaded.RunLoopToCompletion(RunGpu); else RunGpu();
             if (!stopped && !firstFrame) throw new InvalidOperationException("Homebrew exited without presenting a frame.");
             HorizonJournal.Write($"Guest {(stopped ? "stopped" : "exited")}; {renderer.PresentedFrames} frames; starting teardown");
             ulong audioFrames = AppleAudioDriver.Available ? AppleAudioDriver.Counter(0, 2) - audioBefore : 0;

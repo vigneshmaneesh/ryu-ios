@@ -9,6 +9,7 @@
     <IlcMaxDegreeOfParallelism>2</IlcMaxDegreeOfParallelism>
   </PropertyGroup>
   <ItemGroup>
+    <EmbeddedResource Include="settings-schema.json" LogicalName="Ryu.SettingsSchema" />
     <TrimmerRootDescriptor Include="TrimmerRoots.xml" />
     <ProjectReference Include="../build/upstream/src/Ryujinx.Cpu/Ryujinx.Cpu.csproj" />
     <ProjectReference Include="../build/upstream/src/Ryujinx.HLE/Ryujinx.HLE.csproj" />

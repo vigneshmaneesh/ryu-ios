@@ -13,6 +13,29 @@ public static unsafe class CoreApi
     private static int _resolverReady;
     private static long _guestFrames;
     public const uint AbiVersion = 1;
+    [UnmanagedCallersOnly(EntryPoint = "ryu_core_app")]
+    public static int ManageApp(byte* directory, byte* request, byte* report, nuint capacity)
+    {
+        if (directory == null || request == null || report == null || capacity < 2 || capacity > int.MaxValue) return -1;
+        report[0] = 0;
+        if (Interlocked.CompareExchange(ref _busy, 1, 0) != 0) return -2;
+        try
+        {
+            ConfigureDarwinLibraries();
+            string json = Marshal.PtrToStringUTF8((nint)request);
+            if (json.Length > 1024 * 1024) throw new ArgumentException("Request exceeds 1 MiB.");
+            string response = AppOperations.Execute(Marshal.PtrToStringUTF8((nint)directory), System.Text.Json.Nodes.JsonNode.Parse(json)!.AsObject()).ToJsonString();
+            if (Encoding.UTF8.GetByteCount(response) >= (long)capacity) throw new InvalidOperationException("Response exceeds the native buffer.");
+            WriteReport(report, capacity, response);
+            return 0;
+        }
+        catch (Exception error)
+        {
+            WriteReport(report, capacity, new System.Text.Json.Nodes.JsonObject { ["error"] = error.Message }.ToJsonString());
+            return -3;
+        }
+        finally { Volatile.Write(ref _busy, 0); }
+    }
     [UnmanagedCallersOnly(EntryPoint = "ryu_core_ui_poll")]
     public static void PollUi(byte* report, nuint capacity) { if (report != null && capacity >= 2 && capacity <= int.MaxValue) WriteReport(report, capacity, NativeHostUi.Poll()); }
     [UnmanagedCallersOnly(EntryPoint = "ryu_core_ui_answer")]

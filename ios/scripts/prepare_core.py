@@ -47,6 +47,79 @@ def replace(path, old, new, count=1):
     target.write_text(text.replace(old, new), encoding="utf-8", newline="\n")
 
 
+def adapt_threaded_lifecycle():
+    # Desktop has an external window thread which stops the renderer. Our native
+    # synchronous worker owns the whole lifecycle, so give it a bounded join path.
+    path = "src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs"
+    replace(path, "        public void RenderLoop()", '''        public void RunLoopToCompletion(ThreadStart gpuLoop)
+        {
+            _running = true;
+            _backendThread = Thread.CurrentThread;
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo failure = null;
+            _gpuThread = new Thread(() =>
+            {
+                try { gpuLoop(); }
+                catch (Exception error) { failure = System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error); }
+                finally
+                {
+                    FlushThreadedCommands();
+                    _running = false;
+                    _galWorkAvailable.Set();
+                }
+            }, 8 * 1024 * 1024) { Name = "GPU.iOS" };
+            _gpuThread.Start();
+            RenderLoop();
+            _gpuThread.Join();
+            failure?.Throw();
+        }
+
+        public void RenderLoop()''')
+    replace(path, "if (_backendThread is { IsAlive: true })", "if (_backendThread is { IsAlive: true } && _backendThread != Thread.CurrentThread)")
+
+
+def adapt_cheat_vm():
+    base = "src/Ryujinx.HLE/HOS/Tamper/"
+    shutil.copyfile(ROOT / "ios/Overlays/TamperNumber.cs", SOURCE / base / "TamperNumber.cs")
+    shutil.copyfile(ROOT / "ios/Overlays/AotCheatChecks.cs", SOURCE / base / "AotCheatChecks.cs")
+    replace(base + "Value.cs", "return (T)(dynamic)_value;", "return TamperNumber.Cast<T>(TamperNumber.Read(_value));")
+    replace(base + "Value.cs", "_value = (TP)(dynamic)value;", "_value = TamperNumber.Cast<TP>(TamperNumber.Read(value));")
+    replace(base + "Register.cs", "return (T)(dynamic)_register;", "return TamperNumber.Cast<T>(_register);")
+    replace(base + "Register.cs", "_register = (ulong)(dynamic)value;", "_register = TamperNumber.Read(value);")
+    for name, operator in {"Add": "+", "Sub": "-", "Mul": "*", "And": "&", "Or": "|", "Xor": "^", "Lsh": "<<", "Rsh": ">>"}.items():
+        rhs = "TamperNumber.Shift(_rhs.Get<T>())" if name in ("Lsh", "Rsh") else "TamperNumber.Read(_rhs.Get<T>())"
+        replace(base + f"Operations/Op{name}.cs",
+                f"_destination.Set((T)((dynamic)_lhs.Get<T>() {operator} (dynamic)_rhs.Get<T>()));",
+                f"_destination.Set(TamperNumber.Cast<T>(unchecked(TamperNumber.Read(_lhs.Get<T>()) {operator} {rhs})));" )
+    replace(base + "Operations/OpNot.cs", "_destination.Set((T)(~(dynamic)_source.Get<T>()));", "_destination.Set(TamperNumber.Cast<T>(~TamperNumber.Read(_source.Get<T>())));")
+    replace(base + "Operations/OpLog.cs", "(dynamic)_source.Get<T>()", "TamperNumber.Read(_source.Get<T>())")
+    for name, operator in {"EQ": "==", "NE": "!=", "GE": ">=", "LE": "<=", "LT": "<", "GT": ">"}.items():
+        replace(base + f"Conditions/Cond{name}.cs", f"return (dynamic)_lhs.Get<T>() {operator} (dynamic)_rhs.Get<T>();",
+                f"return TamperNumber.Read(_lhs.Get<T>()) {operator} TamperNumber.Read(_rhs.Get<T>());")
+    # Root each closed generic constructor through actual calls, not metadata.
+    branches = []
+    for path in sorted((SOURCE / base).rglob("*.cs")):
+        text = path.read_text(encoding="utf-8-sig")
+        match = re.search(r"class (\w+)<T>.*?public \1\(([^)]*)\)", text, re.S)
+        if not match:
+            continue
+        name, arguments = match.groups()
+        args = [arg.strip().split()[0] for arg in arguments.split(",")]
+        if not name.startswith(("Op", "Cond")):
+            continue
+        if any(t not in ("IOperand", "int") for t in args):
+            raise RuntimeError(f"Unreviewed cheat VM constructor: {path}")
+        casts = ", ".join(f"({typ})operands[{i}]" for i, typ in enumerate(args))
+        choices = ", ".join(f"{width} => new {name}<{typ}>({casts})" for width, typ in [(1, "byte"), (2, "ushort"), (4, "uint"), (8, "ulong")])
+        branches.append(f"            if (instruction == typeof({name}<>)) return width switch {{ {choices}, _ => throw new TamperCompilationException(\"Invalid cheat width.\") }};")
+    target = SOURCE / base / "InstructionHelper.cs"
+    source = target.read_text(encoding="utf-8-sig")
+    old = re.search(r"            Type realType = width switch[\s\S]+?            return Activator.CreateInstance\(realType, operands\);", source)
+    if old is None or len(branches) != 17:
+        raise RuntimeError(f"Cheat factory changed: {len(branches)} constructors")
+    replace(base + "InstructionHelper.cs", old[0], "\n".join(branches) + '\n            throw new TamperCompilationException("Unknown Atmosphere instruction.");')
+    print("Rooted 68 AOT cheat instruction constructors; removed the dynamic binder.")
+
+
 def generate_callback_pointers():
     # NativeAOT does not synthesize a callable UCO entry point merely because
     # reflection found its metadata. Taking each address at build time roots the
@@ -280,6 +353,9 @@ public interface IPreparedJitMemoryBlock : IJitMemoryBlock
     replace(partition, 'errorMessage = $"Unable to load: {ex.Message}";',
             'Ryujinx.HLE.StartupDiagnostics.Write("Loader exception: " + ex.ToString());\n                errorMessage = $"Unable to load: {ex.GetType().Name}: {ex.Message}";')
     adapt_vulkan()
+    adapt_threaded_lifecycle()
+    adapt_cheat_vm()
+    replace("src/Ryujinx.HLE/Utilities/PartitionFileSystemUtils.cs", "FileStream file = File.OpenRead(path);", "Stream file = new Ryujinx.HLE.Loaders.ReadOnlyGameStream(path);")
     # iOS/tvOS ConsolePal supports writing to NSLog, but colour APIs throw.
     # An exception on the upstream async logging thread terminates the process.
     console = "src/Ryujinx.Common/Logging/Targets/ConsoleLogTarget.cs"

@@ -1,0 +1,554 @@
+[
+  {
+    "key": "EnableFileLog",
+    "title": "Enable File Log",
+    "section": "Logging",
+    "description": "Enables or disables logging to a file on disk",
+    "default": true,
+    "kind": "bool",
+    "integer": false
+  },
+  {
+    "key": "BackendThreading",
+    "title": "Backend Threading",
+    "section": "Graphics",
+    "description": "Whether or not backend threading is enabled. The \"Auto\" setting will determine whether threading should be enabled at runtime.",
+    "default": "Auto",
+    "kind": "enum",
+    "integer": false,
+    "choices": [
+      "Auto",
+      "Off",
+      "On"
+    ]
+  },
+  {
+    "key": "ResScale",
+    "title": "Res Scale",
+    "section": "Graphics",
+    "description": "Resolution Scale. An integer scale applied to applicable render targets. Values 1-4, or -1 to use a custom floating point scale instead.",
+    "default": 1,
+    "kind": "number",
+    "integer": true,
+    "minimum": -1,
+    "maximum": 4
+  },
+  {
+    "key": "ResScaleCustom",
+    "title": "Res Scale Custom",
+    "section": "Graphics",
+    "description": "Custom Resolution Scale. A custom floating point scale applied to applicable render targets. Only active when Resolution Scale is -1.",
+    "default": 1.0,
+    "kind": "number",
+    "integer": false,
+    "minimum": 0.25,
+    "maximum": 8
+  },
+  {
+    "key": "MaxAnisotropy",
+    "title": "Max Anisotropy",
+    "section": "Graphics",
+    "description": "Max Anisotropy. Values range from 0 - 16. Set to -1 to let the game decide.",
+    "default": -1.0,
+    "kind": "number",
+    "integer": false,
+    "minimum": -1,
+    "maximum": 16
+  },
+  {
+    "key": "AspectRatio",
+    "title": "Aspect Ratio",
+    "section": "Graphics",
+    "description": "Aspect Ratio applied to the renderer window.",
+    "default": "Fixed16x9",
+    "kind": "string",
+    "integer": false
+  },
+  {
+    "key": "AntiAliasing",
+    "title": "Anti Aliasing",
+    "section": "Graphics",
+    "description": "Applies anti-aliasing to the renderer.",
+    "default": "None",
+    "kind": "enum",
+    "integer": false,
+    "choices": [
+      "None",
+      "Fxaa",
+      "SmaaLow",
+      "SmaaMedium",
+      "SmaaHigh",
+      "SmaaUltra"
+    ]
+  },
+  {
+    "key": "ScalingFilter",
+    "title": "Scaling Filter",
+    "section": "Graphics",
+    "description": "Sets the framebuffer upscaling type.",
+    "default": "Bilinear",
+    "kind": "enum",
+    "integer": false,
+    "choices": [
+      "Bilinear",
+      "Nearest",
+      "Fsr",
+      "Area"
+    ]
+  },
+  {
+    "key": "ScalingFilterLevel",
+    "title": "Scaling Filter Level",
+    "section": "Graphics",
+    "description": "Sets the framebuffer upscaling level.",
+    "default": 80,
+    "kind": "number",
+    "integer": true,
+    "minimum": 0,
+    "maximum": 100
+  },
+  {
+    "key": "GraphicsShadersDumpPath",
+    "title": "Graphics Shaders Dump Path",
+    "section": "Graphics",
+    "description": "Dumps shaders in this local directory",
+    "default": "",
+    "kind": "string",
+    "integer": false
+  },
+  {
+    "key": "LoggingEnableDebug",
+    "title": "Logging Enable Debug",
+    "section": "Logging",
+    "description": "Enables printing debug log messages",
+    "default": false,
+    "kind": "bool",
+    "integer": false
+  },
+  {
+    "key": "LoggingEnableStub",
+    "title": "Logging Enable Stub",
+    "section": "Logging",
+    "description": "Enables printing stub log messages",
+    "default": false,
+    "kind": "bool",
+    "integer": false
+  },
+  {
+    "key": "LoggingEnableInfo",
+    "title": "Logging Enable Info",
+    "section": "Logging",
+    "description": "Enables printing info log messages",
+    "default": true,
+    "kind": "bool",
+    "integer": false
+  },
+  {
+    "key": "LoggingEnableWarn",
+    "title": "Logging Enable Warn",
+    "section": "Logging",
+    "description": "Enables printing warning log messages",
+    "default": true,
+    "kind": "bool",
+    "integer": false
+  },
+  {
+    "key": "LoggingEnableError",
+    "title": "Logging Enable Error",
+    "section": "Logging",
+    "description": "Enables printing error log messages",
+    "default": true,
+    "kind": "bool",
+    "integer": false
+  },
+  {
+    "key": "LoggingEnableTrace",
+    "title": "Logging Enable Trace",
+    "section": "Logging",
+    "description": "Enables printing trace log messages",
+    "default": false,
+    "kind": "bool",
+    "integer": false
+  },
+  {
+    "key": "LoggingEnableGuest",
+    "title": "Logging Enable Guest",
+    "section": "Logging",
+    "description": "Enables printing guest log messages",
+    "default": true,
+    "kind": "bool",
+    "integer": false
+  },
+  {
+    "key": "LoggingEnableFsAccessLog",
+    "title": "Logging Enable Fs Access Log",
+    "section": "Logging",
+    "description": "Enables printing FS access log messages",
+    "default": false,
+    "kind": "bool",
+    "integer": false
+  },
+  {
+    "key": "LoggingEnableNetLog",
+    "title": "Logging Enable Net Log",
+    "section": "Logging",
+    "description": "Enables printing network log messages",
+    "default": false,
+    "kind": "bool",
+    "integer": false
+  },
+  {
+    "key": "LoggingGraphicsDebugLevel",
+    "title": "Logging Graphics Debug Level",
+    "section": "Logging",
+    "description": "Change Graphics API debug log level",
+    "default": "None",
+    "kind": "enum",
+    "integer": false,
+    "choices": [
+      "None",
+      "Error",
+      "Slowdowns",
+      "All"
+    ]
+  },
+  {
+    "key": "SystemLanguage",
+    "title": "System Language",
+    "section": "System",
+    "description": "Change System Language",
+    "default": "AmericanEnglish",
+    "kind": "enum",
+    "integer": false,
+    "choices": [
+      "Japanese",
+      "AmericanEnglish",
+      "French",
+      "German",
+      "Italian",
+      "Spanish",
+      "Chinese",
+      "Korean",
+      "Dutch",
+      "Portuguese",
+      "Russian",
+      "Taiwanese",
+      "BritishEnglish",
+      "CanadianFrench",
+      "LatinAmericanSpanish",
+      "SimplifiedChinese",
+      "TraditionalChinese",
+      "BrazilianPortuguese"
+    ]
+  },
+  {
+    "key": "SystemRegion",
+    "title": "System Region",
+    "section": "System",
+    "description": "Change System Region",
+    "default": "USA",
+    "kind": "enum",
+    "integer": false,
+    "choices": [
+      "Japan",
+      "USA",
+      "Europe",
+      "Australia",
+      "China",
+      "Korea",
+      "Taiwan"
+    ]
+  },
+  {
+    "key": "SystemTimeZone",
+    "title": "System Time Zone",
+    "section": "System",
+    "description": "Change System TimeZone",
+    "default": "UTC",
+    "kind": "string",
+    "integer": false
+  },
+  {
+    "key": "SystemTimeOffset",
+    "title": "System Time Offset",
+    "section": "System",
+    "description": "Change System Time Offset in seconds",
+    "default": 0,
+    "kind": "number",
+    "integer": true,
+    "minimum": -3153600000,
+    "maximum": 3153600000
+  },
+  {
+    "key": "MatchSystemTime",
+    "title": "Match System Time",
+    "section": "System",
+    "description": "Instead of setting the time via configuration, use the values provided by the system.",
+    "default": true,
+    "kind": "bool",
+    "integer": false
+  },
+  {
+    "key": "DockedMode",
+    "title": "Docked Mode",
+    "section": "System",
+    "description": "Enables or disables Docked Mode",
+    "default": false,
+    "kind": "bool",
+    "integer": false
+  },
+  {
+    "key": "VSyncMode",
+    "title": "VSync Mode",
+    "section": "Graphics",
+    "description": "Current VSync mode; 60 (Switch), unbounded (\"Vsync off\"), or custom",
+    "default": "Switch",
+    "kind": "enum",
+    "integer": false,
+    "choices": [
+      "Switch",
+      "Unbounded",
+      "Custom"
+    ]
+  },
+  {
+    "key": "EnableCustomVSyncInterval",
+    "title": "Enable Custom VSync Interval",
+    "section": "Graphics",
+    "description": "Enables or disables the custom present interval",
+    "default": false,
+    "kind": "bool",
+    "integer": false
+  },
+  {
+    "key": "CustomVSyncInterval",
+    "title": "Custom VSync Interval",
+    "section": "Graphics",
+    "description": "The custom present interval value",
+    "default": 120,
+    "kind": "number",
+    "integer": true,
+    "minimum": 1,
+    "maximum": 1000
+  },
+  {
+    "key": "EnableShaderCache",
+    "title": "Enable Shader Cache",
+    "section": "Graphics",
+    "description": "Enables or disables Shader cache",
+    "default": true,
+    "kind": "bool",
+    "integer": false
+  },
+  {
+    "key": "EnableTextureRecompression",
+    "title": "Enable Texture Recompression",
+    "section": "Graphics",
+    "description": "Enables or disables texture recompression",
+    "default": false,
+    "kind": "bool",
+    "integer": false
+  },
+  {
+    "key": "EnableMacroHLE",
+    "title": "Enable Macro HLE",
+    "section": "Graphics",
+    "description": "Enables or disables Macro high-level emulation",
+    "default": true,
+    "kind": "bool",
+    "integer": false
+  },
+  {
+    "key": "EnableColorSpacePassthrough",
+    "title": "Enable Color Space Passthrough",
+    "section": "Graphics",
+    "description": "Enables or disables color space passthrough, if available.",
+    "default": false,
+    "kind": "bool",
+    "integer": false
+  },
+  {
+    "key": "EnablePtc",
+    "title": "Enable Ptc",
+    "section": "CPU",
+    "description": "Enables or disables profiled translation cache persistency",
+    "default": true,
+    "kind": "bool",
+    "integer": false
+  },
+  {
+    "key": "EnableLowPowerPtc",
+    "title": "Enable Low Power Ptc",
+    "section": "CPU",
+    "description": "Enables or disables low-power profiled translation cache persistency loading",
+    "default": false,
+    "kind": "bool",
+    "integer": false
+  },
+  {
+    "key": "TickScalar",
+    "title": "Tick Scalar",
+    "section": "CPU",
+    "description": "Clock tick scalar, in percent points (100 = 1.0).",
+    "default": 100,
+    "kind": "number",
+    "integer": true,
+    "minimum": 1,
+    "maximum": 1000
+  },
+  {
+    "key": "EnableInternetAccess",
+    "title": "Enable Internet Access",
+    "section": "Network",
+    "description": "Enables or disables guest Internet access",
+    "default": false,
+    "kind": "bool",
+    "integer": false
+  },
+  {
+    "key": "EnableFsIntegrityChecks",
+    "title": "Enable Fs Integrity Checks",
+    "section": "System",
+    "description": "Enables integrity checks on Game content files",
+    "default": true,
+    "kind": "bool",
+    "integer": false
+  },
+  {
+    "key": "FsGlobalAccessLogMode",
+    "title": "Fs Global Access Log Mode",
+    "section": "Logging",
+    "description": "Enables FS access log output to the console. Possible modes are 0-3",
+    "default": 0,
+    "kind": "number",
+    "integer": true,
+    "minimum": 0,
+    "maximum": 3
+  },
+  {
+    "key": "AudioVolume",
+    "title": "Audio Volume",
+    "section": "Audio",
+    "description": "The audio volume",
+    "default": 1.0,
+    "kind": "number",
+    "integer": false,
+    "minimum": 0,
+    "maximum": 1
+  },
+  {
+    "key": "DramSize",
+    "title": "Dram Size",
+    "section": "System",
+    "description": "Expands the RAM amount on the emulated system",
+    "default": "MemoryConfiguration4GiB",
+    "kind": "enum",
+    "integer": false,
+    "choices": [
+      "MemoryConfiguration4GiB",
+      "MemoryConfiguration6GiB",
+      "MemoryConfiguration8GiB",
+      "MemoryConfiguration12GiB",
+      "MemoryConfiguration4GiBAppletDev",
+      "MemoryConfiguration4GiBSystemDev",
+      "MemoryConfiguration6GiBAppletDev"
+    ]
+  },
+  {
+    "key": "IgnoreMissingServices",
+    "title": "Ignore Missing Services",
+    "section": "Debug",
+    "description": "Enable or disable ignoring missing services",
+    "default": false,
+    "kind": "bool",
+    "integer": false
+  },
+  {
+    "key": "MultiplayerMode",
+    "title": "Multiplayer Mode",
+    "section": "Network",
+    "description": "Multiplayer Mode",
+    "default": "Disabled",
+    "kind": "enum",
+    "integer": false,
+    "choices": [
+      "Disabled",
+      "LdnRyu",
+      "LdnMitm"
+    ]
+  },
+  {
+    "key": "MultiplayerLanInterfaceId",
+    "title": "Multiplayer Lan Interface Id",
+    "section": "Network",
+    "description": "GUID for the network interface used by LAN (or 0 for default)",
+    "default": "0",
+    "kind": "string",
+    "integer": false
+  },
+  {
+    "key": "MultiplayerDisableP2p",
+    "title": "Multiplayer Disable P2p",
+    "section": "Network",
+    "description": "Disable P2p Toggle",
+    "default": false,
+    "kind": "bool",
+    "integer": false
+  },
+  {
+    "key": "MultiplayerLdnPassphrase",
+    "title": "Multiplayer Ldn Passphrase",
+    "section": "Network",
+    "description": "Local network passphrase, for private networks.",
+    "default": "",
+    "kind": "string",
+    "integer": false
+  },
+  {
+    "key": "LdnServer",
+    "title": "Ldn Server",
+    "section": "Network",
+    "description": "Custom LDN Server",
+    "default": "",
+    "kind": "string",
+    "integer": false
+  },
+  {
+    "key": "GCLowLatency",
+    "title": "GCLow Latency",
+    "section": "CPU",
+    "description": "Enable or disable low-latency mode for garbage collection",
+    "default": false,
+    "kind": "bool",
+    "integer": false
+  },
+  {
+    "key": "EnableGdbStub",
+    "title": "Enable Gdb Stub",
+    "section": "Debug",
+    "description": "Enables or disables the GDB stub",
+    "default": false,
+    "kind": "bool",
+    "integer": false
+  },
+  {
+    "key": "GdbStubPort",
+    "title": "Gdb Stub Port",
+    "section": "Debug",
+    "description": "Which TCP port should the GDB stub listen on",
+    "default": 55555,
+    "kind": "number",
+    "integer": true,
+    "minimum": 1024,
+    "maximum": 65535
+  },
+  {
+    "key": "DebuggerSuspendOnStart",
+    "title": "Debugger Suspend On Start",
+    "section": "Debug",
+    "description": "Suspend execution when starting an application",
+    "default": false,
+    "kind": "bool",
+    "integer": false
+  }
+]

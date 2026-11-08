@@ -1,0 +1,1487 @@
+{
+  "upstream": {
+    "schema": 1,
+    "repository": "https://git.ryujinx.app/projects/Ryubing.git",
+    "revision": "a61a42681119bf15fe8f3297677ae48bda83e70f",
+    "adapterAbi": 1,
+    "target": "Tomodachi Life: Living the Dream",
+    "verifiedLocalSourceFiles": 4240
+  },
+  "configurationVersion": 73,
+  "settings": [
+    {
+      "key": "Version",
+      "type": "int",
+      "description": "Version of the configuration file format",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "platform",
+      "note": "Native settings use a separately versioned schema."
+    },
+    {
+      "key": "EnableFileLog",
+      "type": "bool",
+      "description": "Enables or disables logging to a file on disk",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "BackendThreading",
+      "type": "BackendThreading",
+      "description": "Whether or not backend threading is enabled. The \"Auto\" setting will determine whether threading should be enabled at runtime.",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "ResScale",
+      "type": "int",
+      "description": "Resolution Scale. An integer scale applied to applicable render targets. Values 1-4, or -1 to use a custom floating point scale instead.",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "ResScaleCustom",
+      "type": "float",
+      "description": "Custom Resolution Scale. A custom floating point scale applied to applicable render targets. Only active when Resolution Scale is -1.",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "MaxAnisotropy",
+      "type": "float",
+      "description": "Max Anisotropy. Values range from 0 - 16. Set to -1 to let the game decide.",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "AspectRatio",
+      "type": "AspectRatio",
+      "description": "Aspect Ratio applied to the renderer window.",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "AntiAliasing",
+      "type": "AntiAliasing",
+      "description": "Applies anti-aliasing to the renderer.",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "ScalingFilter",
+      "type": "ScalingFilter",
+      "description": "Sets the framebuffer upscaling type.",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "ScalingFilterLevel",
+      "type": "int",
+      "description": "Sets the framebuffer upscaling level.",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "GraphicsShadersDumpPath",
+      "type": "string",
+      "description": "Dumps shaders in this local directory",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "LoggingEnableDebug",
+      "type": "bool",
+      "description": "Enables printing debug log messages",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "LoggingEnableStub",
+      "type": "bool",
+      "description": "Enables printing stub log messages",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "LoggingEnableInfo",
+      "type": "bool",
+      "description": "Enables printing info log messages",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "LoggingEnableWarn",
+      "type": "bool",
+      "description": "Enables printing warning log messages",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "LoggingEnableError",
+      "type": "bool",
+      "description": "Enables printing error log messages",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "LoggingEnableTrace",
+      "type": "bool",
+      "description": "Enables printing trace log messages",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "LoggingEnableGuest",
+      "type": "bool",
+      "description": "Enables printing guest log messages",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "LoggingEnableFsAccessLog",
+      "type": "bool",
+      "description": "Enables printing FS access log messages",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "LoggingEnableNetLog",
+      "type": "bool",
+      "description": "Enables printing network log messages",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "LoggingEnableAvalonia",
+      "type": "bool",
+      "description": "Enables log messages from Avalonia",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "platform",
+      "note": "The native iOS frontend does not contain Avalonia."
+    },
+    {
+      "key": "LoggingFilteredClasses",
+      "type": "LogClass[]",
+      "description": "Controls which log messages are written to the log targets",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "pending"
+    },
+    {
+      "key": "LoggingGraphicsDebugLevel",
+      "type": "GraphicsDebugLevel",
+      "description": "Change Graphics API debug log level",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "SystemLanguage",
+      "type": "Language",
+      "description": "Change System Language",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "SystemRegion",
+      "type": "Region",
+      "description": "Change System Region",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "SystemTimeZone",
+      "type": "string",
+      "description": "Change System TimeZone",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "SystemTimeOffset",
+      "type": "long",
+      "description": "Change System Time Offset in seconds",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "MatchSystemTime",
+      "type": "bool",
+      "description": "Instead of setting the time via configuration, use the values provided by the system.",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "UseInputGlobalConfig",
+      "type": "bool",
+      "description": "Enable or disable use global input config (Independent from controllers binding)",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "pending"
+    },
+    {
+      "key": "DockedMode",
+      "type": "bool",
+      "description": "Enables or disables Docked Mode",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "EnableDiscordIntegration",
+      "type": "bool",
+      "description": "Enables or disables Discord Rich Presence",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "platform",
+      "note": "Desktop Discord RPC is unavailable in the iOS application sandbox."
+    },
+    {
+      "key": "CheckUpdatesOnStart",
+      "type": "bool",
+      "description": "DEPRECATED: Checks for updates when Ryujinx starts when enabled",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "platform",
+      "note": "IPA updates must be installed through the user's sideloading application."
+    },
+    {
+      "key": "UpdateCheckerType",
+      "type": "UpdaterType",
+      "description": "Checks for updates when Ryujinx starts when enabled, either prompting when an update is found or just showing a notification.",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "platform",
+      "note": "IPA updates must be installed through the user's sideloading application."
+    },
+    {
+      "key": "FocusLostActionType",
+      "type": "FocusLostType",
+      "description": "How the emulator should behave when you click off/on the window.",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "pending"
+    },
+    {
+      "key": "ShowConfirmExit",
+      "type": "bool",
+      "description": "Show \"Confirm Exit\" Dialog",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "pending"
+    },
+    {
+      "key": "IgnoreApplet",
+      "type": "bool",
+      "description": "Ignore Controller Applet dialog",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "pending"
+    },
+    {
+      "key": "SkipUserProfiles",
+      "type": "bool",
+      "description": "Skip user profiles manager dialog during gameplay(the used profile in the configuration will be selected)",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "pending"
+    },
+    {
+      "key": "RememberWindowState",
+      "type": "bool",
+      "description": "Enables or disables save window size, position and state on close.",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "platform",
+      "note": "UIKit manages iPhone/iPad window placement."
+    },
+    {
+      "key": "ShowTitleBar",
+      "type": "bool",
+      "description": "Enables or disables the redesigned title bar",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "platform",
+      "note": "Native navigation and the in-game HUD replace desktop window chrome."
+    },
+    {
+      "key": "EnableHardwareAcceleration",
+      "type": "bool",
+      "description": "Enables hardware-accelerated rendering for Avalonia",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "platform",
+      "note": "SwiftUI/UIKit always use the system compositor."
+    },
+    {
+      "key": "HideCursor",
+      "type": "HideCursorMode",
+      "description": "Whether to hide cursor on idle, always or never",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "pending"
+    },
+    {
+      "key": "EnableVsync",
+      "type": "bool",
+      "description": "Enables or disables Vertical Sync Kept for file format compatibility (to avoid possible failure when parsing configuration on old versions) TODO: Remove this when those older versions aren't in use anymore.",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "platform",
+      "note": "Legacy migrated property; VSyncMode is the current control."
+    },
+    {
+      "key": "VSyncMode",
+      "type": "VSyncMode",
+      "description": "Current VSync mode; 60 (Switch), unbounded (\"Vsync off\"), or custom",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "EnableCustomVSyncInterval",
+      "type": "bool",
+      "description": "Enables or disables the custom present interval",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "CustomVSyncInterval",
+      "type": "int",
+      "description": "The custom present interval value",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "EnableShaderCache",
+      "type": "bool",
+      "description": "Enables or disables Shader cache",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "EnableTextureRecompression",
+      "type": "bool",
+      "description": "Enables or disables texture recompression",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "EnableMacroHLE",
+      "type": "bool",
+      "description": "Enables or disables Macro high-level emulation",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "EnableColorSpacePassthrough",
+      "type": "bool",
+      "description": "Enables or disables color space passthrough, if available.",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "EnablePtc",
+      "type": "bool",
+      "description": "Enables or disables profiled translation cache persistency",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "EnableLowPowerPtc",
+      "type": "bool",
+      "description": "Enables or disables low-power profiled translation cache persistency loading",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "TickScalar",
+      "type": "long",
+      "description": "Clock tick scalar, in percent points (100 = 1.0).",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "EnableInternetAccess",
+      "type": "bool",
+      "description": "Enables or disables guest Internet access",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "EnableFsIntegrityChecks",
+      "type": "bool",
+      "description": "Enables integrity checks on Game content files",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "FsGlobalAccessLogMode",
+      "type": "int",
+      "description": "Enables FS access log output to the console. Possible modes are 0-3",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "AudioBackend",
+      "type": "AudioBackend",
+      "description": "The selected audio backend",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "pending"
+    },
+    {
+      "key": "AudioVolume",
+      "type": "float",
+      "description": "The audio volume",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "MemoryManagerMode",
+      "type": "MemoryManagerMode",
+      "description": "The selected memory manager mode",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "platform",
+      "note": "Software page tables are required by this non-jailbroken iOS JIT port."
+    },
+    {
+      "key": "DramSize",
+      "type": "MemoryConfiguration",
+      "description": "Expands the RAM amount on the emulated system",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "IgnoreMissingServices",
+      "type": "bool",
+      "description": "Enable or disable ignoring missing services",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "GuiColumns",
+      "type": "GuiColumns",
+      "description": "Used to toggle columns in the GUI",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "pending"
+    },
+    {
+      "key": "ColumnSort",
+      "type": "ColumnSort",
+      "description": "Used to configure column sort settings in the GUI",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "pending"
+    },
+    {
+      "key": "GameDirs",
+      "type": "List<string>",
+      "description": "A list of directories containing games to be used to load games into the games list",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "pending"
+    },
+    {
+      "key": "AutoloadDirs",
+      "type": "List<string>",
+      "description": "A list of directories containing DLC/updates the user wants to autoload during library refreshes",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "pending"
+    },
+    {
+      "key": "ShownFileTypes",
+      "type": "ShownFileTypes",
+      "description": "A list of file types to be hidden in the games List",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "pending"
+    },
+    {
+      "key": "WindowStartup",
+      "type": "WindowStartup",
+      "description": "Main window start-up position, size and state",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "platform",
+      "note": "UIKit manages iPhone/iPad window placement."
+    },
+    {
+      "key": "LanguageCode",
+      "type": "string",
+      "description": "Language Code for the UI",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "pending"
+    },
+    {
+      "key": "BaseStyle",
+      "type": "string",
+      "description": "Chooses the base style // Not Used",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "pending"
+    },
+    {
+      "key": "GameListViewMode",
+      "type": "int",
+      "description": "Chooses the view mode of the game list // Not Used",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "pending"
+    },
+    {
+      "key": "ShowNames",
+      "type": "bool",
+      "description": "Show application name in Grid Mode // Not Used",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "pending"
+    },
+    {
+      "key": "GridSize",
+      "type": "int",
+      "description": "Sets App Icon Size // Not Used",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "pending"
+    },
+    {
+      "key": "ApplicationSort",
+      "type": "int",
+      "description": "Sorts Apps in the game list // Not Used",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "pending"
+    },
+    {
+      "key": "IsAscendingOrder",
+      "type": "bool",
+      "description": "Sets if Grid is ordered in Ascending Order // Not Used",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "pending"
+    },
+    {
+      "key": "StartFullscreen",
+      "type": "bool",
+      "description": "Start games in fullscreen mode",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "pending"
+    },
+    {
+      "key": "StartNoUI",
+      "type": "bool",
+      "description": "Start games with UI hidden",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "pending"
+    },
+    {
+      "key": "ShowConsole",
+      "type": "bool",
+      "description": "Show console window",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "pending"
+    },
+    {
+      "key": "EnableKeyboard",
+      "type": "bool",
+      "description": "Enable or disable keyboard support (Independent from controllers binding)",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "pending"
+    },
+    {
+      "key": "EnableMouse",
+      "type": "bool",
+      "description": "Enable or disable mouse support (Independent from controllers binding)",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "pending"
+    },
+    {
+      "key": "DisableInputWhenOutOfFocus",
+      "type": "bool",
+      "description": "Enable/disable the ability to control Ryujinx when it's not the currently focused window.",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "pending"
+    },
+    {
+      "key": "Hotkeys",
+      "type": "KeyboardHotkeys",
+      "description": "Hotkey Keyboard Bindings",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "pending"
+    },
+    {
+      "key": "InputConfig",
+      "type": "List<InputConfig>",
+      "description": "Input configurations",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "pending"
+    },
+    {
+      "key": "PlayerInputAssignments",
+      "type": "List<PlayerInputAssignment>",
+      "description": "Player-level input routing assignments",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "pending"
+    },
+    {
+      "key": "AllowDuplicateDeviceAssignment",
+      "type": "bool",
+      "description": "Whether to allow mapping the same input device to multiple players.",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "pending"
+    },
+    {
+      "key": "RainbowSpeed",
+      "type": "float",
+      "description": "The speed of spectrum cycling for the Rainbow LED feature.",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "pending"
+    },
+    {
+      "key": "GraphicsBackend",
+      "type": "GraphicsBackend",
+      "description": "Graphics backend",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "platform",
+      "note": "Vulkan through bundled MoltenVK/Metal; desktop OpenGL is unavailable on iOS."
+    },
+    {
+      "key": "PreferredGpu",
+      "type": "string",
+      "description": "Preferred GPU",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "platform",
+      "note": "iOS selects the device's integrated Apple GPU."
+    },
+    {
+      "key": "MultiplayerMode",
+      "type": "MultiplayerMode",
+      "description": "Multiplayer Mode",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "MultiplayerLanInterfaceId",
+      "type": "string",
+      "description": "GUID for the network interface used by LAN (or 0 for default)",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "MultiplayerDisableP2p",
+      "type": "bool",
+      "description": "Disable P2p Toggle",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "MultiplayerLdnPassphrase",
+      "type": "string",
+      "description": "Local network passphrase, for private networks.",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "LdnServer",
+      "type": "string",
+      "description": "Custom LDN Server",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "UseHypervisor",
+      "type": "bool",
+      "description": "Uses Hypervisor over JIT if available",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "platform",
+      "note": "Hypervisor execution is unavailable to a sideloaded iOS application."
+    },
+    {
+      "key": "GCLowLatency",
+      "type": "bool",
+      "description": "Enable or disable low-latency mode for garbage collection",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "EnableGdbStub",
+      "type": "bool",
+      "description": "Enables or disables the GDB stub",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "GdbStubPort",
+      "type": "ushort",
+      "description": "Which TCP port should the GDB stub listen on",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "DebuggerSuspendOnStart",
+      "type": "bool",
+      "description": "Suspend execution when starting an application",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "runtime-wired"
+    },
+    {
+      "key": "ShowDirtyHacks",
+      "type": "bool",
+      "description": "Show toggles for dirty hacks in the UI.",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "pending"
+    },
+    {
+      "key": "DirtyHacks",
+      "type": "ulong[]",
+      "description": "The packed values of the enabled dirty hacks.",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "pending"
+    },
+    {
+      "key": "PauseEmulationWhileScanningAmiibo",
+      "type": "bool",
+      "description": "Pause emulation while scanning Amiibo",
+      "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
+      "status": "pending"
+    }
+  ],
+  "commands": [
+    {
+      "command": "Close",
+      "source": "Ryujinx/UI/Applet/ControllerAppletDialog.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "OpenSettingsWindow",
+      "source": "Ryujinx/UI/Applet/ControllerAppletDialog.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "CreateApplicationShortcut",
+      "source": "Ryujinx/UI/Controls/ApplicationContextMenu.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "EditGameConfiguration",
+      "source": "Ryujinx/UI/Controls/ApplicationContextMenu.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "ExtractApplicationAocRomFs",
+      "source": "Ryujinx/UI/Controls/ApplicationContextMenu.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "ExtractApplicationExeFs",
+      "source": "Ryujinx/UI/Controls/ApplicationContextMenu.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "ExtractApplicationLogo",
+      "source": "Ryujinx/UI/Controls/ApplicationContextMenu.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "ExtractApplicationRomFs",
+      "source": "Ryujinx/UI/Controls/ApplicationContextMenu.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "NukePtcCache",
+      "source": "Ryujinx/UI/Controls/ApplicationContextMenu.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "OpenApplicationCompatibility",
+      "source": "Ryujinx/UI/Controls/ApplicationContextMenu.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "OpenApplicationData",
+      "source": "Ryujinx/UI/Controls/ApplicationContextMenu.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "OpenBcatSaveDirectory",
+      "source": "Ryujinx/UI/Controls/ApplicationContextMenu.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "OpenCheatManager",
+      "source": "Ryujinx/UI/Controls/ApplicationContextMenu.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "OpenDeviceSaveDirectory",
+      "source": "Ryujinx/UI/Controls/ApplicationContextMenu.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "OpenDownloadableContentManager",
+      "source": "Ryujinx/UI/Controls/ApplicationContextMenu.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "OpenModManager",
+      "source": "Ryujinx/UI/Controls/ApplicationContextMenu.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "OpenModsDirectory",
+      "source": "Ryujinx/UI/Controls/ApplicationContextMenu.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "OpenPtcDirectory",
+      "source": "Ryujinx/UI/Controls/ApplicationContextMenu.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "OpenSdModsDirectory",
+      "source": "Ryujinx/UI/Controls/ApplicationContextMenu.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "OpenShaderCacheDirectory",
+      "source": "Ryujinx/UI/Controls/ApplicationContextMenu.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "OpenTitleUpdateManager",
+      "source": "Ryujinx/UI/Controls/ApplicationContextMenu.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "OpenUserSaveDirectory",
+      "source": "Ryujinx/UI/Controls/ApplicationContextMenu.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "PurgePtcCache",
+      "source": "Ryujinx/UI/Controls/ApplicationContextMenu.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "PurgeShaderCache",
+      "source": "Ryujinx/UI/Controls/ApplicationContextMenu.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "RunApplication",
+      "source": "Ryujinx/UI/Controls/ApplicationContextMenu.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "ToggleFavorite",
+      "source": "Ryujinx/UI/Controls/ApplicationContextMenu.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "TrimXci",
+      "source": "Ryujinx/UI/Controls/ApplicationContextMenu.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "AboutRyujinx_OnClick",
+      "source": "Ryujinx/UI/RyujinxApp.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "Button_OnClick",
+      "source": "Ryujinx/UI/Views/Dialog/AboutView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "IdString_OnClick",
+      "source": "Ryujinx/UI/Views/Dialog/ApplicationDataView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "PlayabilityStatus_OnClick",
+      "source": "Ryujinx/UI/Views/Dialog/ApplicationDataView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "Add",
+      "source": "Ryujinx/UI/Views/Dialog/DownloadableContentManagerView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "Close",
+      "source": "Ryujinx/UI/Views/Dialog/DownloadableContentManagerView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "DisableAll",
+      "source": "Ryujinx/UI/Views/Dialog/DownloadableContentManagerView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "EnableAll",
+      "source": "Ryujinx/UI/Views/Dialog/DownloadableContentManagerView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "OpenLocation",
+      "source": "Ryujinx/UI/Views/Dialog/DownloadableContentManagerView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "RemoveAll",
+      "source": "Ryujinx/UI/Views/Dialog/DownloadableContentManagerView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "RemoveDLC",
+      "source": "Ryujinx/UI/Views/Dialog/DownloadableContentManagerView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "SaveAndClose",
+      "source": "Ryujinx/UI/Views/Dialog/DownloadableContentManagerView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "Add",
+      "source": "Ryujinx/UI/Views/Dialog/ModManagerView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "Close",
+      "source": "Ryujinx/UI/Views/Dialog/ModManagerView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "DeleteAll",
+      "source": "Ryujinx/UI/Views/Dialog/ModManagerView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "DeleteMod",
+      "source": "Ryujinx/UI/Views/Dialog/ModManagerView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "DisableAll",
+      "source": "Ryujinx/UI/Views/Dialog/ModManagerView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "EnableAll",
+      "source": "Ryujinx/UI/Views/Dialog/ModManagerView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "OpenLocation",
+      "source": "Ryujinx/UI/Views/Dialog/ModManagerView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "SaveAndClose",
+      "source": "Ryujinx/UI/Views/Dialog/ModManagerView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "Add",
+      "source": "Ryujinx/UI/Views/Dialog/TitleUpdateManagerView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "Close",
+      "source": "Ryujinx/UI/Views/Dialog/TitleUpdateManagerView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "OpenLocation",
+      "source": "Ryujinx/UI/Views/Dialog/TitleUpdateManagerView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "RemoveAll",
+      "source": "Ryujinx/UI/Views/Dialog/TitleUpdateManagerView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "RemoveUpdate",
+      "source": "Ryujinx/UI/Views/Dialog/TitleUpdateManagerView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "Save",
+      "source": "Ryujinx/UI/Views/Dialog/TitleUpdateManagerView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "Cancel",
+      "source": "Ryujinx/UI/Views/Dialog/XCITrimmerView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "Close",
+      "source": "Ryujinx/UI/Views/Dialog/XCITrimmerView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "ToggleSelect",
+      "source": "Ryujinx/UI/Views/Dialog/XCITrimmerView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "Trim",
+      "source": "Ryujinx/UI/Views/Dialog/XCITrimmerView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "Untrim",
+      "source": "Ryujinx/UI/Views/Dialog/XCITrimmerView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "ShowLedConfig",
+      "source": "Ryujinx/UI/Views/Input/ControllerInputView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "ShowMotionConfig",
+      "source": "Ryujinx/UI/Views/Input/ControllerInputView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "ShowRumbleConfig",
+      "source": "Ryujinx/UI/Views/Input/ControllerInputView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "AssignedDevicesButton_OnClick",
+      "source": "Ryujinx/UI/Views/Input/InputView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "LinkProfileButton_OnClick",
+      "source": "Ryujinx/UI/Views/Input/InputView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "LoadProfileButton_OnClick",
+      "source": "Ryujinx/UI/Views/Input/InputView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "RefreshInputDevices",
+      "source": "Ryujinx/UI/Views/Input/InputView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "RemoveProfile",
+      "source": "Ryujinx/UI/Views/Input/InputView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "ResetCurrentDeviceToDefaultsButton_OnClick",
+      "source": "Ryujinx/UI/Views/Input/InputView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "RevertChanges",
+      "source": "Ryujinx/UI/Views/Input/InputView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "SaveProfile",
+      "source": "Ryujinx/UI/Views/Input/InputView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "UnlinkDevice",
+      "source": "Ryujinx/UI/Views/Input/InputView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "LedDisabledChanged",
+      "source": "Ryujinx/UI/Views/Input/LedInputView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "DiscardRenderDocCapture",
+      "source": "Ryujinx/UI/Views/Main/MainMenuBarView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "EndRenderDocCapture",
+      "source": "Ryujinx/UI/Views/Main/MainMenuBarView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "HideUi",
+      "source": "Ryujinx/UI/Views/Main/MainMenuBarView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "InstallFirmwareFromFile",
+      "source": "Ryujinx/UI/Views/Main/MainMenuBarView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "InstallFirmwareFromFolder",
+      "source": "Ryujinx/UI/Views/Main/MainMenuBarView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "InstallKeysFromFile",
+      "source": "Ryujinx/UI/Views/Main/MainMenuBarView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "InstallKeysFromFolder",
+      "source": "Ryujinx/UI/Views/Main/MainMenuBarView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "LoadApplicationFromFile",
+      "source": "Ryujinx/UI/Views/Main/MainMenuBarView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "LoadTitleUpdatesAndDLCFromFolder",
+      "source": "Ryujinx/UI/Views/Main/MainMenuBarView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "LoadUnpackedGameFromFolder",
+      "source": "Ryujinx/UI/Views/Main/MainMenuBarView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "ManageProfiles",
+      "source": "Ryujinx/UI/Views/Main/MainMenuBarView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "OpenAmiiboWindow",
+      "source": "Ryujinx/UI/Views/Main/MainMenuBarView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "OpenLogsFolder",
+      "source": "Ryujinx/UI/Views/Main/MainMenuBarView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "OpenRyujinxFolder",
+      "source": "Ryujinx/UI/Views/Main/MainMenuBarView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "OpenScreenshotsFolder",
+      "source": "Ryujinx/UI/Views/Main/MainMenuBarView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "ScanAmiiboFromBin",
+      "source": "Ryujinx/UI/Views/Main/MainMenuBarView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "SimulateWakeUpMessage",
+      "source": "Ryujinx/UI/Views/Main/MainMenuBarView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "StartRenderDocCapture",
+      "source": "Ryujinx/UI/Views/Main/MainMenuBarView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "TakeScreenshot",
+      "source": "Ryujinx/UI/Views/Main/MainMenuBarView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "ToggleFileTypeAssociationsCommand",
+      "source": "Ryujinx/UI/Views/Main/MainMenuBarView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "ToggleFullscreen",
+      "source": "Ryujinx/UI/Views/Main/MainMenuBarView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "ToggleShowConsole",
+      "source": "Ryujinx/UI/Views/Main/MainMenuBarView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "ToggleSkylanderCommand",
+      "source": "Ryujinx/UI/Views/Main/MainMenuBarView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "AspectRatioStatus_OnClick",
+      "source": "Ryujinx/UI/Views/Main/MainStatusBarView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "Refresh_OnClick",
+      "source": "Ryujinx/UI/Views/Main/MainStatusBarView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "SetAspectRatio",
+      "source": "Ryujinx/UI/Views/Main/MainStatusBarView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "UpdateCommand",
+      "source": "Ryujinx/UI/Views/Main/MainStatusBarView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "SetGridMode",
+      "source": "Ryujinx/UI/Views/Main/MainViewControls.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "SetListMode",
+      "source": "Ryujinx/UI/Views/Main/MainViewControls.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "GameList_DoubleTapped",
+      "source": "Ryujinx/UI/Views/Misc/ApplicationGridView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "GameList_DoubleTapped",
+      "source": "Ryujinx/UI/Views/Misc/ApplicationListView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "IdString_OnClick",
+      "source": "Ryujinx/UI/Views/Misc/ApplicationListView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "LdnGames_OnClick",
+      "source": "Ryujinx/UI/Views/Misc/ApplicationListView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "PlayabilityStatus_OnClick",
+      "source": "Ryujinx/UI/Views/Misc/ApplicationListView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "ClearLdnPassButton_OnClick",
+      "source": "Ryujinx/UI/Views/Settings/SettingsNetworkView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "GenLdnPassButton_OnClick",
+      "source": "Ryujinx/UI/Views/Settings/SettingsNetworkView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "RemoveAutoloadDirButton_OnClick",
+      "source": "Ryujinx/UI/Views/Settings/SettingsUIView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "RemoveGameDirButton_OnClick",
+      "source": "Ryujinx/UI/Views/Settings/SettingsUIView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "BackButton_Click",
+      "source": "Ryujinx/UI/Views/User/UserEditorView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "ChangePictureButton_Click",
+      "source": "Ryujinx/UI/Views/User/UserEditorView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "DeleteButton_Click",
+      "source": "Ryujinx/UI/Views/User/UserEditorView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "SaveButton_Click",
+      "source": "Ryujinx/UI/Views/User/UserEditorView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "ChooseButton_OnClick",
+      "source": "Ryujinx/UI/Views/User/UserFirmwareAvatarSelectorView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "GoBack",
+      "source": "Ryujinx/UI/Views/User/UserFirmwareAvatarSelectorView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "GoBack",
+      "source": "Ryujinx/UI/Views/User/UserProfileImageSelectorView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "Import_OnClick",
+      "source": "Ryujinx/UI/Views/User/UserProfileImageSelectorView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "SelectFirmwareImage_OnClick",
+      "source": "Ryujinx/UI/Views/User/UserProfileImageSelectorView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "GoBack",
+      "source": "Ryujinx/UI/Views/User/UserRecovererView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "Recover",
+      "source": "Ryujinx/UI/Views/User/UserRecovererView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "Delete",
+      "source": "Ryujinx/UI/Views/User/UserSaveManagerView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "GoBack",
+      "source": "Ryujinx/UI/Views/User/UserSaveManagerView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "OpenLocation",
+      "source": "Ryujinx/UI/Views/User/UserSaveManagerView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "AddUser",
+      "source": "Ryujinx/UI/Views/User/UserSelectorView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "Close",
+      "source": "Ryujinx/UI/Views/User/UserSelectorView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "EditUser",
+      "source": "Ryujinx/UI/Views/User/UserSelectorView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "ManageSaves",
+      "source": "Ryujinx/UI/Views/User/UserSelectorView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "RecoverLostAccounts",
+      "source": "Ryujinx/UI/Views/User/UserSelectorView.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "CancelButton_Click",
+      "source": "Ryujinx/UI/Windows/AmiiboWindow.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "ScanButton_Click",
+      "source": "Ryujinx/UI/Windows/AmiiboWindow.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "SettingsButton_Click",
+      "source": "Ryujinx/UI/Windows/AmiiboWindow.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "Close",
+      "source": "Ryujinx/UI/Windows/CheatWindow.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "Save",
+      "source": "Ryujinx/UI/Windows/CheatWindow.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "ApplyButton",
+      "source": "Ryujinx/UI/Windows/GameSpecificSettingsWindow.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "CancelButton",
+      "source": "Ryujinx/UI/Windows/GameSpecificSettingsWindow.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "DeleteConfigGame",
+      "source": "Ryujinx/UI/Windows/GameSpecificSettingsWindow.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "SaveUserConfig",
+      "source": "Ryujinx/UI/Windows/GameSpecificSettingsWindow.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "ExitCurrentState",
+      "source": "Ryujinx/UI/Windows/MainWindow.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "LoadApplicationFromFile",
+      "source": "Ryujinx/UI/Windows/MainWindow.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "LoadUnpackedGameFromFolder",
+      "source": "Ryujinx/UI/Windows/MainWindow.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "OpenAmiiboWindow",
+      "source": "Ryujinx/UI/Windows/MainWindow.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "ReloadRenderDocApi",
+      "source": "Ryujinx/UI/Windows/MainWindow.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "RestartEmulation",
+      "source": "Ryujinx/UI/Windows/MainWindow.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "ScanAmiiboFromBin",
+      "source": "Ryujinx/UI/Windows/MainWindow.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "SimulateWakeUpMessage",
+      "source": "Ryujinx/UI/Windows/MainWindow.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "ToggleCapture",
+      "source": "Ryujinx/UI/Windows/MainWindow.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "ToggleDockMode",
+      "source": "Ryujinx/UI/Windows/MainWindow.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "ToggleFullscreen",
+      "source": "Ryujinx/UI/Windows/MainWindow.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "ToggleSkylanderCommand",
+      "source": "Ryujinx/UI/Windows/MainWindow.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "ApplyButton",
+      "source": "Ryujinx/UI/Windows/SettingsWindow.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "CancelButton",
+      "source": "Ryujinx/UI/Windows/SettingsWindow.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "OkButton",
+      "source": "Ryujinx/UI/Windows/SettingsWindow.axaml",
+      "status": "pending"
+    },
+    {
+      "command": "ResetButton",
+      "source": "Ryujinx/UI/Windows/SettingsWindow.axaml",
+      "status": "pending"
+    }
+  ]
+}

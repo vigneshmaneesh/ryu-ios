@@ -28,6 +28,12 @@ public static class ServiceBootstrap
     internal static VirtualFileSystem FileSystem => _fileSystem ?? throw new InvalidOperationException("Initialize the filesystem first.");
     internal static ContentManager Content => _content ?? throw new InvalidOperationException("Initialize the filesystem first.");
     internal static AccountManager Accounts => _accounts ?? throw new InvalidOperationException("Initialize the accounts first.");
+    internal static LibHac.HorizonClient Client => _horizon?.RyujinxClient ?? throw new InvalidOperationException("Initialize the filesystem first.");
+    internal static HleConfiguration GameConfiguration(IRenderer renderer, IHardwareDeviceDriver audio, NativeSettings settings)
+    {
+        lock (Gate) return settings.Configure(renderer, audio).Configure(_fileSystem, _horizon, _content, _accounts,
+            new UserChannelPersistence(), renderer, audio, new NativeHostUi());
+    }
 
     internal static HleConfiguration KernelProbeConfiguration(IRenderer renderer, IHardwareDeviceDriver audio)
     {
@@ -80,6 +86,7 @@ public static class ServiceBootstrap
             if (Path.TrimEndingDirectorySeparator(AppDataManager.BaseDirPath) != root)
                 throw new InvalidOperationException("The core did not select the app's data directory.");
             ContentImports.RecoverFirmware(root);
+            SaveManager.Recover(root);
             _fileSystem = VirtualFileSystem.CreateInstance();
             _horizon = new LibHacHorizonManager();
             _horizon.InitializeFsServer(_fileSystem);

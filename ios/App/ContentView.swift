@@ -9,12 +9,13 @@ struct ContentView: View {
     @StateObject private var graphics = GraphicsCheck()
     @StateObject private var guest = GraphicsCheck(isGuest: true)
     @StateObject private var system = SystemFiles()
+    @ObservedObject private var appActivity = AppActivity.shared
     @State private var showingImporter = false
     @State private var showingGraphics = false
     @State private var showingGuest = false
 
     private var blocked: Bool {
-        model.isRunning || backend.isRunning || horizon.isRunning || guest.isRunning || graphics.isRunning || library.isImporting || system.isBusy ||
+        model.isRunning || backend.isRunning || horizon.isRunning || guest.isRunning || graphics.isRunning || library.isImporting || system.isBusy || appActivity.pending > 0 ||
         model.needsRestart || horizon.needsRestart || guest.needsRestart || graphics.needsRestart
     }
     var body: some View {
@@ -60,7 +61,9 @@ struct ContentView: View {
                                 HStack {
                                     Image(systemName: "gamecontroller")
                                     VStack(alignment: .leading) {
-                                        Text(title.name)
+                                        if let executable = library.executableURL(for: title) {
+                                            NavigationLink(title.name) { TitleDetails(title: title, program: executable, library: library, launchEnabled: model.passed && !blocked) { guest.programURL = executable; guest.displayTitle = title.name; showingGuest = true } }
+                                        } else { Text(title.name) }
                                         Text(ByteCountFormatter.string(fromByteCount: title.byteCount, countStyle: .file))
                                             .font(.caption).foregroundStyle(.secondary)
                                     }
@@ -79,6 +82,8 @@ struct ContentView: View {
                         }.frame(maxWidth: .infinity, alignment: .leading)
                     }
                     SystemFilesPanel(system: system, blocked: blocked)
+                    NavigationLink("User profiles") { ProfilesView() }.disabled(blocked)
+                    NavigationLink("Save manager") { SavesView() }.disabled(blocked)
                     DisclosureGroup("Diagnostics and backend checks") {
                         VStack(alignment: .leading, spacing: 16) {
                             Text("First commercial compatibility target: Tomodachi Life: Living the Dream").font(.callout)
@@ -100,6 +105,7 @@ struct ContentView: View {
             }
             .background(Color(.systemGroupedBackground))
             .navigationTitle("Ryu").navigationBarTitleDisplayMode(.inline).tint(.teal)
+            .toolbar { ToolbarItem(placement: .topBarTrailing) { NavigationLink { SettingsEditor() } label: { Image(systemName: "gearshape") }.disabled(blocked) } }
             .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.item], allowsMultipleSelection: true, onCompletion: library.importSelection)
             .fullScreenCover(isPresented: $showingGraphics) { GraphicsDisplay(model: graphics) }
             .fullScreenCover(isPresented: $showingGuest) { GraphicsDisplay(model: guest) }

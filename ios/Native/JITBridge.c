@@ -116,6 +116,21 @@ void ryu_graphics_cancel(void) { atomic_store(&graphics_cancelled, true); }
 void ryu_graphics_prepare(void) { atomic_store(&graphics_cancelled, false); }
 static int is_graphics_cancelled(void) { return atomic_load(&graphics_cancelled) ? 1 : 0; }
 typedef struct { int action, status; const char *source, *directory; char *report; size_t capacity; } ContentWork;
+typedef struct { const char *directory, *request; char *report; size_t capacity; int status; } AppWork;
+static void *run_app(void *context) {
+    AppWork *work = context;
+    work->status = ryu_core_app((const uint8_t *)work->directory, (const uint8_t *)work->request, (uint8_t *)work->report, work->capacity);
+    return NULL;
+}
+int ryu_app(const char *directory, const char *request, char *report, size_t capacity) {
+    if (!directory || !request || !report || capacity < 2) return -1;
+    if (atomic_flag_test_and_set(&running)) { snprintf(report, capacity, "{\"error\":\"Another emulator operation is running.\"}"); return -2; }
+    AppWork work = { directory, request, report, capacity, -1 };
+    int status = ryu_core_on_thread(run_app, &work, RYU_CORE_STACK_SIZE);
+    if (status == 0) status = work.status;
+    else snprintf(report, capacity, "{\"error\":\"Could not start the app management worker.\"}");
+    atomic_flag_clear(&running); return status;
+}
 static void *run_content(void *context) {
     ContentWork *work = context;
     work->status = ryu_core_content(work->action, (const uint8_t *)work->source, (const uint8_t *)work->directory, (uint8_t *)work->report, work->capacity);
