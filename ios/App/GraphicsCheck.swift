@@ -149,6 +149,7 @@ final class GraphicsCheck: ObservableObject {
 final class RendererSurface: UIView {
     var onReady: ((CAMetalLayer) -> Void)?
     var guestTouch = false
+    private var fingers: [ObjectIdentifier: Int32] = [:]
     override class var layerClass: AnyClass { CAMetalLayer.self }
     var metalLayer: CAMetalLayer { layer as! CAMetalLayer }
 
@@ -160,13 +161,19 @@ final class RendererSurface: UIView {
         metalLayer.isOpaque = true
         metalLayer.allowsNextDrawableTimeout = true
         backgroundColor = .black
+        isMultipleTouchEnabled = true
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     private func forward(_ touches: Set<UITouch>, down: Bool) {
-        guard guestTouch, bounds.width > 0, bounds.height > 0, let touch = touches.first else { return }
-        let point = touch.location(in: self)
-        ryu_touch_set(down ? 1 : 0, Int32(max(0, min(1279, point.x * 1280 / bounds.width))),
-            Int32(max(0, min(719, point.y * 720 / bounds.height))))
+        guard guestTouch, bounds.width > 0, bounds.height > 0 else { return }
+        for touch in touches {
+            let key = ObjectIdentifier(touch)
+            if fingers[key] == nil, down, let free = (Int32(0)..<16).first(where: { !fingers.values.contains($0) }) { fingers[key] = free }
+            guard let finger = fingers[key] else { continue }
+            let point = touch.location(in: self)
+            ryu_touch_finger(finger, down ? 1 : 0, Int32(max(0, min(1279, point.x * 1280 / bounds.width))), Int32(max(0, min(719, point.y * 720 / bounds.height))))
+            if !down { fingers.removeValue(forKey: key) }
+        }
     }
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) { forward(touches, down: true) }
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) { forward(touches, down: true) }

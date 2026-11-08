@@ -13,6 +13,8 @@
   <key>CFBundleShortVersionString</key><string>0.10.0</string>
   <key>CFBundleVersion</key><string>1</string>
   <key>LSRequiresIPhoneOS</key><true/>
+  <key>NSMotionUsageDescription</key><string>Use device motion for the emulated controller's motion sensors when selected in Input settings.</string>
+  <key>NSLocalNetworkUsageDescription</key><string>Connect to LAN and LDN multiplayer sessions when you enable networking.</string>
   <key>MinimumOSVersion</key><string>27.0</string>
   <key>UIDeviceFamily</key><array><integer>1</integer><integer>2</integer></array>
   <key>UILaunchScreen</key><dict/>

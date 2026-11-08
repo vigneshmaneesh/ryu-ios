@@ -13,6 +13,12 @@ int ryu_homebrew_run(const char *library, void *metal_layer, int width, int heig
     const char *program, const char *directory, char *report, size_t report_capacity);
 uint64_t ryu_homebrew_frames(void);
 void ryu_input_set(uint64_t buttons, int lx, int ly, int rx, int ry);
+void ryu_input_player(int player, int connected, int type, uint64_t buttons, int lx, int ly, int rx, int ry);
+void ryu_motion_set(int player, const float *values18);
+void ryu_rumble_read(int player, float *values8);
+void ryu_keyboard_set(uint64_t a, uint64_t b, uint64_t c, uint64_t d, int modifiers);
+void ryu_mouse_set(int x, int y, uint32_t buttons, int sx, int sy, int connected);
+void ryu_touch_finger(int finger, int down, int x, int y);
 void ryu_touch_set(int down, int x, int y);
 void ryu_input_reset(void);
 void ryu_pause(int paused);

@@ -82,6 +82,7 @@ struct TitleDetails: View {
                 LabeledContent("Size", value: ByteCountFormatter.string(fromByteCount: title.byteCount, countStyle: .file))
                 Button("Play", action: play).buttonStyle(.borderedProminent).disabled(!launchEnabled || manager.busy)
                 NavigationLink("Game settings") { SettingsEditor(program: program, name: title.name) }
+                NavigationLink("Input settings") { InputSettingsView(program: program) }
                 NavigationLink("Mods and cheats") { ModsView(program: program) }
                 NavigationLink("Saves") { SavesView(program: program) }
                 manager.errorView

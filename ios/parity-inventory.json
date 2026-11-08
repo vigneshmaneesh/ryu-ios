@@ -557,14 +557,14 @@
       "type": "bool",
       "description": "Enable or disable keyboard support (Independent from controllers binding)",
       "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
-      "status": "pending"
+      "status": "runtime-wired"
     },
     {
       "key": "EnableMouse",
       "type": "bool",
       "description": "Enable or disable mouse support (Independent from controllers binding)",
       "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
-      "status": "pending"
+      "status": "runtime-wired"
     },
     {
       "key": "DisableInputWhenOutOfFocus",

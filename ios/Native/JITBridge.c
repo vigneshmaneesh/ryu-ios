@@ -184,6 +184,12 @@ int ryu_graphics_check(const char *library, void *metal_layer, int width, int he
 
 uint64_t ryu_homebrew_frames(void) { return ryu_core_guest_frames(); }
 void ryu_input_set(uint64_t b, int lx, int ly, int rx, int ry) { ryu_core_input_set(b, lx, ly, rx, ry); }
+void ryu_input_player(int p, int c, int t, uint64_t b, int lx, int ly, int rx, int ry) { ryu_core_input_player(p, c, t, b, lx, ly, rx, ry); }
+void ryu_motion_set(int p, const float *v) { ryu_core_motion_set(p, v); }
+void ryu_rumble_read(int p, float *v) { ryu_core_rumble_read(p, v); }
+void ryu_keyboard_set(uint64_t a, uint64_t b, uint64_t c, uint64_t d, int m) { ryu_core_keyboard_set(a, b, c, d, m); }
+void ryu_mouse_set(int x, int y, uint32_t b, int sx, int sy, int c) { ryu_core_mouse_set(x, y, b, sx, sy, c); }
+void ryu_touch_finger(int f, int d, int x, int y) { ryu_core_touch_finger(f, d, x, y); }
 void ryu_touch_set(int down, int x, int y) { ryu_core_touch_set(down, x, y); }
 void ryu_input_reset(void) { ryu_core_input_reset(); }
 void ryu_pause(int paused) { ryu_core_pause(paused); }

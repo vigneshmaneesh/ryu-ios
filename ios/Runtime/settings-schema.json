@@ -464,6 +464,24 @@
     "integer": false
   },
   {
+    "key": "EnableKeyboard",
+    "title": "Enable Keyboard",
+    "section": "Input",
+    "description": "Enable or disable keyboard support (Independent from controllers binding)",
+    "default": false,
+    "kind": "bool",
+    "integer": false
+  },
+  {
+    "key": "EnableMouse",
+    "title": "Enable Mouse",
+    "section": "Input",
+    "description": "Enable or disable mouse support (Independent from controllers binding)",
+    "default": false,
+    "kind": "bool",
+    "integer": false
+  },
+  {
     "key": "MultiplayerMode",
     "title": "Multiplayer Mode",
     "section": "Network",

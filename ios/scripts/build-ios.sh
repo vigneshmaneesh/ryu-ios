@@ -143,7 +143,7 @@ xcrun clang -target "$target" -isysroot "$sdk" \
 xcrun --sdk iphoneos swiftc -target "$target" -sdk "$sdk" -swift-version 5 -O -parse-as-library \
     -module-name RyuJIT -import-objc-header "$root/ios/Native/JITBridge.h" \
     -F "$app/Frameworks" -framework RyujinxEmitter -framework RyuCore -framework MoltenVK -framework SwiftUI -framework UIKit \
-    -framework Foundation -framework CoreFoundation -framework Metal -framework QuartzCore -framework AudioToolbox -framework AVFAudio -framework GameController \
+    -framework Foundation -framework CoreFoundation -framework Metal -framework QuartzCore -framework AudioToolbox -framework AVFAudio -framework GameController -framework CoreMotion -framework CoreHaptics -framework PhotosUI \
     -Xlinker -rpath -Xlinker '@executable_path/Frameworks' \
     "$root/ios/App/"*.swift \
     "$out/native/JITBridge.o" "$out/native/CoreWorker.o" "$out/native/JITProtocol.o" "$out/native/VulkanProbe.o" "$out/native/MetalSurface.o" "$out/native/AppleAudio.o" -o "$app/RyuJIT"

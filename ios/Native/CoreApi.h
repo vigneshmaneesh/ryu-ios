@@ -14,6 +14,12 @@ int32_t ryu_core_content(int action, const uint8_t *source, const uint8_t *direc
 int32_t ryu_core_imports_check(const uint8_t *directory, uint8_t *report, uintptr_t capacity);
 uint64_t ryu_core_guest_frames(void);
 void ryu_core_input_set(uint64_t buttons, int lx, int ly, int rx, int ry);
+void ryu_core_input_player(int player, int connected, int type, uint64_t buttons, int lx, int ly, int rx, int ry);
+void ryu_core_motion_set(int player, const float *values18);
+void ryu_core_rumble_read(int player, float *values8);
+void ryu_core_keyboard_set(uint64_t a, uint64_t b, uint64_t c, uint64_t d, int modifiers);
+void ryu_core_mouse_set(int x, int y, uint32_t buttons, int sx, int sy, int connected);
+void ryu_core_touch_finger(int finger, int down, int x, int y);
 void ryu_core_touch_set(int down, int x, int y);
 void ryu_core_input_reset(void);
 void ryu_core_pause(int paused);

@@ -14,7 +14,7 @@ struct PlayScreen: View {
             ZStack {
                 Color.black.ignoresSafeArea()
                 MetalSurfaceView(guestTouch: true) { layer in
-                    if !launched { launched = true; input.start(); model.run(layer: layer) }
+                    if !launched { launched = true; input.start(program: model.programURL); model.run(layer: layer) }
                 }
                 .aspectRatio(16 / 9, contentMode: .fit)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -25,7 +25,7 @@ struct PlayScreen: View {
                         Text("\(model.fps) FPS").font(.caption.monospacedDigit())
                     }.padding(10).background(.black.opacity(0.45))
                     Spacer()
-                    if model.isRunning {
+                    if model.isRunning && input.showTouch {
                         HStack(alignment: .bottom) {
                             VStack(spacing: 10) {
                                 HStack { HeldButton(title: "L", bit: 6, input: input, size: 34); HeldButton(title: "ZL", bit: 8, input: input, size: 34) }
@@ -37,6 +37,7 @@ struct PlayScreen: View {
                                 Text(model.programURL == nil ? "Catch the targets\nStick or touch to move · A boost/beep · B reset" : "Player 1 · touch and controller input")
                                     .font(.caption2).multilineTextAlignment(.center).padding(8).background(.black.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
                                 HStack { HeldButton(title: "−", bit: 11, input: input, size: 32); HeldButton(title: "+", bit: 10, input: input, size: 32) }
+                                HStack { HeldButton(title: "L3", bit: 4, input: input, size: 32); HeldButton(title: "R3", bit: 5, input: input, size: 32) }
                             }
                             Spacer(minLength: 4)
                             VStack(spacing: 6) {
@@ -44,8 +45,9 @@ struct PlayScreen: View {
                                 HeldButton(title: "X", bit: 2, input: input)
                                 HStack(spacing: 30) { HeldButton(title: "Y", bit: 3, input: input); HeldButton(title: "A", bit: 0, input: input) }
                                 HeldButton(title: "B", bit: 1, input: input)
+                                TouchStick(input: input, right: true).scaleEffect(0.7).frame(width: 78, height: 78)
                             }
-                        }.id(paused).padding(14).opacity(paused ? 0.3 : 1).allowsHitTesting(!paused)
+                        }.id(paused).padding(14).scaleEffect(input.touchScale, anchor: .bottom).opacity(paused ? 0.3 : input.touchOpacity).allowsHitTesting(!paused)
                     }
                 }
                 if paused { Text("Paused").font(.title.bold()).padding(28).background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18)) }
@@ -65,7 +67,7 @@ struct PlayScreen: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button(paused ? "Resume" : "Pause", systemImage: paused ? "play.fill" : "pause.fill") {
-                        input.releaseVirtual(); paused.toggle(); ryu_pause(paused ? 1 : 0)
+                        input.releaseVirtual(); paused.toggle(); input.setPaused(paused); ryu_pause(paused ? 1 : 0)
                     }.disabled(!model.isRunning)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -78,7 +80,7 @@ struct PlayScreen: View {
                 if !running { input.stop(); paused = false; if closeRequested { dismiss() } }
             }
             .onChange(of: scenePhase) { _, phase in
-                if phase != .active && model.isRunning { input.stop(); model.cancel() }
+                if phase != .active && model.isRunning { input.releaseVirtual(); paused = true; input.setPaused(true); ryu_pause(1) }
             }
             .onDisappear { input.stop(); model.cancel() }
             .interactiveDismissDisabled(model.isRunning)

@@ -62,7 +62,7 @@ internal static unsafe class HomebrewSession
             audio = AppleAudioDriver.Available ? new AppleAudioDriver() : new DummyHardwareDeviceDriver();
             IRenderer gameRenderer = ((IRenderer)renderer).TryMakeThreaded(settings.Choice<BackendThreading>("BackendThreading"));
             device = new Switch(ServiceBootstrap.GameConfiguration(gameRenderer, audio, settings));
-            var input = new PlayerInput.Writer(device);
+            var input = new PlayerInput.Writer(device, settings);
             HorizonJournal.Write(AppleAudioDriver.Available ? "Native Apple AudioQueue output and player-one HID connected" : "Audio callbacks unavailable; using silent backend");
             device.ApplicationExitRequested += RequestExit;
             HorizonJournal.Write("Initializing Vulkan and the GPU thread");

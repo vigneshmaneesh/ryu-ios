@@ -53,6 +53,8 @@ WIRED = {
     "GdbStubPort": ("Debug", 55555, 1024, 65535),
     "DebuggerSuspendOnStart": ("Debug", False),
     "AudioVolume": ("Audio", 1.0, 0, 1),
+    "EnableKeyboard": ("Input", False),
+    "EnableMouse": ("Input", False),
     "EnableFileLog": ("Logging", True),
     "LoggingEnableDebug": ("Logging", False),
     "LoggingEnableStub": ("Logging", False),

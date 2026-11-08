@@ -355,6 +355,8 @@ public interface IPreparedJitMemoryBlock : IJitMemoryBlock
     adapt_vulkan()
     adapt_threaded_lifecycle()
     adapt_cheat_vm()
+    replace("src/Ryujinx.HLE/HOS/Services/Hid/HidDevices/Types/TouchPoint.cs", "public uint X;", "public uint? FingerId;\n        public uint X;")
+    replace("src/Ryujinx.HLE/HOS/Services/Hid/HidDevices/TouchDevice.cs", "FingerId = (uint)i,", "FingerId = pi.FingerId ?? (uint)i,")
     replace("src/Ryujinx.HLE/Utilities/PartitionFileSystemUtils.cs", "FileStream file = File.OpenRead(path);", "Stream file = new Ryujinx.HLE.Loaders.ReadOnlyGameStream(path);")
     # iOS/tvOS ConsolePal supports writing to NSLog, but colour APIs throw.
     # An exception on the upstream async logging thread terminates the process.

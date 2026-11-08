@@ -72,6 +72,18 @@ public static unsafe class CoreApi
 
     [UnmanagedCallersOnly(EntryPoint = "ryu_core_input_set")]
     public static void SetInput(ulong buttons, int lx, int ly, int rx, int ry) => PlayerInput.Set(buttons, lx, ly, rx, ry);
+    [UnmanagedCallersOnly(EntryPoint = "ryu_core_input_player")]
+    public static void SetPlayer(int player, int connected, int type, ulong buttons, int lx, int ly, int rx, int ry) => PlayerInput.SetPlayer(player, connected != 0, (Ryujinx.HLE.HOS.Services.Hid.ControllerType)type, buttons, lx, ly, rx, ry);
+    [UnmanagedCallersOnly(EntryPoint = "ryu_core_motion_set")]
+    public static void SetMotion(int player, float* values) { if (values != null) PlayerInput.SetMotion(player, new ReadOnlySpan<float>(values, 18)); }
+    [UnmanagedCallersOnly(EntryPoint = "ryu_core_rumble_read")]
+    public static void ReadRumble(int player, float* values) { if (values != null) PlayerInput.ReadRumble(player, new Span<float>(values, 8)); }
+    [UnmanagedCallersOnly(EntryPoint = "ryu_core_keyboard_set")]
+    public static void SetKeyboard(ulong a, ulong b, ulong c, ulong d, int modifiers) => PlayerInput.Keyboard(a, b, c, d, modifiers);
+    [UnmanagedCallersOnly(EntryPoint = "ryu_core_mouse_set")]
+    public static void SetMouse(int x, int y, uint buttons, int sx, int sy, int connected) => PlayerInput.Mouse(x, y, buttons, sx, sy, connected != 0);
+    [UnmanagedCallersOnly(EntryPoint = "ryu_core_touch_finger")]
+    public static void TouchFinger(int finger, int down, int x, int y) => PlayerInput.TouchFinger(finger, down != 0, x, y);
     [UnmanagedCallersOnly(EntryPoint = "ryu_core_touch_set")]
     public static void SetTouch(int down, int x, int y) => PlayerInput.Touch(down != 0, x, y);
     [UnmanagedCallersOnly(EntryPoint = "ryu_core_input_reset")]

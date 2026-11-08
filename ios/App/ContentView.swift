@@ -61,6 +61,7 @@ struct ContentView: View {
                     SystemFilesPanel(system: system, blocked: blocked)
                     NavigationLink("User profiles") { ProfilesView() }.disabled(blocked)
                     NavigationLink("Save manager") { SavesView() }.disabled(blocked)
+                    NavigationLink("Input and controllers") { InputSettingsView() }.disabled(blocked)
                     DisclosureGroup("Diagnostics and backend checks") {
                         VStack(alignment: .leading, spacing: 16) {
                             Text("First commercial compatibility target: Tomodachi Life: Living the Dream").font(.callout)

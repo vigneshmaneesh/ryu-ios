@@ -34,6 +34,32 @@ public static class ParityChecks
         bool unsafeRejected = false; try { OwnedFiles.ExtractZip(archive, extraction); } catch (InvalidDataException) { unsafeRejected = true; }
         File.Delete(archive);
         if (!unsafeRejected || File.Exists(Path.Combine(root, "escape.txt"))) throw new InvalidOperationException("ZIP import escaped its staging directory.");
-        return "PASS persistent global/per-game settings, inheritance and reset\nPASS invalid settings preserve the previous configuration\nPASS AOT settings contract serialization\nPASS ZIP traversal rejection\n" + Ryujinx.HLE.HOS.Tamper.AotCheatChecks.Run();
+        ServiceBootstrap.Initialize(directory);
+        var accounts = ServiceBootstrap.Accounts;
+        var previous = accounts.LastOpenedUser.UserId;
+        var beforeIds = accounts.GetAllUsers().Select(x => x.UserId).ToHashSet();
+        ProfileManager.Manage(directory, JsonNode.Parse("{\"operation\":\"profiles.add\",\"name\":\"AOT fixture\"}")!.AsObject());
+        var added = accounts.GetAllUsers().Single(x => !beforeIds.Contains(x.UserId)).UserId;
+        try
+        {
+            ProfileManager.Manage(directory, new JsonObject { ["operation"] = "profiles.select", ["id"] = added.ToString() });
+            ProfileManager.Manage(directory, new JsonObject { ["operation"] = "profiles.rename", ["id"] = added.ToString(), ["name"] = "AOT renamed" });
+            var persisted = new Ryujinx.HLE.HOS.Services.Account.Acc.AccountManager(ServiceBootstrap.Client);
+            if (persisted.LastOpenedUser.UserId != added || persisted.LastOpenedUser.Name != "AOT renamed") throw new InvalidOperationException("Account changes did not persist.");
+            _ = SaveManager.List(directory).ToJsonString();
+        }
+        finally
+        {
+            ProfileManager.Manage(directory, new JsonObject { ["operation"] = "profiles.delete", ["id"] = added.ToString(), ["confirmed"] = true });
+            accounts.OpenUser(previous);
+        }
+        string recovery = Path.Combine(root, "recovery"), transactions = Path.Combine(recovery, "save-transactions"), save = Path.Combine(recovery, "save"), old = Path.Combine(transactions, "test.old"), stage = Path.Combine(transactions, "test.new");
+        Directory.CreateDirectory(save); Directory.CreateDirectory(old); Directory.CreateDirectory(stage);
+        File.WriteAllText(Path.Combine(save, "new"), "uncommitted"); File.WriteAllText(Path.Combine(old, "old"), "accepted");
+        NativeSettings.AtomicJson(Path.Combine(transactions, "test.json"), new JsonObject { ["folder"] = save, ["backup"] = old, ["stage"] = stage });
+        SaveManager.Recover(recovery);
+        if (!File.Exists(Path.Combine(save, "old")) || File.Exists(Path.Combine(save, "new")) || Directory.Exists(stage)) throw new InvalidOperationException("Interrupted save restore did not roll back.");
+        OwnedFiles.Delete(root, recovery);
+        return "PASS persistent global/per-game settings, inheritance and reset\nPASS invalid settings preserve the previous configuration\nPASS AOT settings contract serialization\nPASS ZIP traversal rejection\nPASS real account creation/selection/rename/persistence/delete\nPASS real save-index enumeration and interrupted-restore recovery\n" + Ryujinx.HLE.HOS.Tamper.AotCheatChecks.Run();
     }
 }

@@ -14,7 +14,7 @@ been established; v0.9.1's specific XCI retry remains unconfirmed.
 
 - Persistent global/per-imported-title configuration with inheritance, reset,
   validation, atomic saves and a native searchable settings editor.
-- 51 engine settings: graphics scaling/filtering/AA/vsync/caching, system
+- 53 engine settings: graphics scaling/filtering/AA/vsync/caching, system
   language/region/clock/RAM, docked mode, PTC/clock scalar, audio volume,
   integrity checks, missing-service handling, network/LDN parameters,
   GDB parameters, log levels and session log files. Values reach the upstream
@@ -34,13 +34,19 @@ been established; v0.9.1's specific XCI retry remains unconfirmed.
 - Atmosphere VM integer operations and 68 closed generic instruction
   constructors adapted for NativeAOT. Automated checks execute a real cheat
   program with key conditionals, arithmetic and 8/16/32/64-bit memory writes.
+- Library search, sorting, format/favorite filters, grid/list, icon sizing,
+  favorites, rename/removal, last played and play duration.
+- Eight-player input snapshots and controller styles; saved reusable mappings,
+  assignments, stick calibration, keyboard controls and raw keyboard/mouse HID.
+- Controller/Core Motion sensor feeds, rumble through Core Haptics, sixteen
+  stable touch IDs, right touch stick, L3/R3 and touch size/opacity controls.
+  These latest input changes require the next CI run and device acceptance.
 
 ## Still required before a feature-complete candidate
 
-- Library search/sort/grid/favorites/play time, metadata refresh, folder imports,
+- Library metadata batch refresh, folder imports,
   launch shortcuts, application data, extraction and XCI trimming tools.
-- All players/controller types, mapping and profiles, motion, rumble,
-  keyboard/mouse, hotkeys and touch-layout settings.
+- Controller profile deletion/import/export, hotkeys and movable touch layouts.
 - In-game quick settings, screenshots, amiibo scanning/cabinet and program
   transitions; lifecycle/pause behavior and native controller/profile applets.
 - LAN/LDN browsing and connection controls; network-specific AOT review.
