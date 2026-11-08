@@ -95,3 +95,9 @@ imports and commercial container launch remain future integration work.
 
 
 v0.7.1 build 32 is user-accepted for real guest graphics. v0.9 build 34 adds commercial-container launch and system-file setup, but no commercial title boot has been demonstrated. The user has a Tomodachi Life base XCI; prod.keys and firmware are required for the first attempt. Phase 22 remains incomplete.
+
+The v0.9 commercial boot attempt fails with FS 2002-3005 before process creation.
+v0.9.1 build 35 includes a complete-read stream adapter, raw XCI range validation,
+precise loader error reporting and bounded terminal logs. Its authored container
+regression and integrated Apple NativeAOT play session pass. Device commercial
+compatibility is still unverified; see DEVICE_RESULTS.md and BUILDS.md.

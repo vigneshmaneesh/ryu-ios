@@ -209,3 +209,27 @@ actual XCI boot after system setup, rather than repeating prototype test suites.
 Known follow-up: production session logging still inherits upstream's enabled
 trace/debug/stub channels. Reduce these before performance characterization;
 current CI timings with syscall logging are not a game-performance benchmark.
+
+## v0.9.1 build 35 XCI reader correction
+
+Source `28e51483b64d3aa123ceed7c4a36468763e46a54`,
+[successful run 42435788464](https://github.com/vigneshmaneesh/ryu-ios/actions/runs/42435788464),
+[artifact 13599317624](https://github.com/vigneshmaneesh/ryu-ios/actions/runs/42435788464/artifacts/13599317624).
+IPA SHA-256 `0b0c18e472ffff6a37119416bbf7c84a2ceaaeb19fad88c47808f715148738c2`.
+ZIP SHA-256 `bc74ea76bd69378d6f69ee1af3362c56b4cb67d26d027efda94c49f316178647`.
+
+The authored XCI control reproduces FS 2002-3005 under partial stream reads. With
+the complete-read adapter, its NCA header decodes successfully in local .NET and
+Apple NativeAOT. Truncated XCI input is still rejected, secure file ranges are
+checked against actual file length, and terminal diagnostics survive journal
+rollover. The integrated homebrew session presents **212 frames**, consumes
+**9,600 nonzero PCM frames**, confirms controller/touch input and target collection,
+pauses/resumes and exits. The device ARM64/platform/contents/signing checks pass.
+
+The normal session now disables syscall trace/debug/stub/access chatter. Loader
+failures surface their actual error in the session report, with metadata/program
+map stages and exception stack retained in the saved trace. The user's M1 XCI
+failure has not yet been retested; the short-read control proves a reader bug,
+not commercial compatibility or the integrity of the user's particular dump.
+Next action: update the existing app, enable JIT and retry the already-imported
+Tomodachi XCI once. Phase 22 and commercial-game acceptance remain incomplete.
