@@ -75,16 +75,28 @@ def prepare(offline=False):
     apply_guest_ram_fix(swift)
     path = DEST / (swift + 'Core/RyujinxController.swift')
     source = path.read_text(encoding='utf-8-sig')
-    # These optional entitlements are not a reliable capability test with free
-    # development signing. The native allocator reports actual reservation errors.
-    start = source.index('        if !hasIncreasedMemoryLimitEntitlement {')
-    end = source.index('        if !isJITEnabled {', start)
-    source = source[:start] + source[end:]
+    # Retain MeloNX's memory-capability gates. The final sideloader must grant
+    # the requested entitlement, rather than letting startup fail deep in mmap.
+    assert '        if !hasIncreasedMemoryLimitEntitlement {' in source
+    assert '        if !hasExtendedVirtualAddressingEntitlement &&' in source
+    source = source.replace('        if !hasIncreasedMemoryLimitEntitlement {',
+                            '        print("[Memory] Capabilities: increased-memory-limit=\\(hasIncreasedMemoryLimitEntitlement), extended-virtual-addressing=\\(hasExtendedVirtualAddressingEntitlement)")\n        if !hasIncreasedMemoryLimitEntitlement {', 1)
+    source = source.replace('return state == .entitlement',
+                            'return state == .entitlement || state == .extendedEntitlement')
     source = source.replace('        Thread.detachNewThread {', '        let gameThread = Thread {', 1)
     needle = '\n        }\n    }\n    \n    \n    func redirectStdIOToFile()'
     assert needle in source
     source = source.replace(needle, '\n        }\n        gameThread.name = "Ryu emulation"\n        gameThread.stackSize = 8 * 1024 * 1024\n        gameThread.start()\n    }\n    \n    \n    func redirectStdIOToFile()', 1)
     path.write_text(source, encoding='utf-8', newline='\n')
+    edit(swift + 'UI/Main/ContentView.swift',
+         'MeloNX **REQUIRES** the Increased Memory Limit entitlement, Please follow the instructions on how to Install MeloNX and Enable the Entitlement.',
+         'iOS has not granted this installation the Increased Memory Limit permission. Reinstall with AltStore Classic 2.2 or later, which supports requesting this permission.')
+    edit(swift + 'UI/Main/ContentView.swift',
+         'https://git.ryujinx.app/projects/MeloNX#how-to-install',
+         'https://faq.altstore.io/release-notes/altstore')
+    edit(swift + 'UI/Main/ContentView.swift',
+         'The Extended Virtual Addressing entitlement is required for your device, Please read the Information on how to Install MeloNX and Enable the **PAID** Entitlement.',
+         'iOS could not reserve the address space needed to start emulation. This installation does not have the Extended Virtual Addressing permission. Check the signing capabilities used to install the app.')
     # Provider selection is an integration default, not a JIT implementation patch.
     for path in (DEST / swift).rglob('*.swift'):
         source = path.read_text(encoding='utf-8-sig')
@@ -178,10 +190,10 @@ def prepare(offline=False):
     text = re.sub(r'IPHONEOS_DEPLOYMENT_TARGET = [\d.]+;', 'IPHONEOS_DEPLOYMENT_TARGET = 27.0;', text)
     text = re.sub(r'DEVELOPMENT_TEAM = [^;]*;', 'DEVELOPMENT_TEAM = "";', text)
     # Build the engine explicitly. Never invoke the supplied profile-sourcing
-    # legacy build target, nor consume a free-signing app ID for the donor.
+    # legacy build target. Retain the stock RAM donor target and embedding phase.
     text = text.replace('\t\t\t\t4EA2CB242FD924E000BE964F /* PBXTargetDependency */,\n', '')
-    text = text.replace('\t\t\t\t4EDA000100000000000A000D /* PBXTargetDependency */,\n', '')
-    text = text.replace('\t\t\t\t4EDA000100000000000A000A /* Embed Foundation Extensions */,\n', '')
+    assert '\t\t\t\t4EDA000100000000000A000D /* PBXTargetDependency */,\n' in text
+    assert '\t\t\t\t4EDA000100000000000A000A /* Embed Foundation Extensions */,\n' in text
     (DEST / project).write_text(text, encoding='utf-8', newline='\n')
     info = DEST / 'src/MeloNX/MeloNX/Info.plist'
     with info.open('rb') as stream: data = plistlib.load(stream)
@@ -201,7 +213,9 @@ def prepare(offline=False):
                       jit_helper='original BreakpointJIT.framework; StikDebug universal.js with process-local readiness',
                       jit_flow='single activation handoff, explicit retry, cancelled view polling',
                       cpu_tables='multi-level on iOS for both CPU backends; no 1 TiB sparse reservation',
-                      guest_ram='4 GiB address reservation with kernel page commits; startup rollback and error details',
+                      guest_ram='stock MeloNX allocation flags; startup rollback and error details',
+                      ram_donor='stock MeloNXRamDonor.appex, app.fow.explorer.RamDonor',
+                      signing='ad-hoc entitlement request for AltStore re-signing; increased-memory-limit and get-task-allow; device grants must be verified after installation',
                       molten_vk='original MeloNX bundled libMoltenVK.dylib',
                       native_dependencies='supplied binary dependencies require independent provenance verification')
     (DEST / 'integration-provenance.json').write_text(json.dumps(provenance, indent=2) + '\n')

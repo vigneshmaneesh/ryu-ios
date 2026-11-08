@@ -12,7 +12,8 @@ fail preparation rather than silently choosing a side.
 
 The workflow `.github/workflows/melonx-ios.yml` builds the native engine using
 the official .NET mobile library workload and compiles MeloNX with Xcode 27.
-It produces an unsigned IPA for development sideloading. At the user's request,
+It produces an ad-hoc signed IPA for development sideloading; AltStore must
+provision and re-sign it for the user's device. At the user's request,
 the security-review runtime modifications have been reverted: the original
 MeloNX ZIP extractor, library callback, JIT script/framework, bundled MoltenVK
 and memory-donation defaults are restored. StikDebug remains the default
@@ -27,10 +28,12 @@ This candidate reuses FoW's bundle ID, `app.fow.explorer`, at the user's request
 The identifier was verified in FoW's project configuration and built IPA.
 Signing with the same AltStore account is intended to replace FoW and reuse its
 main app ID. The app remains named Ryu MeloNX and does not migrate FoW data.
-Keys, firmware and games remain local to the device. The memory donor extension
-is omitted for the free-signing build. Its original defaults are restored; it
-cannot donate memory while its helper is absent. Optional entitlement checks no longer
-block launch before the actual allocator can report device memory limits.
+Keys, firmware and games remain local to the device. The stock memory donor
+extension is embedded as `app.fow.explorer.RamDonor`, preserving the original
+memory-donation defaults and helper code. It uses an additional extension App ID;
+it is not a separately launched app. Keep the extension when sideloading.
+The stock memory-capability gates are restored and log the permissions reported
+by the running installation. Both missing-capability alerts are displayed.
 
 Existing MeloNX library, accounts, settings, game updates/DLC/mod management,
 native input and rendering code are preserved. This does not establish complete
@@ -40,7 +43,9 @@ and the security review are separate from device and gameplay validation.
 Security findings, the rollback status, binary provenance limits and inconsistent
 supplied license notices are documented in `../SecurityReview/MELO-NX-REVIEW.md`.
 All original notices are retained. The IPA contains source provenance and a
-SHA-256 manifest of the native binaries actually packaged.
+SHA-256 manifest of the signed nested native binaries actually packaged. The
+main executable is covered by the final IPA checksum to avoid a self-hash cycle
+when the root signature seals the manifest.
 
 `JITFlowChecks.swift` exercises the actual production activation coordinator's
 return/retry and readiness transitions on the Mac runner. It does not substitute
@@ -62,18 +67,30 @@ termination reason, so this is not proof of the exact OS termination mechanism
 or a guarantee that no later game-compatibility issue will appear.
 
 The subsequent iPhone 16 logs reported `Cannot allocate memory` in the Switch
-constructor before title loading. The iOS guest-RAM path had requested a 4 GiB
-read/write mapping. `GuestRamAllocator` now reserves the same full address range
-and relies on the kernel's existing page-commit calls to make used pages
-accessible. It logs requested size, mode and allocation flags. Allocation
-failure is not proof that the phone physically ran out of RAM; the logs do not
-report its current address-space or memory-limit state.
+constructor before title loading. Build 9's lazy reservation passed that stage;
+the 17:25 log then failed in `AddressSpacePartitionAllocator` while mapping the
+game's CPU pages. That allocator and its underlying memory code already match
+the supplied MeloNX source byte-for-byte. The log also explicitly reports that
+the RAM donor extension is absent. Build 9's IPA has no embedded entitlements,
+so its `CODE_SIGN_ENTITLEMENTS` project setting alone supplied no memory request
+to the sideloader. These are confirmed packaging differences, not proof that
+the device ran out of physical RAM or that the helper alone fixes this failure.
+
+The current build restores MeloNX's actual guest RAM allocation flags (`None`
+on iOS), RAM helper and runtime capability checks. `sign_app.py` embeds the stock
+`increased-memory-limit` request plus `get-task-allow` for StikDebug using ad-hoc
+signing, then validates both bundles and their signatures. This needs no Apple
+certificate in CI. It does not grant device capabilities: AltStore Classic 2.2+
+supports requesting Increased Memory Limit, and the installed app checks what
+its final signature reports. No additional virtual-addressing entitlement is
+invented or assumed. A new device launch is still needed to establish whether
+the restored stock configuration gets past the CPU mapping failure.
 
 Construction/startup scopes now unwind resources after exceptions and rejected
 loads. Teardown stops guest processes and the kernel, releases GPU resources,
 then releases guest RAM/audio. App-owned filesystem, service clients and input
 survive iOS game sessions. Native UI alerts include the captured startup
-exception rather than just `-1`. The memory checks exercise real 4 GiB
-reservations, first/middle/last page access, repeated failed-startup releases,
+exception rather than just `-1`. The memory checks exercise real 4 GiB mappings
+using the stock flags, first/middle/last page access, repeated failed-startup releases,
 retry and successful ownership transfer. These checks are host regressions;
 they do not establish available RAM or successful gameplay on an iPhone.

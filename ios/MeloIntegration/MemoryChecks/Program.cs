@@ -70,6 +70,6 @@ using (var transferred = GuestRamAllocator.Create(ramSize, MemoryManagerMode.Hos
     transferred.Write<ulong>(0, 42);
     if (transferred.Read<ulong>(0) != 42) throw new Exception("Successful startup disposed transferred RAM.");
 }
-Console.WriteLine("PASS 4 GiB lazy guest RAM: edge/middle page commits, six failed-startup releases/retries, successful ownership transfer.");
+Console.WriteLine("PASS stock MeloNX 4 GiB guest RAM: edge/middle page access, six failed-startup releases/retries, successful ownership transfer.");
 
 sealed class TestStartupFailure : Exception { }

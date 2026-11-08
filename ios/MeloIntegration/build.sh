@@ -7,7 +7,7 @@ deps="$source_root/src/MeloNX/MeloNX/Dependencies"
 
 dotnet workload install mobile-librarybuilder --skip-manifest-update
 
-# Use MeloNX's supplied MoltenVK and BreakpointJIT binaries unchanged.
+# Use MeloNX's supplied MoltenVK and BreakpointJIT machine code unchanged.
 sdk="$(xcrun --sdk iphoneos --show-sdk-path)"
 export SDKROOT="$sdk"
 
@@ -36,8 +36,13 @@ cp "$source_root/distribution/legal/THIRDPARTY.md" "$app/SourceNotices/"
 cp ios/SecurityReview/MELO-NX-REVIEW.md "$app/SourceNotices/"
 find "$source_root/src/Ryujinx.Library/bin/Release/net10.0/ios-arm64" -name 'icudt*.dat' -exec cp {} "$app/" \;
 
-# Validate Mach-O dependencies and record the exact native binaries shipped.
+# Embed the stock memory entitlement request and helper before AltStore signs
+# the app for a device. Ad-hoc signing needs no Apple account or certificate.
+python3 ios/MeloIntegration/sign_app.py "$app" "$source_root"
+# Validate dependencies and signed nested binaries, then seal the manifest in
+# the main app. Its executable's signature is covered by the outer IPA hash.
 python3 ios/MeloIntegration/verify_ipa.py "$app"
+python3 ios/MeloIntegration/sign_app.py "$app" "$source_root" --seal
 stage="$root/ios/build/melonx-package"
 mkdir -p "$stage/Payload"
 ditto "$app" "$stage/Payload/MeloNX.app"

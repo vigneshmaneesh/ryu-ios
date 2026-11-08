@@ -1,9 +1,8 @@
-"""Check packaged Mach-O dependencies and record their SHA-256 identities."""
+"""Check native dependencies and hash nested code before sealing the main app."""
 import hashlib
 import json
 from pathlib import Path
 import plistlib
-import re
 import subprocess
 import sys
 
@@ -11,7 +10,17 @@ app = Path(sys.argv[1]).resolve()
 info = plistlib.loads((app / 'Info.plist').read_bytes())
 assert info['CFBundleIdentifier'] == 'app.fow.explorer', info['CFBundleIdentifier']
 assert float(info['MinimumOSVersion']) >= 27
-assert not (app / 'PlugIns').exists(), 'Unexpected embedded helper/app ID'
+helpers = list((app / 'PlugIns').iterdir())
+assert len(helpers) == 1 and helpers[0].name == 'MeloNXRamDonor.appex', helpers
+helper = helpers[0]
+helper_info = plistlib.loads((helper / 'Info.plist').read_bytes())
+assert helper_info['CFBundleIdentifier'] == 'app.fow.explorer.RamDonor', helper_info
+assert float(helper_info['MinimumOSVersion']) >= 27
+assert helper_info['NSExtension']['NSExtensionPrincipalClass'] == 'MLXRamDonorHandler'
+assert helper_info['NSExtension']['NSExtensionPointIdentifier'] == 'com.apple.ar.viewer'
+assert (helper / helper_info['CFBundleExecutable']).is_file()
+subprocess.run(['codesign', '--verify', '--strict', str(helper)], check=True)
+main_executable = app / info['CFBundleExecutable']
 native = []
 for file in sorted(app.rglob('*')):
     if not file.is_file(): continue
@@ -35,7 +44,14 @@ for file in sorted(app.rglob('*')):
             raise RuntimeError(f'Unreviewed absolute native dependency: {file}: {dep}')
         if not any(candidate.exists() for candidate in candidates):
             raise RuntimeError(f'Missing packaged dependency: {file.relative_to(app)}: {dep}')
-    native.append(dict(path=str(file.relative_to(app)), sha256=hashlib.sha256(file.read_bytes()).hexdigest(), dependencies=dependencies))
+    entry = dict(path=str(file.relative_to(app)), dependencies=dependencies)
+    if file != main_executable:
+        entry['sha256'] = hashlib.sha256(file.read_bytes()).hexdigest()
+    else:
+        # Root signing seals this manifest and changes the executable signature.
+        # Avoid a self-hash cycle; the final IPA's SHA-256 covers the root code.
+        entry['hash_coverage'] = 'Final IPA SHA-256; root signed after manifest'
+    native.append(entry)
 assert len(native) >= 5, 'Native engine/frameworks missing'
 (app / 'SourceNotices/native-manifest.json').write_text(json.dumps(native, indent=2) + '\n')
-print(f'PASS iOS 27 IPA structure, bundle identity, {len(native)} native dependency closures; SHA-256 manifest recorded.')
+print(f'PASS iOS 27 app and stock RAM helper identities, {len(native)} native dependency closures; nested SHA-256 manifest recorded.')

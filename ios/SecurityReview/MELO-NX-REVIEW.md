@@ -16,8 +16,11 @@ JIT script, BreakpointJIT framework, bundled MoltenVK and memory-donation
 defaults are restored. The ZIP/callback findings below therefore apply again.
 The source review and its findings are retained as a historical record.
 The Ryubing merge, iOS build/ABI compatibility fixes, 8 MiB worker stacks and
-the requested FoW App ID remain. The helper extension remains omitted for the
-free-signing app. Build hashes and package validation remain read-only checks.
+the requested FoW App ID remain. A later memory fix restores the stock RAM donor
+extension, guest RAM allocation flags and capability gates. The package embeds
+MeloNX's increased-memory-limit entitlement request and development debugger
+access for AltStore re-signing; final device capabilities are not granted by CI.
+Native machine code is retained; ad-hoc re-signing changes binary signature bytes.
 
 Source supplied in `MeloNX Source Code/MeloNX`; clean working tree at
 `13700519f3abc4e6d7ed8a065b118b2cc59bcd67` (2026-10-11).
@@ -94,8 +97,9 @@ to the review performed, not a guarantee that the whole dependency chain is
 malware-free. No games, firmware or private keys were uploaded for this work.
 
 The native RAM stress benchmark and private memory donation code are reliability
-risks rather than evidence of malicious intent. Memory donation defaulted off;
-the helper extension is omitted from the free-signing app. Only the explicit,
+risks rather than evidence of malicious intent. The historical review build
+disabled memory donation and omitted the helper. The current build restores
+the stock helper and donation defaults as described above. Only the explicit,
 reviewed integration build runs in CI; the supplied shell-profile build hook is
 disconnected from the app target.
 
