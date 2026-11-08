@@ -7,19 +7,9 @@ deps="$source_root/src/MeloNX/MeloNX/Dependencies"
 
 dotnet workload install mobile-librarybuilder --skip-manifest-update
 
-# Trusted, checksum-pinned official graphics library replaces the supplied copy.
-python3 ios/scripts/prepare_native.py
-cp ios/build/native-dependencies/MoltenVK/MoltenVK/dynamic/MoltenVK.xcframework/ios-arm64/MoltenVK.framework/MoltenVK "$deps/libMoltenVK.dylib"
-install_name_tool -id @rpath/libMoltenVK.dylib "$deps/libMoltenVK.dylib"
-
-# Rebuild the complete JIT helper from the reviewed, tiny assembly implementation.
+# Use MeloNX's supplied MoltenVK and BreakpointJIT binaries unchanged.
 sdk="$(xcrun --sdk iphoneos --show-sdk-path)"
 export SDKROOT="$sdk"
-rm -f "$deps/BreakpointJIT.framework/BreakpointJIT"
-xcrun --sdk iphoneos clang -arch arm64 -target arm64-apple-ios27.0 -isysroot "$sdk" \
-  -dynamiclib ios/MeloIntegration/BreakpointJIT.S \
-  -install_name @rpath/BreakpointJIT.framework/BreakpointJIT \
-  -o "$deps/BreakpointJIT.framework/BreakpointJIT"
 
 dotnet publish "$source_root/src/Ryujinx.Library/Ryujinx.Library.csproj" \
   -c Release -r ios-arm64 -p:NativeLib=Shared -p:NuGetAudit=false \

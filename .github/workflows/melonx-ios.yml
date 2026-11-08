@@ -37,10 +37,8 @@ jobs:
             ios/build/melonx-merge.git
             ios/build/MoltenVK-ios-*.tar
           key: melonx-ryubing-a61a426-13700519-v1
-      - name: Merge pinned sources and apply reviewed fixes
+      - name: Merge pinned sources and apply iOS integration
         run: python3 ios/MeloIntegration/prepare.py
-      - name: ZIP security regression checks
-        run: dotnet run --project ios/MeloIntegration/SecurityChecks -c Release
       - name: Build native engine and IPA
         run: bash ios/MeloIntegration/build.sh
       - uses: actions/upload-artifact@v4

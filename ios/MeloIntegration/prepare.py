@@ -48,13 +48,6 @@ def prepare(offline=False):
     DEST.mkdir(parents=True)
     with tarfile.open(fileobj=io.BytesIO(git('archive', tree).stdout)) as archive:
         archive.extractall(DEST, filter='data')
-    # Confirm the native input identities match the supplied source inventory.
-    inventory = json.loads((ROOT / 'ios/SecurityReview/native-dependencies.json').read_text(encoding='utf-8-sig'))
-    assert inventory['commit'] == MELO
-    for binary in inventory['nativeBinaries']:
-        actual_hash = hashlib.sha256((DEST / binary['path']).read_bytes()).hexdigest()
-        if actual_hash != binary['sha256']:
-            raise RuntimeError('Native input differs from reviewed inventory: ' + binary['path'])
     resolutions = json.loads((HERE / 'resolutions.json').read_text(encoding='utf-8-sig'))
     pattern = re.compile(r'^<<<<<<< [^\n]+\n(.*?)^=======\n(.*?)^>>>>>>> [^\n]+\n', re.M | re.S)
     for file in resolutions:
@@ -67,32 +60,8 @@ def prepare(offline=False):
             assert match[1] == block['ours'] and match[2] == block['theirs'], file['path']
             source = source[:match.start()] + block['resolution'] + source[match.end():]
         path.write_text(source, encoding='utf-8', newline='\n')
-    # Reviewable text overlays, including security fixes and API adaptations.
-    overlay = HERE / 'overlay'
-    if overlay.exists():
-        shutil.copytree(overlay, DEST, dirs_exist_ok=True)
+    # Keep MeloNX's original archive, callback and JIT implementations.
     swift = 'src/MeloNX/MeloNX/'
-    path = DEST / (swift + 'Common/AppEnvironment.swift')
-    source = path.read_text(encoding='utf-8-sig')
-    start = source.index('            case "gameInfo":')
-    end = source.index('            default:', start)
-    source = source[:start] + '            case "gameInfo":\n                // Do not disclose the library to arbitrary callback applications.\n                return\n' + source[end:]
-    path.write_text(source, encoding='utf-8', newline='\n')
-    path = DEST / (swift + 'Common/JIT/EnableJIT.swift')
-    source = path.read_text(encoding='utf-8-sig')
-    start = source.index('        var urlScheme: String = "stikjit://enable-jit"')
-    end = source.index('\n    }\n}', start)
-    source = source[:start] + '''        var components = URLComponents()
-        components.scheme = "stikdebug"
-        components.host = "enable-jit"
-        components.queryItems = [
-            URLQueryItem(name: "bundle-id", value: bundle),
-            URLQueryItem(name: "pid", value: String(getpid())),
-            URLQueryItem(name: "script-name", value: "universal.js")
-        ]
-        if let launchURL = components.url { openURL(launchURL) }''' + source[end:]
-    source = source[:source.index('// Universal Script')]
-    path.write_text(source, encoding='utf-8', newline='\n')
     path = DEST / (swift + 'Core/RyujinxController.swift')
     source = path.read_text(encoding='utf-8-sig')
     # These optional entitlements are not a reliable capability test with free
@@ -105,11 +74,10 @@ def prepare(offline=False):
     assert needle in source
     source = source.replace(needle, '\n        }\n        gameThread.name = "Ryu emulation"\n        gameThread.stackSize = 8 * 1024 * 1024\n        gameThread.start()\n    }\n    \n    \n    func redirectStdIOToFile()', 1)
     path.write_text(source, encoding='utf-8', newline='\n')
-    edit(swift + 'Core/Memory/RamDonor.swift', '"donateGuestMemory", default: true', '"donateGuestMemory", default: false')
+    # Provider selection is an integration default, not a JIT implementation patch.
     for path in (DEST / swift).rglob('*.swift'):
         source = path.read_text(encoding='utf-8-sig')
-        updated = source.replace('donateGuestMemory(true)', 'donateGuestMemory(false)').replace('donateGpuBuffers(true)', 'donateGpuBuffers(false)')
-        updated = updated.replace('jitProvider(JITProvider.disabled)', 'jitProvider(JITProvider.stikdebug)')
+        updated = source.replace('jitProvider(JITProvider.disabled)', 'jitProvider(JITProvider.stikdebug)')
         if updated != source: path.write_text(updated, encoding='utf-8', newline='\n')
     edit('src/Ryujinx.Cpu/LightningJit/TranslatorStubs.cs',
          'public TranslatorStubs(IAddressTable<ulong> functionTable, DualMappedNoWxCache dualMappedNoWxCache)',
@@ -212,13 +180,15 @@ def prepare(offline=False):
         name = url_type.get('CFBundleURLName', '')
         if name.startswith('com.stossy11.MeloNX'):
             url_type['CFBundleURLName'] = name.replace('com.stossy11.MeloNX', 'app.fow.explorer', 1)
-    data['LSApplicationQueriesSchemes'] = sorted(set(data.get('LSApplicationQueriesSchemes', []) + ['stikdebug']))
+    data['LSApplicationQueriesSchemes'] = sorted(set(data.get('LSApplicationQueriesSchemes', []) + ['stikdebug', 'stikjit']))
     with info.open('wb') as stream: plistlib.dump(data, stream)
     # Retain all upstream notices; provenance travels with the app and IPA.
     provenance = dict(melonx=MELO, ryubing=RYU, common_ancestor=BASE, merged_tree=tree,
                       bundle_id='app.fow.explorer',
-                      security_fixes=['disabled library callback', 'bounded ZIP extraction'],
-                      jit_helper='reviewed BreakpointJIT.S; StikDebug universal.js',
+                      security_fixes=[],
+                      review_runtime_changes='reverted at user request',
+                      jit_helper='original MeloNX EnableJIT.swift and BreakpointJIT.framework',
+                      molten_vk='original MeloNX bundled libMoltenVK.dylib',
                       native_dependencies='supplied binary dependencies require independent provenance verification')
     (DEST / 'integration-provenance.json').write_text(json.dumps(provenance, indent=2) + '\n')
     for path in (DEST / 'src').rglob('*.cs'):

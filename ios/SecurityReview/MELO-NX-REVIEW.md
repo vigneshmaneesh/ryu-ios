@@ -1,5 +1,17 @@
 # MeloNX source review and integration
 
+## Current status: runtime review modifications reverted
+
+At the user's request, the review-related runtime changes were reverted after
+build 5 crashed on a Tomodachi Life launch attempt. This does not establish the
+cause of the crash. MeloNX's original ZIP extractor, library callback, encoded
+JIT script, BreakpointJIT framework, bundled MoltenVK and memory-donation
+defaults are restored. The ZIP/callback findings below therefore apply again.
+The source review and its findings are retained as a historical record.
+The Ryubing merge, iOS build/ABI compatibility fixes, 8 MiB worker stacks and
+the requested FoW App ID remain. The helper extension remains omitted for the
+free-signing app. Build hashes and package validation remain read-only checks.
+
 Source supplied in `MeloNX Source Code/MeloNX`; clean working tree at
 `13700519f3abc4e6d7ed8a065b118b2cc59bcd67` (2026-10-11).
 The original checkout is kept unchanged. The file hashes are recorded in
@@ -8,7 +20,7 @@ The original checkout is kept unchanged. The file hashes are recorded in
 Latest official Ryubing HEAD was queried directly over Git on 2026-11-08:
 `a61a42681119bf15fe8f3297677ae48bda83e70f`. This matches the existing iOS pin.
 
-## Confirmed findings — user alerted immediately
+## Confirmed findings â€” user alerted immediately
 
 1. **Game-library disclosure through an unauthenticated callback.**
    `src/MeloNX/MeloNX/Common/AppEnvironment.swift`, `handleDeepLink`,
@@ -48,10 +60,10 @@ Latest official Ryubing HEAD was queried directly over Git on 2026-11-08:
 - The supplied build script sources interactive shell profiles. The new CI
   build should use an explicit toolchain and environment instead.
 
-## Integration work
+## Historical integration work (before the requested rollback)
 
-The integration now disables the game-info callback, replaces the ZIP extractor
-with a preflighted, bounded extractor, removes the encoded script, and rebuilds
+The earlier integration disabled the game-info callback, replaced the ZIP extractor
+with a preflighted, bounded extractor, removed the encoded script, and rebuilt
 the three JIT protocol entry points from `../MeloIntegration/BreakpointJIT.S`.
 The ZIP regression checks cover prefix-sibling escapes, `..`, absolute paths,
 backslash traversal, archive symbolic links and ordinary nested extraction.
@@ -59,7 +71,7 @@ The chosen destination is trusted; archive-controlled links at or below it are
 rejected. This is not intended to defend against a separate concurrent process
 changing the destination during extraction.
 
-MoltenVK is replaced with the official checksum-pinned 1.4.2 package already
+MoltenVK was replaced with the official checksum-pinned 1.4.2 package already
 used by the existing Ryu builds. The supplied SDL3, FFmpeg, SPIRV and teakra
 dependencies remain binary inputs; their original hashes are recorded in
 `native-dependencies.json`. Their load commands were inspected for unexpected
@@ -75,12 +87,12 @@ to the review performed, not a guarantee that the whole dependency chain is
 malware-free. No games, firmware or private keys were uploaded for this work.
 
 The native RAM stress benchmark and private memory donation code are reliability
-risks rather than evidence of malicious intent. Memory donation defaults off;
+risks rather than evidence of malicious intent. Memory donation defaulted off;
 the helper extension is omitted from the free-signing app. Only the explicit,
 reviewed integration build runs in CI; the supplied shell-profile build hook is
 disconnected from the app target.
 
-Preserve MeloNX's native frontend and iOS-specific platform work, merge the
-latest pinned Ryubing engine changes, apply the security fixes, then build an
-iOS 27 IPA in the public GitHub repository. Existing Ryu work remains available
-on `feature/ios-parity`; no device-test requests until a complete candidate.
+The current build restores the original components listed above and retains
+the latest pinned Ryubing merge. Existing Ryu work remains available on
+`feature/ios-parity`; no repeated device-test requests are part of this rollback.
+
