@@ -263,6 +263,22 @@ public interface IPreparedJitMemoryBlock : IJitMemoryBlock
     replace("src/Ryujinx.HLE/Loaders/Processes/ProcessLoader.cs",
             "FileStream input = new(path, FileMode.Open);",
             "FileStream input = new(path, FileMode.Open, FileAccess.Read, FileShare.Read);")
+    shutil.copyfile(ROOT / "ios/Overlays/ReadOnlyGameStream.cs", SOURCE / "src/Ryujinx.HLE/Loaders/ReadOnlyGameStream.cs")
+    loader = "src/Ryujinx.HLE/Loaders/Processes/ProcessLoader.cs"
+    replace(loader, "FileStream stream = new(path, FileMode.Open, FileAccess.Read);",
+            "Stream stream = new Ryujinx.HLE.Loaders.ReadOnlyGameStream(path);")
+    replace(loader, "FileStream file = new(path, FileMode.Open, FileAccess.Read);",
+            "Stream file = new Ryujinx.HLE.Loaders.ReadOnlyGameStream(path);", 2)
+    replace(loader, "FileStream input = new(path, FileMode.Open, FileAccess.Read, FileShare.Read);",
+            "Stream input = new Ryujinx.HLE.Loaders.ReadOnlyGameStream(path);")
+    partition = "src/Ryujinx.HLE/Loaders/Processes/Extensions/PartitionFileSystemExtensions.cs"
+    replace(partition, 'Dictionary<ulong, ContentMetaData> applications = partitionFileSystem.GetContentData(',
+            'Ryujinx.HLE.StartupDiagnostics.Write("Loader: reading application content metadata");\n                Dictionary<ulong, ContentMetaData> applications = partitionFileSystem.GetContentData(')
+    replace(partition, "if (applicationId == 0)", 'Ryujinx.HLE.StartupDiagnostics.Write($"Loader: found {applications.Count} application metadata entries");\n                if (applicationId == 0)')
+    replace(partition, "ProcessLoaderHelper.RegisterProgramMapInfo(device, partitionFileSystem).ThrowIfFailure();",
+            'Ryujinx.HLE.StartupDiagnostics.Write("Loader: registering program map");\n                ProcessLoaderHelper.RegisterProgramMapInfo(device, partitionFileSystem).ThrowIfFailure();')
+    replace(partition, 'errorMessage = $"Unable to load: {ex.Message}";',
+            'Ryujinx.HLE.StartupDiagnostics.Write("Loader exception: " + ex.ToString());\n                errorMessage = $"Unable to load: {ex.GetType().Name}: {ex.Message}";')
     adapt_vulkan()
     # iOS/tvOS ConsolePal supports writing to NSLog, but colour APIs throw.
     # An exception on the upstream async logging thread terminates the process.

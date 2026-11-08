@@ -11,6 +11,7 @@ using LibHac.Tools.FsSystem;
 using Ryujinx.Memory;
 using System;
 using System.IO;
+using Ryujinx.Common.Logging;
 
 namespace Ryu.iOS.Runtime;
 
@@ -45,6 +46,10 @@ public static class ServiceBootstrap
 
     public static string Initialize(string directory)
     {
+        Logger.SetEnable(LogLevel.Trace, false);
+        Logger.SetEnable(LogLevel.Debug, false);
+        Logger.SetEnable(LogLevel.Stub, false);
+        Logger.SetEnable(LogLevel.AccessLog, false);
         ArgumentException.ThrowIfNullOrWhiteSpace(directory);
         if (!Path.IsPathFullyQualified(directory)) throw new ArgumentException("An absolute app data directory is required.");
         string root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(directory));

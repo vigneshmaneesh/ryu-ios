@@ -3,6 +3,7 @@ using System;
 using System.IO;
 
 string directory = Path.Combine(AppContext.BaseDirectory, "kernel-check-data");
+if (args.Length == 1 && args[0] == "--loader-only") { Console.WriteLine(LoaderChecks.Run(Path.Combine(directory, "loader-only"))); return; }
 if (args.Length == 2 && args[0] == "--journal-interrupt")
 {
     HorizonJournal.Begin(Path.GetFullPath(args[1]));

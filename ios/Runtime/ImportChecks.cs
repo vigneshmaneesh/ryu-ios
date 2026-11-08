@@ -41,6 +41,6 @@ internal static class ImportChecks
         bool needsSetup = false;
         try { ContentImports.RequireGameSystem(); } catch (ContentImports.SetupException) { needsSetup = true; }
         if (!needsSetup) throw new InvalidOperationException("Commercial game preflight did not report missing system files.");
-        return "PASS invalid keys preserve the installed file\nPASS interrupted/committed firmware recovery\nPASS commercial-game setup preflight";
+        return "PASS invalid keys preserve the installed file\nPASS interrupted/committed firmware recovery\nPASS commercial-game setup preflight\n" + LoaderChecks.Run(Path.Combine(directory, "loader-checks"));
     }
 }

@@ -114,3 +114,20 @@ On 8 November the user reported **“everything works perfectly”** after the
 v0.7.1 build 32 read-only NRO correction. Treat this as device acceptance of the
 bundled real CPU/GPU homebrew path and clean completion. No additional device
 model, repeat count, frame count, or audio/input evidence was supplied.
+
+## v0.9.0 commercial XCI rejection
+
+The user's M1 iPad log reaches Vulkan initialization and then rejects the
+Tomodachi base XCI before process creation. The underlying error is
+`Loader TryLoad: Unable to load: ResultFsOutOfRange (2002-3005)`, followed by clean
+Horizon/GPU teardown. The earlier `metaLoader is null` line is emitted when the
+upstream failure sentinel is constructed; it does not establish NPDM corruption.
+The system-file preflight passed, but this does not validate every game key.
+No commercial guest frame or playable game result has been demonstrated.
+
+v0.9.1 fixes a reproduced container-reader contract bug: the pinned LibHac
+StreamStorage accepts only a full single Stream.Read, while streams may return
+short reads before EOF. An authored HFS0/XCI fixture with an unencrypted NCA
+header reproduces 2002-3005 under chunked reads. The complete-read wrapper passes
+that same fixture, while actual truncation remains rejected. This establishes a
+real reader bug, not proof that it was the only cause of this user's rejection.

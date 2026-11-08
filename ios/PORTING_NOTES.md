@@ -100,3 +100,17 @@ Title updates, DLC, program transitions, multi-player setup, motion and broad
 commercial compatibility remain incomplete. No user game/firmware/key dump has
 been used in CI. The CI check uses synthetic import/recovery failures plus one
 integrated public-domain homebrew play session.
+
+v0.9.1 container input correction: LibHac package 0.21.0-alpha.133 identifies
+source commit `9f3a2cff862c324e08079a18bd60ba2d35815975`. Its
+`Tools/FsSystem/StreamStorage.Read` performs one Stream.Read and returns
+ResultFs.OutOfRange if fewer bytes are returned. A host-owned, read-only stream
+now fills requested buffers until complete or real EOF, applied through checked
+loader overlays to XCI/NSP/NCA/NRO input. No LibHac binary or key material changes.
+The authored XCI control reproduces 2002-3005; the fixed reader decodes its NCA
+header, and truncated data still fails. XCI preflight validates each secure
+entry against the imported image length without bypassing hash validation.
+Loader exceptions retain stage and stack, failure reports include the actual
+loader message, the bounded journal preserves its terminal tail, and noisy
+trace/debug/stub/access logging is disabled for normal sessions. The user's
+specific XCI still needs a device retry before calling this a compatibility fix.

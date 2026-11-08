@@ -46,6 +46,7 @@ internal static unsafe class HomebrewSession
         NativeHostUi.Begin(cancelled);
         try
         {
+            if (extension == ".xci") XciBounds.Check(program, ServiceBootstrap.FileSystem.KeySet);
             renderer = new VulkanRenderer(api, (instance, _) =>
             {
                 ulong surface;
@@ -65,8 +66,10 @@ internal static unsafe class HomebrewSession
             renderer.Window.ChangeVSyncMode(device.VSyncMode);
             device.Gpu.SetGpuThread();
             HorizonJournal.Write("Loading guest " + extension + ": " + Path.GetFileName(program));
+            HorizonJournal.Write($"Container size: {new FileInfo(program).Length} bytes");
+            using var loadErrors = new LoaderErrorCapture();
             bool loaded = extension switch { ".nsp" => device.LoadNsp(program), ".xci" => device.LoadXci(program), _ => device.LoadProgram(program) };
-            if (!loaded) throw new InvalidOperationException("The loader could not start this title. Check the base game, keys and firmware; share diagnostics for the missing service or load error.");
+            if (!loaded) throw new InvalidOperationException(loadErrors.Failure);
             ulong applicationPid = device.Processes.ActiveApplication?.ProcessId ?? 0;
             device.Gpu.InitializeShaderCache(CancellationToken.None);
             gpuReady = true;
