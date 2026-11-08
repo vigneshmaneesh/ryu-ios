@@ -9,7 +9,7 @@ import sys
 
 app = Path(sys.argv[1]).resolve()
 info = plistlib.loads((app / 'Info.plist').read_bytes())
-assert info['CFBundleIdentifier'] == 'app.ryu.ios.melonx', info['CFBundleIdentifier']
+assert info['CFBundleIdentifier'] == 'app.fow.explorer', info['CFBundleIdentifier']
 assert float(info['MinimumOSVersion']) >= 27
 assert not (app / 'PlugIns').exists(), 'Unexpected embedded helper/app ID'
 native = []

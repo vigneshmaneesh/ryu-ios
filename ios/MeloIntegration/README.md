@@ -16,9 +16,11 @@ included assembly, installs checksum-pinned official MoltenVK, and compiles
 MeloNX with Xcode 27. It produces an unsigned IPA for development sideloading.
 StikDebug uses `universal.js`, matching the existing tested iOS 27 protocol.
 
-This candidate has a separate bundle ID, `app.ryu.ios.melonx`, so it does not
-replace the previous prototype or reuse its data automatically. Keys, firmware
-and games remain local to the device. The memory donor extension is omitted and
+This candidate reuses FoW's bundle ID, `app.fow.explorer`, at the user's request.
+The identifier was verified in FoW's project configuration and built IPA.
+Signing with the same AltStore account is intended to replace FoW and reuse its
+main app ID. The app remains named Ryu MeloNX and does not migrate FoW data.
+Keys, firmware and games remain local to the device. The memory donor extension is omitted and
 disabled for the free-signing build. Optional entitlement checks no longer
 block launch before the actual allocator can report device memory limits.
 

@@ -192,9 +192,9 @@ def prepare(offline=False):
     edit('src/Ryujinx.Common/Logging/Targets/ConsoleLogTarget.cs',
          '            Console.ResetColor();\n        }\n    }',
          '            if (!OperatingSystem.IsIOS()) Console.ResetColor();\n        }\n    }')
-    # Use a dedicated bundle identity so the existing tested Ryu app stays installed.
+    # Reuse FoW's bundle identity, as requested, for the same sideloaded app slot.
     project = 'src/MeloNX/MeloNX.xcodeproj/project.pbxproj'
-    edit(project, 'com.stossy11.MeloNX', 'app.ryu.ios.melonx')
+    edit(project, 'com.stossy11.MeloNX', 'app.fow.explorer')
     text = (DEST / project).read_text()
     text = re.sub(r'IPHONEOS_DEPLOYMENT_TARGET = [\d.]+;', 'IPHONEOS_DEPLOYMENT_TARGET = 27.0;', text)
     text = re.sub(r'DEVELOPMENT_TEAM = [^;]*;', 'DEVELOPMENT_TEAM = "";', text)
@@ -208,10 +208,15 @@ def prepare(offline=False):
     with info.open('rb') as stream: data = plistlib.load(stream)
     data['CFBundleDisplayName'] = 'Ryu MeloNX'
     data['CFBundleShortVersionString'] = '1.0.0'
+    for url_type in data.get('CFBundleURLTypes', []):
+        name = url_type.get('CFBundleURLName', '')
+        if name.startswith('com.stossy11.MeloNX'):
+            url_type['CFBundleURLName'] = name.replace('com.stossy11.MeloNX', 'app.fow.explorer', 1)
     data['LSApplicationQueriesSchemes'] = sorted(set(data.get('LSApplicationQueriesSchemes', []) + ['stikdebug']))
     with info.open('wb') as stream: plistlib.dump(data, stream)
     # Retain all upstream notices; provenance travels with the app and IPA.
     provenance = dict(melonx=MELO, ryubing=RYU, common_ancestor=BASE, merged_tree=tree,
+                      bundle_id='app.fow.explorer',
                       security_fixes=['disabled library callback', 'bounded ZIP extraction'],
                       jit_helper='reviewed BreakpointJIT.S; StikDebug universal.js',
                       native_dependencies='supplied binary dependencies require independent provenance verification')
