@@ -2,5 +2,5 @@ Based on the public-domain deko_basic example from switchbrew/switch-examples.
 Source: https://github.com/switchbrew/switch-examples
 Revision: 669786898205b7beb25ff1731e72982e6d0397d3
 The repository marks its examples as Public Domain.
-Adapted for Ryu iOS: 640x360, bounded 180-frame loop, and a debug marker.
+Adapted for Ryu iOS: Ryu Catch game logic, 640x360 dynamic rendering, guest HID controls, and guest-generated PCM audio. The game uses deko3d and libnx; their licenses are included with the app.
 No Nintendo code, firmware, keys or game assets are included.

@@ -1,4 +1,5 @@
 using Ryujinx.Audio.Backends.Dummy;
+using Ryujinx.Audio.Integration;
 using Ryujinx.Common.Logging;
 using Ryujinx.Common.Configuration;
 using Ryujinx.Graphics.GAL;
@@ -26,8 +27,17 @@ internal static unsafe class HomebrewSession
         using Vk api = GraphicsBindings.CreateApi();
         VulkanRenderer renderer = null;
         Switch device = null;
+        IHardwareDeviceDriver audio = null;
         bool gpuReady = false;
         long requestedExit = 0;
+        ulong audioBefore = AppleAudioDriver.Available ? AppleAudioDriver.Counter(0, 2) : 0;
+        int guestSawInput = 0, guestSawTouch = 0, guestScored = 0;
+        void ObserveInput(object sender, LogEventArgs entry) {
+            if (entry.Message.Contains("RYU_PLAY: input", StringComparison.Ordinal)) Volatile.Write(ref guestSawInput, 1);
+            if (entry.Message.Contains("RYU_PLAY: touch", StringComparison.Ordinal)) Volatile.Write(ref guestSawTouch, 1);
+            if (entry.Message.Contains("RYU_PLAY: target collected", StringComparison.Ordinal)) Volatile.Write(ref guestScored, 1);
+        }
+        Logger.Updated += ObserveInput;
         void RequestExit(ulong pid) => Volatile.Write(ref requestedExit, unchecked((long)pid));
         Logger.Updated += HorizonJournal.Observe;
         StartupDiagnostics.Checkpoint = HorizonJournal.Write;
@@ -41,7 +51,10 @@ internal static unsafe class HomebrewSession
                 return new SurfaceKHR(surface);
             }, () => ["VK_KHR_surface", "VK_EXT_metal_surface"], "");
             HorizonJournal.Write("Constructing Switch with the real Vulkan renderer");
-            device = new Switch(ServiceBootstrap.KernelProbeConfiguration(renderer, new DummyHardwareDeviceDriver()));
+            audio = AppleAudioDriver.Available ? new AppleAudioDriver() : new DummyHardwareDeviceDriver();
+            device = new Switch(ServiceBootstrap.KernelProbeConfiguration(renderer, audio));
+            var input = new PlayerInput.Writer(device);
+            HorizonJournal.Write(AppleAudioDriver.Available ? "Native Apple AudioQueue output and player-one HID connected" : "Audio callbacks unavailable; using silent backend");
             device.ApplicationExitRequested += RequestExit;
             HorizonJournal.Write("Initializing Vulkan and the GPU thread");
             renderer.Initialize(GraphicsDebugLevel.None);
@@ -57,6 +70,7 @@ internal static unsafe class HomebrewSession
             var boot = Stopwatch.StartNew();
             bool firstFrame = false;
             bool stopped = false;
+            long nextInput = 0;
             while (device.Processes.ActiveApplication != null)
             {
                 if (unchecked((ulong)Volatile.Read(ref requestedExit)) == applicationPid)
@@ -65,6 +79,11 @@ internal static unsafe class HomebrewSession
                     break;
                 }
                 if (cancelled != null && cancelled() != 0) { stopped = true; break; }
+                bool paused = PlayerInput.Paused;
+                if (paused != device.System.IsPaused) { device.System.TogglePauseEmulation(paused); HorizonJournal.Write(paused ? "Game paused" : "Game resumed"); }
+                if (paused) { boot.Stop(); Thread.Sleep(8); continue; }
+                boot.Start();
+                if (boot.ElapsedMilliseconds >= nextInput) { input.Update(device); nextInput = boot.ElapsedMilliseconds + 8; }
                 if (device.WaitFifo()) device.ProcessFrame();
                 while (device.ConsumeFrameAvailable())
                 {
@@ -81,7 +100,8 @@ internal static unsafe class HomebrewSession
             }
             if (!stopped && !firstFrame) throw new InvalidOperationException("Homebrew exited without presenting a frame.");
             HorizonJournal.Write($"Guest {(stopped ? "stopped" : "exited")}; {renderer.PresentedFrames} frames; starting teardown");
-            return $"{(stopped ? "Stopped" : "Completed")} {Path.GetFileName(program)}\nGuest GPU frames: {renderer.PresentedFrames}\nCPU, Horizon, GPU command processing, shader translation and Metal presentation were active.\nAudio and touch/controller input are not connected yet.";
+            ulong audioFrames = AppleAudioDriver.Available ? AppleAudioDriver.Counter(0, 2) - audioBefore : 0;
+            return $"{(stopped ? "Stopped" : "Completed")} {Path.GetFileName(program)}\nGuest GPU frames: {renderer.PresentedFrames}\nApple audio frames consumed: {audioFrames}\nPlayer-one controller and touchscreen connected.\n" + (Volatile.Read(ref guestSawInput) != 0 ? "Guest confirmed input.\n" : "") + (Volatile.Read(ref guestSawTouch) != 0 ? "Guest confirmed touch.\n" : "") + (Volatile.Read(ref guestScored) != 0 ? "Guest collected target.\n" : "") + "Commercial game compatibility is still being developed.";
         }
         finally
         {
@@ -99,9 +119,11 @@ internal static unsafe class HomebrewSession
                 device.DisposeGpu();
                 HorizonJournal.Write("Homebrew session teardown complete");
             }
-            else renderer?.Dispose();
+            else { audio?.Dispose(); renderer?.Dispose(); }
             StartupDiagnostics.Checkpoint = null;
             Logger.Updated -= HorizonJournal.Observe;
+            Logger.Updated -= ObserveInput;
+            PlayerInput.Reset();
         }
     }
 }

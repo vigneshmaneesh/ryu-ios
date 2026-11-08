@@ -65,6 +65,9 @@ fi
 
 # Smoke-boot the bundled graphics NRO once through the real CPU and GPU.
 # The broader conformance suite is optional to keep normal builds focused.
+xcrun --sdk macosx clang -arch arm64 -isysroot "$mac_sdk" -mmacosx-version-min=14.0 \
+    -std=c11 -O2 -Wall -Wextra -Werror -I "$root/ios/Native" \
+    -c "$root/ios/Native/AppleAudio.c" -o "$out/native/AppleAudio-mac.o"
 mac_molten="$molten_root/dynamic/MoltenVK.xcframework/macos-arm64_x86_64"
 codesign --force --sign - "$mac_molten/MoltenVK.framework"
 xcrun --sdk macosx clang -arch arm64 -isysroot "$mac_sdk" -mmacosx-version-min=14.0 \
@@ -75,8 +78,8 @@ xcrun --sdk macosx clang -arch arm64 -isysroot "$mac_sdk" -mmacosx-version-min=1
     -c "$root/ios/Native/CoreWorker.c" -o "$out/native/CoreWorker-mac.o"
 xcrun --sdk macosx clang -arch arm64 -isysroot "$mac_sdk" -mmacosx-version-min=14.0 \
     -std=gnu11 -fobjc-arc -DRYU_GUEST_SMOKE -O2 -Wall -Wextra -Werror -I "$root/ios/Native" \
-    -F "$mac_molten" -framework MoltenVK -framework Cocoa -framework QuartzCore -framework Metal \
-    "$root/ios/Native/HostGraphicsChecks.m" "$out/native/CoreWorker-mac.o" "$out/native/MetalSurface-mac.o" \
+    -F "$mac_molten" -framework MoltenVK -framework Cocoa -framework QuartzCore -framework Metal -framework AudioToolbox \
+    "$root/ios/Native/HostGraphicsChecks.m" "$out/native/CoreWorker-mac.o" "$out/native/MetalSurface-mac.o" "$out/native/AppleAudio-mac.o" \
     "$out/core-macos/RyuCore.dylib" -Wl,-rpath,"$out/core-macos" -Wl,-rpath,"$mac_molten" \
     -o "$out/core-macos/HostGraphicsChecks"
 codesign --force --sign - --entitlements "$root/ios/Native/HostJIT.entitlements" "$out/core-macos/HostGraphicsChecks"
@@ -126,6 +129,8 @@ cp "$out/homebrew/toolchain.txt" "$app/ThirdParty/GraphicsHomebrew-toolchain.txt
 
 target="arm64-apple-ios$deployment_target"
 xcrun clang -target "$target" -isysroot "$sdk" -std=c11 -O2 -Wall -Wextra -Werror \
+    -I "$root/ios/Native" -c "$root/ios/Native/AppleAudio.c" -o "$out/native/AppleAudio.o"
+xcrun clang -target "$target" -isysroot "$sdk" -std=c11 -O2 -Wall -Wextra -Werror \
     -I "$root/ios/Native" -c "$root/ios/Native/JITBridge.c" -o "$out/native/JITBridge.o"
 xcrun clang -target "$target" -isysroot "$sdk" -std=c11 -O2 -Wall -Wextra -Werror \
     -I "$root/ios/Native" -c "$root/ios/Native/CoreWorker.c" -o "$out/native/CoreWorker.o"
@@ -138,10 +143,10 @@ xcrun clang -target "$target" -isysroot "$sdk" \
 xcrun --sdk iphoneos swiftc -target "$target" -sdk "$sdk" -swift-version 5 -O -parse-as-library \
     -module-name RyuJIT -import-objc-header "$root/ios/Native/JITBridge.h" \
     -F "$app/Frameworks" -framework RyujinxEmitter -framework RyuCore -framework MoltenVK -framework SwiftUI -framework UIKit \
-    -framework Foundation -framework CoreFoundation -framework Metal -framework QuartzCore \
+    -framework Foundation -framework CoreFoundation -framework Metal -framework QuartzCore -framework AudioToolbox -framework AVFAudio -framework GameController \
     -Xlinker -rpath -Xlinker '@executable_path/Frameworks' \
-    "$root/ios/App/RyuJITApp.swift" "$root/ios/App/JITViewModel.swift" "$root/ios/App/ContentView.swift" "$root/ios/App/BackendChecks.swift" "$root/ios/App/GameLibrary.swift" "$root/ios/App/GraphicsCheck.swift" \
-    "$out/native/JITBridge.o" "$out/native/CoreWorker.o" "$out/native/JITProtocol.o" "$out/native/VulkanProbe.o" "$out/native/MetalSurface.o" -o "$app/RyuJIT"
+    "$root/ios/App/RyuJITApp.swift" "$root/ios/App/JITViewModel.swift" "$root/ios/App/ContentView.swift" "$root/ios/App/BackendChecks.swift" "$root/ios/App/GameLibrary.swift" "$root/ios/App/GraphicsCheck.swift" "$root/ios/App/GameInput.swift" "$root/ios/App/PlayScreen.swift" \
+    "$out/native/JITBridge.o" "$out/native/CoreWorker.o" "$out/native/JITProtocol.o" "$out/native/VulkanProbe.o" "$out/native/MetalSurface.o" "$out/native/AppleAudio.o" -o "$app/RyuJIT"
 
 # Ad-hoc signatures preserve requested entitlements for the sideloading tool to inspect.
 # This IPA is re-signed by AltStore/SideStore with the user's development profile.

@@ -39,7 +39,7 @@ include $(DEVKITPRO)/libnx/switch_rules
 #---------------------------------------------------------------------------------
 TARGET		:=	deko_basic
 NO_ICON := 1
-APP_TITLE := Ryu GPU Homebrew
+APP_TITLE := Ryu Catch
 APP_AUTHOR := switchbrew / Ryu iOS
 BUILD		:=	build
 SOURCES		:=	source
@@ -65,7 +65,7 @@ CXXFLAGS	:= $(CFLAGS) -std=gnu++17 -fno-exceptions -fno-rtti
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-specs=$(DEVKITPRO)/libnx/switch.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 
-LIBS	:= -ldeko3d -lnx
+LIBS	:= -ldeko3d -lnx -lm
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing

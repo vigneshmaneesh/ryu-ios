@@ -72,3 +72,14 @@ v0.7.1 corrects NRO input access for signed iOS resources. The loader explicitly
 opens NROs read-only, retaining the stream for executable/assets/RomFS reads. The
 normal one-boot smoke uses an enforced read-only NRO to cover the reported device
 failure; extended regressions remain opt-in.
+
+v0.8 routes guest audio through IHardwareDeviceDriver to Apple's AudioQueue. PCM
+is copied into bounded native buffers; completion callbacks update atomics only.
+The managed audio driver's poller signals upstream buffer completion. Existing
+compatibility code downmixes six channels to stereo; audio input falls back to
+the upstream dummy input path. UIKit single-touch input uses Switch's 1280x720
+coordinate space; only the emulation worker writes HID lifos. Player one is a
+Pro Controller. Physical face buttons map by Switch positions. Pausing uses
+Horizon.TogglePauseEmulation, including audio pause and guest tick suspension.
+Closing/backgrounding clears controls, cancels execution and retains the Metal
+surface until the native worker joins. Firmware/key import is still absent.

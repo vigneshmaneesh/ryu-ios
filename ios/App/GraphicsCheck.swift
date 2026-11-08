@@ -4,6 +4,7 @@ import Metal
 import QuartzCore
 import SwiftUI
 import UIKit
+import AVFAudio
 
 @MainActor
 final class GraphicsCheck: ObservableObject {
@@ -12,6 +13,7 @@ final class GraphicsCheck: ObservableObject {
     @Published var passed = false
     @Published var needsRestart = false
     @Published var frames: UInt64 = 0
+    @Published var audioFrames: UInt64 = 0
     let isGuest: Bool
     var programURL: URL?
 
@@ -29,9 +31,21 @@ final class GraphicsCheck: ObservableObject {
     func run(layer: CAMetalLayer) {
         guard !isRunning, !needsRestart, layer.drawableSize.width > 0, layer.drawableSize.height > 0 else { return }
         ryu_graphics_prepare()
+        if isGuest {
+            do {
+                let session = AVAudioSession.sharedInstance()
+                try session.setCategory(.playback, mode: .default)
+                try session.setPreferredSampleRate(48_000)
+                try session.setPreferredIOBufferDuration(0.01)
+                try session.setActive(true)
+                UIApplication.shared.isIdleTimerDisabled = true
+            } catch { report = "Could not start game audio: \(error.localizedDescription)"; return }
+        }
         isRunning = true
         passed = false
         frames = 0
+        audioFrames = 0
+        let audioStart = ryu_audio_frames()
         report = isGuest ? "Booting homebrew with the real CPU and GPU…" : "Initializing the upstream Vulkan renderer…"
         let guest = isGuest
         let program = programURL ?? (guest ? Bundle.main.url(forResource: "deko_basic", withExtension: "nro") : nil)
@@ -39,6 +53,7 @@ final class GraphicsCheck: ObservableObject {
             Task { [weak self] in
                 while self?.isRunning == true {
                     self?.frames = ryu_homebrew_frames()
+                    self?.audioFrames = ryu_audio_frames() &- audioStart
                     try? await Task.sleep(for: .milliseconds(250))
                 }
             }
@@ -85,6 +100,10 @@ final class GraphicsCheck: ObservableObject {
                 self?.passed = completedStatus == 0
                 self?.needsRestart = completedStatus < 0
                 self?.report = completedMessage
+                if guest {
+                    UIApplication.shared.isIdleTimerDisabled = false
+                    try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+                }
             }
         }
     }
@@ -92,8 +111,9 @@ final class GraphicsCheck: ObservableObject {
     func cancel() { ryu_graphics_cancel() }
 }
 
-private final class RendererSurface: UIView {
+final class RendererSurface: UIView {
     var onReady: ((CAMetalLayer) -> Void)?
+    var guestTouch = false
     override class var layerClass: AnyClass { CAMetalLayer.self }
     var metalLayer: CAMetalLayer { layer as! CAMetalLayer }
 
@@ -107,6 +127,16 @@ private final class RendererSurface: UIView {
         backgroundColor = .black
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    private func forward(_ touches: Set<UITouch>, down: Bool) {
+        guard guestTouch, bounds.width > 0, bounds.height > 0, let touch = touches.first else { return }
+        let point = touch.location(in: self)
+        ryu_touch_set(down ? 1 : 0, Int32(max(0, min(1279, point.x * 1280 / bounds.width))),
+            Int32(max(0, min(719, point.y * 720 / bounds.height))))
+    }
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) { forward(touches, down: true) }
+    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) { forward(touches, down: true) }
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) { forward(touches, down: false) }
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) { forward(touches, down: false) }
     override func layoutSubviews() {
         super.layoutSubviews()
         guard bounds.width > 0, bounds.height > 0 else { return }
@@ -121,11 +151,13 @@ private final class RendererSurface: UIView {
     }
 }
 
-private struct MetalSurfaceView: UIViewRepresentable {
+struct MetalSurfaceView: UIViewRepresentable {
+    var guestTouch = false
     let ready: (CAMetalLayer) -> Void
     func makeUIView(context: Context) -> RendererSurface {
         let view = RendererSurface(frame: .zero)
         view.onReady = ready
+        view.guestTouch = guestTouch
         return view
     }
     func updateUIView(_ view: RendererSurface, context: Context) {
@@ -141,6 +173,10 @@ struct GraphicsDisplay: View {
     @State private var closeRequested = false
 
     var body: some View {
+        if model.isGuest { PlayScreen(model: model) }
+        else { rendererBody }
+    }
+    private var rendererBody: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {

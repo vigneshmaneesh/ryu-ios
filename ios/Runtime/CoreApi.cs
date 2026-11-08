@@ -14,6 +14,25 @@ public static unsafe class CoreApi
     private static long _guestFrames;
     public const uint AbiVersion = 1;
 
+    [UnmanagedCallersOnly(EntryPoint = "ryu_core_input_set")]
+    public static void SetInput(ulong buttons, int lx, int ly, int rx, int ry) => PlayerInput.Set(buttons, lx, ly, rx, ry);
+    [UnmanagedCallersOnly(EntryPoint = "ryu_core_touch_set")]
+    public static void SetTouch(int down, int x, int y) => PlayerInput.Touch(down != 0, x, y);
+    [UnmanagedCallersOnly(EntryPoint = "ryu_core_input_reset")]
+    public static void ResetInput() => PlayerInput.Reset();
+    [UnmanagedCallersOnly(EntryPoint = "ryu_core_pause")]
+    public static void Pause(int paused) => PlayerInput.Paused = paused != 0;
+    [UnmanagedCallersOnly(EntryPoint = "ryu_core_audio_configure")]
+    public static int ConfigureAudio(delegate* unmanaged<uint, uint, nint> open,
+        delegate* unmanaged<nint, byte*, nuint, ulong, int> enqueue,
+        delegate* unmanaged<nint, int, float, int> control,
+        delegate* unmanaged<nint, int, ulong> counter, delegate* unmanaged<nint, void> close)
+    {
+        if (Interlocked.CompareExchange(ref _busy, 1, 0) != 0) return -2;
+        try { AppleAudioDriver.Open = open; AppleAudioDriver.Enqueue = enqueue; AppleAudioDriver.Control = control; AppleAudioDriver.Counter = counter; AppleAudioDriver.Close = close; return 0; }
+        finally { Volatile.Write(ref _busy, 0); }
+    }
+
     [UnmanagedCallersOnly(EntryPoint = "ryu_core_abi_version")]
     public static uint GetAbiVersion() => AbiVersion;
 

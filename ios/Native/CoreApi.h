@@ -8,6 +8,13 @@
 // The caller keeps both aliases and callbacks alive throughout the call.
 uint32_t ryu_core_abi_version(void);
 uint64_t ryu_core_guest_frames(void);
+void ryu_core_input_set(uint64_t buttons, int lx, int ly, int rx, int ry);
+void ryu_core_touch_set(int down, int x, int y);
+void ryu_core_input_reset(void);
+void ryu_core_pause(int paused);
+int32_t ryu_core_audio_configure(void *(*open)(uint32_t, uint32_t),
+    int (*enqueue)(void *, const uint8_t *, uintptr_t, uint64_t),
+    int (*control)(void *, int, float), uint64_t (*counter)(void *, int), void (*close)(void *));
 int32_t ryu_core_homebrew_run(void *writable, void *executable, uintptr_t capacity,
     void (*begin_write)(void), void (*publish)(void *, uintptr_t),
     const uint8_t *library, void *metal_layer, int width, int height,

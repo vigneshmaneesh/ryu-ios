@@ -9,8 +9,11 @@
 #endif
 #include "CoreApi.h"
 #include "CoreWorker.h"
+#include "AppleAudio.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
 #if TARGET_OS_OSX && defined(RYU_GUEST_SMOKE)
 #include <sys/mman.h>
 #include <pthread.h>
@@ -38,6 +41,17 @@ static NSWindow *testWindow;
 #endif
 
 static int never_cancel(void) {
+#if TARGET_OS_OSX && defined(RYU_GUEST_SMOKE)
+    uint64_t frames = ryu_core_guest_frames();
+    static bool pauseDone;
+    static CFAbsoluteTime pauseEnds;
+    if (frames >= 55 && !pauseDone) {
+        if (!pauseEnds) { pauseEnds = CFAbsoluteTimeGetCurrent() + 0.25; ryu_core_pause(1); }
+        else if (CFAbsoluteTimeGetCurrent() >= pauseEnds) { ryu_core_pause(0); pauseDone = true; }
+    }
+    ryu_core_input_set(frames >= 210 ? (1ULL << 10) : (1ULL << 14) | 1, 0, 0, 0, 0);
+    ryu_core_touch_set(frames >= 80 && frames < 95, 920, 440);
+#endif
 #if !TARGET_OS_OSX
     static int calls;
     if (completedRuns == 0 && ++calls == 10) {
@@ -60,11 +74,19 @@ static void *check_renderer(void *unused) {
         char report[4096] = {0};
         for (int run = 0; run < CHECK_RUNS; run++) {
 #ifdef RYU_GUEST_SMOKE
+            ryu_core_input_reset();
+            testStatus = ryu_core_audio_configure(ryu_audio_open, ryu_audio_enqueue, ryu_audio_control, ryu_audio_counter, ryu_audio_close);
+            if (testStatus != 0) break;
             testStatus = ryu_core_homebrew_run(guestCode, guestCode, 256UL * 1024 * 1024,
                 begin_write, publish_code, (const uint8_t *)libraryPath.UTF8String,
                 (__bridge void *)testLayer, 640, 360, ryu_create_metal_surface, never_cancel,
                 (const uint8_t *)programPath.UTF8String, (const uint8_t *)dataPath.UTF8String,
                 (uint8_t *)report, sizeof(report));
+            if (testStatus == 0 && (ryu_audio_counter(NULL, 4) == 0 || !strstr(report, "Guest confirmed input.") || !strstr(report, "Guest confirmed touch.") || !strstr(report, "Guest collected target."))) {
+                fprintf(stderr, "Guest smoke did not confirm PCM audio, controller and touchscreen input.\n");
+                testStatus = -1;
+            }
+            printf("Nonzero guest PCM frames consumed by AudioQueue: %llu\n", (unsigned long long)ryu_audio_counter(NULL, 4));
 #else
             testStatus = ryu_core_graphics_check((const uint8_t *)libraryPath.UTF8String,
                 (__bridge void *)testLayer, 640, 360, ryu_create_metal_surface, never_cancel,

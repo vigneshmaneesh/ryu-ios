@@ -107,3 +107,10 @@ read/write. v0.7.1 adds a checked overlay selecting `FileAccess.Read` and
 The existing single guest smoke boot now uses a file with write permissions
 removed and confirms a read/write open is denied before booting it. This replaces
 the writable-file smoke input, without adding another emulation run.
+
+## v0.7.1 graphics homebrew accepted
+
+On 8 November the user reported **“everything works perfectly”** after the
+v0.7.1 build 32 read-only NRO correction. Treat this as device acceptance of the
+bundled real CPU/GPU homebrew path and clean completion. No additional device
+model, repeat count, frame count, or audio/input evidence was supplied.

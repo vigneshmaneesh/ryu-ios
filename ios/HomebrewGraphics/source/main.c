@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
+#include <malloc.h>
 
 #include <switch.h>
 #include <deko3d.h>
@@ -38,6 +40,40 @@ static DkCmdList g_cmdsBindFramebuffer[FB_NUM];
 static DkCmdList g_cmdsRender;
 
 static DkQueue g_renderQueue;
+static DkMemBlock g_frameMem;
+static DkCmdBuf g_frameCmd[FB_NUM];
+static PadState g_pad;
+static float g_x = 320, g_y = 220, g_targetX = 460, g_targetY = 220;
+static unsigned g_score;
+static AudioOutBuffer g_audioBuffers[4];
+static bool g_audioBusy[4], g_audioReady;
+static uint32_t g_random = 41;
+
+static void marker(const char* text) { svcOutputDebugString(text, strlen(text)); }
+static void audioReclaim(void)
+{
+    if (!g_audioReady) return;
+    AudioOutBuffer* released;
+    u32 count;
+    while (R_SUCCEEDED(audoutGetReleasedAudioOutBuffer(&released, &count)) && count) {
+        for (unsigned i = 0; i < 4; i++) if (released == &g_audioBuffers[i]) g_audioBusy[i] = false;
+    }
+}
+static void beep(void)
+{
+    if (!g_audioReady) return;
+    audioReclaim();
+    for (unsigned i = 0; i < 4; i++) if (!g_audioBusy[i]) {
+        int16_t* pcm = g_audioBuffers[i].buffer;
+        for (unsigned sample = 0; sample < 4800; sample++) {
+            float envelope = (1.0f - sample / 4800.0f);
+            int16_t value = (int16_t)(4000 * envelope * sinf(6.2831853f * (440 + (g_score % 8) * 70) * sample / 48000));
+            pcm[sample * 2] = pcm[sample * 2 + 1] = value;
+        }
+        if (R_SUCCEEDED(audoutAppendAudioOutBuffer(&g_audioBuffers[i]))) g_audioBusy[i] = true;
+        return;
+    }
+}
 
 // Simple function for loading a shader from the filesystem
 static void loadShader(DkShader* pShader, const char* path)
@@ -141,8 +177,6 @@ static void graphicsInitialize(void)
     }
 
     // Declare structs that will be used for binding state
-    DkViewport viewport = { 0.0f, 0.0f, (float)FB_WIDTH, (float)FB_HEIGHT, 0.0f, 1.0f };
-    DkScissor scissor = { 0, 0, FB_WIDTH, FB_HEIGHT };
     DkShader const* shaders[] = { &g_vertexShader, &g_fragmentShader };
     DkRasterizerState rasterizerState;
     DkColorState colorState;
@@ -154,9 +188,6 @@ static void graphicsInitialize(void)
     dkColorWriteStateDefaults(&colorWriteState);
 
     // Generate the main rendering command list
-    dkCmdBufSetViewports(g_cmdbuf, 0, &viewport, 1);
-    dkCmdBufSetScissors(g_cmdbuf, 0, &scissor, 1);
-    dkCmdBufClearColorFloat(g_cmdbuf, 0, DkColorMask_RGBA, 0.125f, 0.294f, 0.478f, 1.0f);
     dkCmdBufBindShaders(g_cmdbuf, DkStageFlag_GraphicsMask, shaders, sizeof(shaders)/sizeof(shaders[0]));
     dkCmdBufBindRasterizerState(g_cmdbuf, &rasterizerState);
     dkCmdBufBindColorState(g_cmdbuf, &colorState);
@@ -169,6 +200,10 @@ static void graphicsInitialize(void)
     dkQueueMakerDefaults(&queueMaker, g_device);
     queueMaker.flags = DkQueueFlags_Graphics;
     g_renderQueue = dkQueueCreate(&queueMaker);
+    dkMemBlockMakerDefaults(&memBlockMaker, g_device, FB_NUM * CMDMEMSIZE);
+    memBlockMaker.flags = DkMemBlockFlags_CpuUncached | DkMemBlockFlags_GpuCached;
+    g_frameMem = dkMemBlockCreate(&memBlockMaker);
+    for (unsigned i = 0; i < FB_NUM; i++) g_frameCmd[i] = dkCmdBufCreate(&cmdbufMaker);
 }
 
 // This function is to be called at each frame, and it is in charge of rendering.
@@ -177,11 +212,27 @@ static void graphicsUpdate(void)
     // Acquire a framebuffer from the swapchain (and wait for it to be available)
     int slot = dkQueueAcquireImage(g_renderQueue, g_swapchain);
 
-    // Run the command list that binds said framebuffer as a render target
-    dkQueueSubmitCommands(g_renderQueue, g_cmdsBindFramebuffer[slot]);
-
-    // Run the main rendering command list
-    dkQueueSubmitCommands(g_renderQueue, g_cmdsRender);
+    // Reuse this slot's command memory only after its image has been acquired.
+    DkCmdBuf cmd = g_frameCmd[slot];
+    dkCmdBufClear(cmd);
+    dkCmdBufAddMemory(cmd, g_frameMem, slot * CMDMEMSIZE, CMDMEMSIZE);
+    dkCmdBufCallList(cmd, g_cmdsBindFramebuffer[slot]);
+    DkScissor whole = { 0, 0, FB_WIDTH, FB_HEIGHT };
+    dkCmdBufSetScissors(cmd, 0, &whole, 1);
+    dkCmdBufClearColorFloat(cmd, 0, DkColorMask_RGBA, 0.025f, 0.055f, 0.105f, 1);
+    DkViewport ship = { g_x - 15, g_y - 15, 30, 30, 0, 1 };
+    dkCmdBufSetViewports(cmd, 0, &ship, 1);
+    dkCmdBufCallList(cmd, g_cmdsRender);
+    DkViewport target = { g_targetX - 10, g_targetY - 10, 20, 20, 0, 1 };
+    dkCmdBufSetViewports(cmd, 0, &target, 1);
+    dkCmdBufCallList(cmd, g_cmdsRender);
+    // Score pips are rendered by the guest GPU, along the top edge.
+    for (unsigned pip = 0; pip < (g_score % 20); pip++) {
+        DkScissor box = { 12 + pip * 15, 12, 10, 7 };
+        dkCmdBufSetScissors(cmd, 0, &box, 1);
+        dkCmdBufClearColorFloat(cmd, 0, DkColorMask_RGBA, 0.1f, 0.9f, 0.65f, 1);
+    }
+    dkQueueSubmitCommands(g_renderQueue, dkCmdBufFinishList(cmd));
 
     // Now that we are done rendering, present it to the screen
     dkQueuePresentImage(g_renderQueue, g_swapchain, slot);
@@ -195,6 +246,8 @@ static void graphicsExit(void)
 
     // Destroy all the resources we've created
     dkQueueDestroy(g_renderQueue);
+    for (unsigned i = 0; i < FB_NUM; i++) dkCmdBufDestroy(g_frameCmd[i]);
+    dkMemBlockDestroy(g_frameMem);
     dkCmdBufDestroy(g_cmdbuf);
     dkMemBlockDestroy(g_cmdbufMemBlock);
     dkMemBlockDestroy(g_codeMemBlock);
@@ -206,16 +259,66 @@ static void graphicsExit(void)
 // Main entrypoint
 int main(int argc, char* argv[])
 {
+    (void)argc; (void)argv;
     romfsInit();
     graphicsInitialize();
-
-    static const char marker[] = "RYU_GPU_DEMO: graphics initialized";
-    svcOutputDebugString(marker, sizeof(marker)-1);
-    for (unsigned frame = 0; frame < 180 && appletMainLoop(); frame++)
-    {
-        graphicsUpdate();
+    padConfigureInput(1, HidNpadStyleSet_NpadStandard);
+    padInitializeDefault(&g_pad);
+    hidInitializeTouchScreen();
+    Result audioResult = audoutInitialize();
+    if (R_SUCCEEDED(audioResult)) {
+        g_audioReady = true;
+        for (unsigned i = 0; i < 4; i++) {
+            g_audioBuffers[i].buffer = memalign(0x1000, 0x5000);
+            g_audioBuffers[i].buffer_size = 0x5000;
+            g_audioBuffers[i].data_size = 4800 * 4;
+            if (!g_audioBuffers[i].buffer) g_audioReady = false;
+        }
+        if (g_audioReady && R_FAILED(audoutStartAudioOut())) g_audioReady = false;
     }
-
+    marker(g_audioReady ? "RYU_PLAY: audio ready" : "RYU_PLAY: audio unavailable");
+    bool inputSeen = false, touchSeen = false;
+    unsigned frames = 0;
+    while (appletMainLoop())
+    {
+        padUpdate(&g_pad);
+        u64 keys = padGetButtons(&g_pad);
+        u64 pressed = padGetButtonsDown(&g_pad);
+        if (pressed & HidNpadButton_Plus) break;
+        HidAnalogStickState stick = padGetStickPos(&g_pad, 0);
+        HidTouchScreenState touch;
+        hidGetTouchScreenStates(&touch, 1);
+        if (!inputSeen && (keys || stick.x || stick.y || touch.count)) { marker("RYU_PLAY: input received through guest HID"); inputSeen = true; }
+        if (!touchSeen && touch.count) { marker("RYU_PLAY: touch received through guest HID"); touchSeen = true; }
+        float speed = (keys & HidNpadButton_A) ? 6 : 3;
+        g_x += speed * stick.x / 32767;
+        g_y -= speed * stick.y / 32767;
+        if (keys & HidNpadButton_Left) g_x -= speed;
+        if (keys & HidNpadButton_Right) g_x += speed;
+        if (keys & HidNpadButton_Up) g_y -= speed;
+        if (keys & HidNpadButton_Down) g_y += speed;
+        if (touch.count) { g_x = touch.touches[0].x * 0.5f; g_y = touch.touches[0].y * 0.5f; }
+        g_x = fminf(624, fmaxf(16, g_x)); g_y = fminf(344, fmaxf(34, g_y));
+        if ((pressed & HidNpadButton_B)) { g_score = 0; g_x = 320; g_y = 220; g_targetX = 460; g_targetY = 220; }
+        if ((pressed & HidNpadButton_A)) beep();
+        float dx = g_x - g_targetX, dy = g_y - g_targetY;
+        if (dx * dx + dy * dy < 22 * 22) {
+            g_score++; beep();
+            g_random = g_random * 1664525u + 1013904223u; g_targetX = 35 + (g_random % 570);
+            g_random = g_random * 1664525u + 1013904223u; g_targetY = 50 + (g_random % 270);
+            marker("RYU_PLAY: target collected");
+        }
+        audioReclaim();
+        graphicsUpdate();
+        frames++;
+    }
+    char summary[96];
+    snprintf(summary, sizeof(summary), "RYU_PLAY: completed frames=%u score=%u input=%u", frames, g_score, inputSeen);
+    marker(summary);
+    if (R_SUCCEEDED(audioResult)) {
+        audoutStopAudioOut(); audoutExit();
+        for (unsigned i = 0; i < 4; i++) free(g_audioBuffers[i].buffer);
+    }
     graphicsExit();
     romfsExit();
     return 0;

@@ -1,6 +1,7 @@
 #include "JITBridge.h"
 #include "CoreApi.h"
 #include "CoreWorker.h"
+#include "AppleAudio.h"
 #include <CoreFoundation/CoreFoundation.h>
 #include <dlfcn.h>
 #include <errno.h>
@@ -152,6 +153,11 @@ int ryu_graphics_check(const char *library, void *metal_layer, int width, int he
 }
 
 uint64_t ryu_homebrew_frames(void) { return ryu_core_guest_frames(); }
+void ryu_input_set(uint64_t b, int lx, int ly, int rx, int ry) { ryu_core_input_set(b, lx, ly, rx, ry); }
+void ryu_touch_set(int down, int x, int y) { ryu_core_touch_set(down, x, y); }
+void ryu_input_reset(void) { ryu_core_input_reset(); }
+void ryu_pause(int paused) { ryu_core_pause(paused); }
+uint64_t ryu_audio_frames(void) { return ryu_audio_counter(NULL, 2); }
 
 int ryu_homebrew_run(const char *library, void *metal_layer, int width, int height,
     const char *program, const char *directory, char *report, size_t report_capacity) {
@@ -165,6 +171,8 @@ int ryu_homebrew_run(const char *library, void *metal_layer, int width, int heig
         return -1;
     }
     if (atomic_flag_test_and_set(&running)) return -2;
+    int audio_status = ryu_core_audio_configure(ryu_audio_open, ryu_audio_enqueue, ryu_audio_control, ryu_audio_counter, ryu_audio_close);
+    if (audio_status != 0) { atomic_flag_clear(&running); return audio_status; }
     GraphicsWork work = { library, metal_layer, width, height, directory, report, report_capacity, -1, program };
     int status = ryu_core_on_thread(run_graphics, &work, RYU_CORE_STACK_SIZE);
     if (status == 0) status = work.status;

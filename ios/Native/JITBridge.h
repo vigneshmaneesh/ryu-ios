@@ -12,6 +12,11 @@ void ryu_graphics_prepare(void);
 int ryu_homebrew_run(const char *library, void *metal_layer, int width, int height,
     const char *program, const char *directory, char *report, size_t report_capacity);
 uint64_t ryu_homebrew_frames(void);
+void ryu_input_set(uint64_t buttons, int lx, int ly, int rx, int ry);
+void ryu_touch_set(int down, int x, int y);
+void ryu_input_reset(void);
+void ryu_pause(int paused);
+uint64_t ryu_audio_frames(void);
 
 enum RyuJITStage {
     RYU_JIT_IDLE, RYU_JIT_WAITING, RYU_JIT_PREPARING, RYU_JIT_EMITTING,

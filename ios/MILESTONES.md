@@ -77,3 +77,18 @@ buttons for imported NROs. The Apple NativeAOT smoke boot presented 178 guest fr
 Routine CI now builds the homebrew and IPA with one actual guest boot. The full
 CPU/kernel and simulator regression suite is opt-in using `extended_checks`.
 Physical-device validation is requested once per meaningful milestone.
+
+## v0.8 development: interactive play
+
+v0.7.1 build 32 is user-accepted for real guest homebrew graphics. The next build
+adds controller and touchscreen snapshots into the upstream HID shared memory,
+an Apple AudioQueue backend for real guest PCM output, the core's pause/resume,
+and a full-screen play view with touch controls and physical GameController input.
+The bundled public-domain example becomes Ryu Catch, a target-collection game
+with sound. It runs until stopped or Plus is pressed, rather than auto-exiting.
+
+One integrated CI play session exercises guest controller and touchscreen input,
+target collection, nonzero PCM consumption, pause/resume, GPU rendering and exit.
+Device play/audio/controller acceptance is pending. This does not establish
+Tomodachi Life or general commercial-game compatibility. Firmware/key/title
+imports and commercial container launch remain future integration work.

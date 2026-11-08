@@ -64,7 +64,7 @@ internal static class HorizonJournal
     internal static void Observe(object sender, LogEventArgs entry)
     {
         if (entry.Level is LogLevel.Error or LogLevel.Warning ||
-            entry.Message.Contains("RYU_KERNEL_PROBE:", StringComparison.Ordinal))
+            entry.Message.Contains("RYU_KERNEL_PROBE:", StringComparison.Ordinal) || entry.Message.Contains("RYU_PLAY:", StringComparison.Ordinal))
             Write("LOG " + entry.Message);
     }
 
