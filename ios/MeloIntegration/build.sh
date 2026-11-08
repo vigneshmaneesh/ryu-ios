@@ -5,6 +5,8 @@ root="$PWD"
 source_root="$root/ios/build/melonx"
 deps="$source_root/src/MeloNX/MeloNX/Dependencies"
 
+dotnet workload install mobile-librarybuilder --skip-manifest-update
+
 # Trusted, checksum-pinned official graphics library replaces the supplied copy.
 python3 ios/scripts/prepare_native.py
 cp ios/build/native-dependencies/MoltenVK/MoltenVK/dynamic/MoltenVK.xcframework/ios-arm64/MoltenVK.framework/MoltenVK "$deps/libMoltenVK.dylib"
