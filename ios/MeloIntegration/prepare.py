@@ -60,8 +60,12 @@ def prepare(offline=False):
             assert match[1] == block['ours'] and match[2] == block['theirs'], file['path']
             source = source[:match.start()] + block['resolution'] + source[match.end():]
         path.write_text(source, encoding='utf-8', newline='\n')
-    # Keep MeloNX's original archive, callback and JIT implementations.
+    # Keep original archive/callback/native libraries; apply the focused JIT flow fix.
+    overlay = HERE / 'overlay'
+    if overlay.exists():
+        shutil.copytree(overlay, DEST, dirs_exist_ok=True)
     swift = 'src/MeloNX/MeloNX/'
+    apply_jit_flow_fix(swift)
     path = DEST / (swift + 'Core/RyujinxController.swift')
     source = path.read_text(encoding='utf-8-sig')
     # These optional entitlements are not a reliable capability test with free
@@ -187,7 +191,8 @@ def prepare(offline=False):
                       bundle_id='app.fow.explorer',
                       security_fixes=[],
                       review_runtime_changes='reverted at user request',
-                      jit_helper='original MeloNX EnableJIT.swift and BreakpointJIT.framework',
+                      jit_helper='original BreakpointJIT.framework; StikDebug universal.js with process-local readiness',
+                      jit_flow='single activation handoff, explicit retry, cancelled view polling',
                       molten_vk='original MeloNX bundled libMoltenVK.dylib',
                       native_dependencies='supplied binary dependencies require independent provenance verification')
     (DEST / 'integration-provenance.json').write_text(json.dumps(provenance, indent=2) + '\n')
@@ -195,6 +200,89 @@ def prepare(offline=False):
         if re.search(r'^<<<<<<< |^>>>>>>> ', path.read_text(encoding='utf-8-sig'), re.M):
             raise RuntimeError('Unresolved conflict: ' + str(path))
     print('Prepared MeloNX', MELO, '+ latest Ryubing', RYU)
+
+def apply_jit_flow_fix(swift):
+    # The original framework uses BRK 0xf00d/x16=1. Select its matching
+    # StikDebug script explicitly, with the current process and bundle ID.
+    path = DEST / (swift + 'Common/JIT/EnableJIT.swift')
+    source = path.read_text(encoding='utf-8-sig')
+    start = source.index('        var urlScheme: String = "stikjit://enable-jit"')
+    end = source.index('\n    }\n}', start)
+    source = source[:start] + '''        let legacyScript = ProcessInfo.processInfo.hasTXM ? nil : script
+        guard let launchURL = JITSessionState.stikDebugURL(
+            bundleIdentifier: bundle, pid: getpid(), legacyScript: legacyScript
+        ) else {
+            jitSessionState.activationFailed()
+            return
+        }
+        openURL(launchURL)''' + source[end:]
+    source = source.replace('static func enableJIT(_ provider: JITProvider) {',
+        'static func enableJIT(_ provider: JITProvider, explicitRetry: Bool = false) {')
+    source = source.replace('        self.provider = provider\n',
+        '        guard jitSessionState.beginActivation(explicitRetry: explicitRetry) else { return }\n        self.provider = provider\n')
+    source = source.replace('completionHandler: nil)',
+        'completionHandler: { opened in\n            if !opened { Task { @MainActor in jitSessionState.activationFailed() } }\n        })')
+    path.write_text(source, encoding='utf-8', newline='\n')
+    path = DEST / (swift + 'Common/JITChecker.swift')
+    source = path.read_text(encoding='utf-8-sig')
+    start = source.index('func jitEnabled() -> Bool {')
+    end = source.index('\nfunc checkDebugged()', start)
+    source = source[:start] + '''let jitSessionState = JITSessionState()
+
+func jitEnabled() -> Bool {
+    if jitSessionState.isReady { return true }
+    let attached = checkDebugged()
+    return jitSessionState.checkReady(debuggerAttached: attached) {
+        if #available(iOS 19, *) {
+            return RyujinxController.attemptToMapDualMapping()
+        }
+        return allocateTest()
+    }
+}
+''' + source[end:]
+    source = source.replace('var flags: Int = 0', 'var flags: UInt32 = 0')
+    source = source.replace('usersize: Int32) -> Int32', 'usersize: Int) -> Int32')
+    source = source.replace('Int32(MemoryLayout.size(ofValue: flags))', 'MemoryLayout<UInt32>.size')
+    source = source.replace('(flags & Int(CS_DEBUGGED))', '(flags & UInt32(CS_DEBUGGED))')
+    path.write_text(source, encoding='utf-8', newline='\n')
+    path = DEST / (swift + 'UI/Main/ContentView.swift')
+    source = path.read_text(encoding='utf-8-sig')
+    start = source.index('            if ryujinxController.lastGameLaunched == nil {')
+    end = source.index('            ryujinxController.loadGames()', start)
+    source = source[:start] + '            _ = jitEnabled()\n\n' + source[end:]
+    path.write_text(source, encoding='utf-8', newline='\n')
+    path = DEST / (swift + 'UI/Main/NoJITView.swift')
+    source = path.read_text(encoding='utf-8-sig')
+    source = source.replace('            Button("Go Back") {', '''            Button("Retry JIT activation") {
+                EnableJIT.enableJIT(nativeSettingsManager.jitProvider(JITProvider.disabled).value,
+                                    explicitRetry: true)
+            }
+            Text("Enable JIT in StikDebug, then return here. If memory preparation fails, retry explicitly; the app will stay here.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
+            Button("Go Back") {''')
+    start = source.index('        .onAppear {\n            pulseAnimation = true')
+    source = source[:start] + '''        .task(id: game.titleId) { @MainActor in
+            pulseAnimation = true
+            EnableJIT.enableJIT(nativeSettingsManager.jitProvider(JITProvider.disabled).value)
+            while !Task.isCancelled {
+                guard case .started(let pendingGame, .noJIT) = ryujinxController.isRunning,
+                      pendingGame.titleId == game.titleId else { return }
+                if jitEnabled() {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        ryujinxController.startGame(game)
+                    }
+                    return
+                }
+                do { try await Task.sleep(nanoseconds: 250_000_000) }
+                catch { return }
+            }
+        }
+    }
+}
+'''
+    path.write_text(source, encoding='utf-8', newline='\n')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

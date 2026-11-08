@@ -16,7 +16,12 @@ It produces an unsigned IPA for development sideloading. At the user's request,
 the security-review runtime modifications have been reverted: the original
 MeloNX ZIP extractor, library callback, JIT script/framework, bundled MoltenVK
 and memory-donation defaults are restored. StikDebug remains the default
-provider and uses MeloNX's original activation code.
+provider. A subsequent JIT-loop fix explicitly selects `universal.js` for TXM
+devices and the current process. It keeps one automatic handoff per attempt,
+offers explicit retry, cancels abandoned waiting tasks and remembers successful
+native memory preparation for the current process. JIT readiness is never
+inferred merely from returning from StikDebug. The original BreakpointJIT
+framework, encoded legacy script and MoltenVK binary remain present.
 
 This candidate reuses FoW's bundle ID, `app.fow.explorer`, at the user's request.
 The identifier was verified in FoW's project configuration and built IPA.
@@ -36,3 +41,7 @@ Security findings, the rollback status, binary provenance limits and inconsisten
 supplied license notices are documented in `../SecurityReview/MELO-NX-REVIEW.md`.
 All original notices are retained. The IPA contains source provenance and a
 SHA-256 manifest of the native binaries actually packaged.
+
+`JITFlowChecks.swift` exercises the actual production activation coordinator's
+return/retry and readiness transitions on the Mac runner. It does not substitute
+for device-side StikDebug or gameplay validation.

@@ -2,6 +2,13 @@
 
 ## Current status: runtime review modifications reverted
 
+A later functional JIT-loop fix changes the StikDebug activation URL and waiting
+lifecycle. It explicitly selects `universal.js` on TXM devices, keeps readiness
+only after successful native allocation, prevents repeated automatic handoffs,
+and cancels dismissed waiting tasks. This does not reapply the ZIP/callback
+fixes or replace the original BreakpointJIT/MoltenVK binaries. The original
+encoded legacy script remains in the source for non-TXM activation.
+
 At the user's request, the review-related runtime changes were reverted after
 build 5 crashed on a Tomodachi Life launch attempt. This does not establish the
 cause of the crash. MeloNX's original ZIP extractor, library callback, encoded
@@ -95,4 +102,3 @@ disconnected from the app target.
 The current build restores the original components listed above and retains
 the latest pinned Ryubing merge. Existing Ryu work remains available on
 `feature/ios-parity`; no repeated device-test requests are part of this rollback.
-

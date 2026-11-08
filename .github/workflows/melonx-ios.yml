@@ -39,6 +39,10 @@ jobs:
           key: melonx-ryubing-a61a426-13700519-v1
       - name: Merge pinned sources and apply iOS integration
         run: python3 ios/MeloIntegration/prepare.py
+      - name: Check JIT return and retry lifecycle
+        run: |
+          xcrun swiftc ios/MeloIntegration/overlay/src/MeloNX/MeloNX/Common/JIT/JITSessionState.swift ios/MeloIntegration/JITFlowChecks.swift -o ios/build/JITFlowChecks
+          ios/build/JITFlowChecks
       - name: Build native engine and IPA
         run: bash ios/MeloIntegration/build.sh
       - uses: actions/upload-artifact@v4
