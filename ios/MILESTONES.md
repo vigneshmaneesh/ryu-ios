@@ -21,12 +21,12 @@ observed instrumentation. The original milestone numbers remain fixed.
 | 11 | Real homebrew loading/execution | Complete for the authored NRO: real SetHeapSize, OutputDebugString and ExitProcess pass twice on desktop, Apple NativeAOT and both devices |
 | 12 | iOS Vulkan/MoltenVK graphics and first frame | Upstream VulkanRenderer / Metal surface / swapchain conformance passes both devices in v0.6 build 26; M1 repeat and trace confirmed; v0.7 build 30 presents 178 real guest frames and exits cleanly on Apple NativeAOT; device guest display pending |
 | 13 | Shader translation, cache and correctness | Upstream SPIR-V guest shader translation runs in the v0.7 triangle smoke boot; broader shader/cache correctness unverified |
-| 14 | Native audio | Not integrated |
-| 15 | Controllers, touch and motion | Not integrated |
-| 16 | Sandboxed game, firmware, key and update imports | Native game/homebrew importer and signature checks implemented; device validation pending; firmware/keys/updates not integrated |
+| 14 | Native audio | Apple AudioQueue backend integrated; 9,600 nonzero guest PCM frames consumed in NativeAOT CI; device audibility pending |
+| 15 | Controllers, touch and motion | Player-one virtual/physical controls and single-touch input integrated; guest HID receipt confirmed in CI; motion and multiple players pending |
+| 16 | Sandboxed game, firmware, key and update imports | Native game/homebrew importer, private keys and verified firmware import integrated; key preservation and firmware rollback/recovery checks pass; actual firmware/device validation and title updates pending |
 | 17 | First compatible commercial game boot | Not demonstrated; target above |
-| 18 | Game library, settings, saves and per-title configuration | Persistent native imported-title list implemented; settings/saves/per-title configuration not integrated |
-| 19 | Pause/resume, backgrounding, memory pressure | JIT activation has cancellation/background handling; emulator lifecycle incomplete |
+| 18 | Game library, settings, saves and per-title configuration | Persistent native library launches NRO/NSO/NSP/XCI through real loaders; per-title settings and save lifecycle/device validation incomplete |
+| 19 | Pause/resume, backgrounding, memory pressure | JIT cancellation, game pause/resume and joined shutdown integrated; backgrounding ends the session; resume/memory-pressure lifecycle incomplete |
 | 20 | Performance, memory, thermals and battery | Not characterized for games |
 | 21 | Device regression and upstream compatibility matrix | Prototype regression exists; full emulator matrix incomplete |
 | 22 | First usable release, packaging, diagnostics and rollback | Not complete; cannot call the CPU prototype a usable emulator |
@@ -92,3 +92,6 @@ target collection, nonzero PCM consumption, pause/resume, GPU rendering and exit
 Device play/audio/controller acceptance is pending. This does not establish
 Tomodachi Life or general commercial-game compatibility. Firmware/key/title
 imports and commercial container launch remain future integration work.
+
+
+v0.7.1 build 32 is user-accepted for real guest graphics. v0.9 build 34 adds commercial-container launch and system-file setup, but no commercial title boot has been demonstrated. The user has a Tomodachi Life base XCI; prod.keys and firmware are required for the first attempt. Phase 22 remains incomplete.

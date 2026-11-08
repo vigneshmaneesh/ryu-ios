@@ -183,3 +183,29 @@ requests are bridged into the play screen for messages and text entry; profile
 selection uses the existing emulated account. Inline text entry bypasses the
 desktop Skia overlay through a checked upstream seam. Commercial title boot and
 actual encrypted firmware/key installation are awaiting user files on devices.
+
+## v0.9.0 build 34 candidate
+
+Source `b073e7b618b774deacd1c850870d037362915a15`,
+[successful run 42433677519](https://github.com/vigneshmaneesh/ryu-ios/actions/runs/42433677519),
+[artifact 13598905467](https://github.com/vigneshmaneesh/ryu-ios/actions/runs/42433677519/artifacts/13598905467).
+IPA SHA-256 `21400b8664a860e03b67436c7a91e6102031aa86cb40b712d8cc0ec95997d941`.
+ZIP SHA-256 `381f77a718b0e5b0e1bab0d3f610287d92fca31e427b6a97355c362d38d206ff`.
+
+NativeAOT import checks pass: invalid key input preserves the installed file,
+interrupted firmware installation restores the accepted set, committed recovery
+cleans the backup, and missing game system files produce a setup preflight.
+One real guest play session presents **214 frames**, confirms controller and
+touchscreen input, collects a target, consumes **9,600 nonzero PCM frames** through
+AudioQueue, pauses/resumes and exits. The iOS ARM64/platform/package/signing checks
+pass. Device v0.9 play/audio/input and actual firmware/key installation remain
+unconfirmed, as does Tomodachi Life boot. The default branch remains the earlier
+accepted baseline; this candidate is on feature/ios-renderer.
+
+The user has the base-game XCI in Files and can dump their Switch firmware. They
+were asked to prepare prod.keys and firmware locally. Next device action is one
+actual XCI boot after system setup, rather than repeating prototype test suites.
+
+Known follow-up: production session logging still inherits upstream's enabled
+trace/debug/stub channels. Reduce these before performance characterization;
+current CI timings with syscall logging are not a game-performance benchmark.

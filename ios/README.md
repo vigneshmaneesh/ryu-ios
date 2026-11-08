@@ -234,3 +234,27 @@ v0.7 development adds the first real graphics-homebrew session and NRO launch
 buttons. Default CI builds a pinned public-domain deko3d demo and smoke-boots it
 once. Full regression checks are available on demand through `extended_checks`;
 the simulator screenshot fixture is not a release gate.
+
+## v0.9 game-launch build
+
+The user accepted v0.7.1 build 32's real guest graphics on their device. Current
+candidate **v0.9.0 build 34** adds a playable Ryu Catch game, native guest audio,
+touch controls, physical-controller support, pause/resume, and base-game launch.
+
+Install with AltStore using the existing StikDebug/LocalDevVPN setup. In **System
+files**, import **prod.keys** and install a **Switch firmware ZIP**. The installer
+also accepts an XCI containing a firmware update partition. In **Library**, import
+a base-game **XCI or NSP**, enable JIT, then select **Play**. NRO/NSO homebrew also
+launches. The system files and title copies stay in app-private storage.
+
+The user's first target is Tomodachi Life: Living the Dream; they have its base
+XCI in Files and can obtain their console firmware. Actual commercial game boot
+has not been demonstrated. The one CI play session checks real guest GPU frames,
+controller/touch input, target collection, nonzero PCM audio, pause/resume and exit.
+Import checks protect existing keys and cover interrupted firmware recovery.
+Native applet text/message prompts compile but await game/device validation.
+
+Title updates, DLC, multiple controllers, motion, program transitions, general
+lifecycle/performance validation and broad game compatibility remain incomplete.
+Backgrounding currently ends the running session. No game, firmware or key data
+is included in the repository or CI artifacts.
