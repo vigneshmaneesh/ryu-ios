@@ -22,7 +22,7 @@ struct PlayScreen: View {
                     HStack {
                         Text(input.controllerName).font(.caption)
                         Spacer()
-                        Text("\(model.frames) frames · \(model.audioFrames) PCM").font(.caption.monospacedDigit())
+                        Text("\(model.fps) FPS").font(.caption.monospacedDigit())
                     }.padding(10).background(.black.opacity(0.45))
                     Spacer()
                     if model.isRunning {
@@ -45,7 +45,7 @@ struct PlayScreen: View {
                                 HStack(spacing: 30) { HeldButton(title: "Y", bit: 3, input: input); HeldButton(title: "A", bit: 0, input: input) }
                                 HeldButton(title: "B", bit: 1, input: input)
                             }
-                        }.padding(14).opacity(paused ? 0.3 : 1).allowsHitTesting(!paused)
+                        }.id(paused).padding(14).opacity(paused ? 0.3 : 1).allowsHitTesting(!paused)
                     }
                 }
                 if paused { Text("Paused").font(.title.bold()).padding(28).background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18)) }
@@ -59,13 +59,13 @@ struct PlayScreen: View {
                 }
             }
             .foregroundStyle(.white)
-            .navigationTitle(model.programURL?.deletingPathExtension().lastPathComponent ?? "Ryu Catch")
+            .navigationTitle(model.displayTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.black, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button(paused ? "Resume" : "Pause", systemImage: paused ? "play.fill" : "pause.fill") {
-                        paused.toggle(); ryu_pause(paused ? 1 : 0)
+                        input.releaseVirtual(); paused.toggle(); ryu_pause(paused ? 1 : 0)
                     }.disabled(!model.isRunning)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -82,6 +82,16 @@ struct PlayScreen: View {
             }
             .onDisappear { input.stop(); model.cancel() }
             .interactiveDismissDisabled(model.isRunning)
+            .alert(model.applet?.title ?? "Game", isPresented: Binding(get: { model.applet != nil }, set: { if !$0 { model.answerApplet(false) } })) {
+                if model.applet?.kind == 1 { TextField("Text", text: $model.appletText) }
+                Button("OK") { model.answerApplet(true) }
+                    .disabled(model.applet?.kind == 1 && model.appletText.utf16.count < (model.applet?.minimum ?? 0))
+                Button("Cancel", role: .cancel) { model.answerApplet(false) }
+            } message: { Text(model.applet?.message ?? "") }
+            .onChange(of: model.appletText) { _, value in
+                let maximum = model.applet?.maximum ?? 1024
+                if value.count > maximum { model.appletText = String(value.prefix(maximum)) }
+            }
         }
         .preferredColorScheme(.dark)
     }

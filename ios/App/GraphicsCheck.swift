@@ -6,6 +6,16 @@ import SwiftUI
 import UIKit
 import AVFAudio
 
+struct GameApplet: Decodable {
+    let id: Int32
+    let kind: Int
+    let title: String
+    let message: String
+    let initial: String
+    let maximum: Int
+    let minimum: Int
+}
+
 @MainActor
 final class GraphicsCheck: ObservableObject {
     @Published var isRunning = false
@@ -14,8 +24,12 @@ final class GraphicsCheck: ObservableObject {
     @Published var needsRestart = false
     @Published var frames: UInt64 = 0
     @Published var audioFrames: UInt64 = 0
+    @Published var fps = 0
+    @Published var applet: GameApplet?
+    @Published var appletText = ""
     let isGuest: Bool
     var programURL: URL?
+    var displayTitle = "Ryu Catch"
 
     init(isGuest: Bool = false) {
         self.isGuest = isGuest
@@ -51,9 +65,16 @@ final class GraphicsCheck: ObservableObject {
         let program = programURL ?? (guest ? Bundle.main.url(forResource: "deko_basic", withExtension: "nro") : nil)
         if guest {
             Task { [weak self] in
+                var previousFrames: UInt64 = 0
+                var previousTime = ProcessInfo.processInfo.systemUptime
                 while self?.isRunning == true {
-                    self?.frames = ryu_homebrew_frames()
+                    let count = ryu_homebrew_frames()
+                    let now = ProcessInfo.processInfo.systemUptime
+                    self?.frames = count
+                    self?.fps = Int(Double(count >= previousFrames ? count - previousFrames : 0) / max(0.01, now - previousTime))
+                    previousFrames = count; previousTime = now
                     self?.audioFrames = ryu_audio_frames() &- audioStart
+                    self?.pollApplet()
                     try? await Task.sleep(for: .milliseconds(250))
                 }
             }
@@ -100,6 +121,7 @@ final class GraphicsCheck: ObservableObject {
                 self?.passed = completedStatus == 0
                 self?.needsRestart = completedStatus < 0
                 self?.report = completedMessage
+                self?.applet = nil
                 if guest {
                     UIApplication.shared.isIdleTimerDisabled = false
                     try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
@@ -109,6 +131,19 @@ final class GraphicsCheck: ObservableObject {
     }
 
     func cancel() { ryu_graphics_cancel() }
+    private func pollApplet() {
+        var bytes = [CChar](repeating: 0, count: 32768)
+        bytes.withUnsafeMutableBufferPointer { ryu_ui_poll($0.baseAddress, $0.count) }
+        let text = bytes.withUnsafeBufferPointer { String(cString: $0.baseAddress!) }
+        if let data = text.data(using: .utf8), let prompt = try? JSONDecoder().decode(GameApplet.self, from: data), prompt.id != applet?.id {
+            appletText = prompt.initial; applet = prompt
+        }
+    }
+    func answerApplet(_ accepted: Bool) {
+        guard let prompt = applet else { return }
+        appletText.withCString { ryu_ui_answer(prompt.id, accepted ? 1 : 0, $0) }
+        applet = nil
+    }
 }
 
 final class RendererSurface: UIView {

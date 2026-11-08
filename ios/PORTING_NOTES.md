@@ -83,3 +83,20 @@ Pro Controller. Physical face buttons map by Switch positions. Pausing uses
 Horizon.TogglePauseEmulation, including audio pause and guest tick suspension.
 Closing/backgrounding clears controls, cancels execution and retains the Metal
 surface until the native worker joins. Firmware/key import is still absent.
+
+## Commercial game launch integration
+
+v0.9 adds System files: import prod.keys/title.keys and install a firmware ZIP or
+an XCI with an update partition. The upstream verifier checks the firmware before
+the installed directory is touched. A pending journal and same-volume backup
+preserve the previous firmware across a failed or interrupted installation.
+Key validation completes in a staging directory and key material is excluded
+from shareable diagnostics. All data stays under the app's private emulator root.
+Library Play now dispatches NSP/XCI to their real loaders and NSO/NRO to LoadNxo.
+Missing system files return a setup error without invalidating the prepared JIT.
+The applet bridge queues native message/text prompts and cancels waiters during
+shutdown; the default emulated profile answers player-selection requests.
+Title updates, DLC, program transitions, multi-player setup, motion and broad
+commercial compatibility remain incomplete. No user game/firmware/key dump has
+been used in CI. The CI check uses synthetic import/recovery failures plus one
+integrated public-domain homebrew play session.

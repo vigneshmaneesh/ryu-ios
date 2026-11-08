@@ -251,6 +251,13 @@ public interface IPreparedJitMemoryBlock : IJitMemoryBlock
     generate_callback_pointers()
     add_startup_diagnostics()
     add_application_exit()
+    # Native keyboard UI avoids the desktop Skia overlay on Apple mobile hosts.
+    replace("src/Ryujinx.HLE/UI/IHostUIHandler.cs", "public interface IHostUIHandler\n    {",
+            "public interface IHostUIHandler\n    {\n        bool UsesNativeKeyboard => false;")
+    keyboard = "src/Ryujinx.HLE/HOS/Applets/SoftwareKeyboard/SoftwareKeyboardApplet.cs"
+    replace(keyboard, "_keyboardRenderer = new SoftwareKeyboardRenderer(_device.UIHandler.HostUITheme);",
+            "_keyboardRenderer = _device.UIHandler.UsesNativeKeyboard ? null : new SoftwareKeyboardRenderer(_device.UIHandler.HostUITheme);")
+    replace(keyboard, "_keyboardRenderer.Update", "_keyboardRenderer?.Update", 10)
     # FileMode.Open alone defaults to read/write. NRO code and assets are input
     # only, including the signed, read-only resource inside an iOS app bundle.
     replace("src/Ryujinx.HLE/Loaders/Processes/ProcessLoader.cs",

@@ -13,6 +13,39 @@ public static unsafe class CoreApi
     private static int _resolverReady;
     private static long _guestFrames;
     public const uint AbiVersion = 1;
+    [UnmanagedCallersOnly(EntryPoint = "ryu_core_ui_poll")]
+    public static void PollUi(byte* report, nuint capacity) { if (report != null && capacity >= 2 && capacity <= int.MaxValue) WriteReport(report, capacity, NativeHostUi.Poll()); }
+    [UnmanagedCallersOnly(EntryPoint = "ryu_core_ui_answer")]
+    public static void AnswerUi(int id, int accepted, byte* text) => NativeHostUi.Answer(id, accepted != 0, text == null ? "" : Marshal.PtrToStringUTF8((nint)text));
+    [UnmanagedCallersOnly(EntryPoint = "ryu_core_imports_check")]
+    public static int CheckImports(byte* directory, byte* report, nuint capacity)
+    {
+        if (directory == null || report == null || capacity < 2 || capacity > int.MaxValue) return -1;
+        if (Interlocked.CompareExchange(ref _busy, 1, 0) != 0) return -2;
+        try { ConfigureDarwinLibraries(); WriteReport(report, capacity, ImportChecks.Run(Marshal.PtrToStringUTF8((nint)directory))); return 0; }
+        catch (Exception e) { WriteReport(report, capacity, $"FAIL import checks: {e.Message}"); return -3; }
+        finally { Volatile.Write(ref _busy, 0); }
+    }
+    [UnmanagedCallersOnly(EntryPoint = "ryu_core_content")]
+    public static int ManageContent(int action, byte* source, byte* directory, byte* report, nuint capacity)
+    {
+        if (directory == null || report == null || capacity < 2 || capacity > int.MaxValue || (action != 0 && source == null)) return -1;
+        report[0] = 0;
+        if (Interlocked.CompareExchange(ref _busy, 1, 0) != 0) return -2;
+        try
+        {
+            ConfigureDarwinLibraries();
+            string root = Marshal.PtrToStringUTF8((nint)directory), path = source == null ? null : Marshal.PtrToStringUTF8((nint)source);
+            string result = action switch { 0 => ContentImports.Status(root), 1 => ContentImports.ImportKeys(path, root), 2 => ContentImports.InstallFirmware(path, root), _ => throw new ArgumentException("Unknown system-file operation.") };
+            WriteReport(report, capacity, result); return 0;
+        }
+        catch (Exception error)
+        {
+            // Key data never belongs in shareable diagnostics.
+            WriteReport(report, capacity, action == 1 ? "Could not import keys. Check the original filename and key-file format." : $"System files: {error.GetType().Name}: {error.Message}"); return -3;
+        }
+        finally { Volatile.Write(ref _busy, 0); }
+    }
 
     [UnmanagedCallersOnly(EntryPoint = "ryu_core_input_set")]
     public static void SetInput(ulong buttons, int lx, int ly, int rx, int ry) => PlayerInput.Set(buttons, lx, ly, rx, ry);
@@ -65,10 +98,16 @@ public static unsafe class CoreApi
             HorizonJournal.Finish(true);
             return 0;
         }
+        catch (ContentImports.SetupException error)
+        {
+            HorizonJournal.Finish(false, error);
+            WriteReport(report, reportCapacity, "Setup required: " + error.Message);
+            return 2;
+        }
         catch (Exception error)
         {
             HorizonJournal.Finish(false, error);
-            WriteReport(report, reportCapacity, $"FAIL homebrew {error.GetType().Name}: {error.Message}");
+            WriteReport(report, reportCapacity, $"FAIL game {error.GetType().Name}: {error.Message}");
             return -3;
         }
         finally

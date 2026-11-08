@@ -161,3 +161,25 @@ presented **178 frames**, handled applet exit and completed teardown. No extra
 emulation run or full regression suite was added. iOS device ARM64/platform,
 iPhone/iPad metadata, contents and signing checks passed. The IPA includes the
 homebrew runtime notices. Physical-device graphics remain awaiting one retry.
+
+## v0.8 Apple NativeAOT play integration
+
+Source `adc97916edb6d1172baf5b034db5654ab91a8876`, successful run
+[42429816352](https://github.com/vigneshmaneesh/ryu-ios/actions/runs/42429816352),
+version 0.8.0 build 33, [artifact 13597431274](https://github.com/vigneshmaneesh/ryu-ios/actions/runs/42429816352/artifacts/13597431274).
+One read-only NRO session rendered **211 frames**, received emulated controller
+and touchscreen input, collected a target, consumed **9,600 nonzero PCM frames**
+through Apple AudioQueue, paused/resumed and exited cleanly. The native iOS IPA
+passed architecture/platform/content/entitlement packaging checks. This is CI
+integration evidence; physical v0.8 controls, audio and play remain unconfirmed.
+
+## v0.9 development
+
+Connect NSP/XCI base-game and NRO/NSO launch to the same CPU/GPU/audio/input
+session. Add private prod.keys/title.keys import, upstream firmware verification
+and installation, transaction rollback/recovery, system status and a setup
+preflight that preserves JIT readiness when files are missing. Native applet
+requests are bridged into the play screen for messages and text entry; profile
+selection uses the existing emulated account. Inline text entry bypasses the
+desktop Skia overlay through a checked upstream seam. Commercial title boot and
+actual encrypted firmware/key installation are awaiting user files on devices.

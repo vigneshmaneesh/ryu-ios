@@ -115,6 +115,21 @@ typedef struct {
 void ryu_graphics_cancel(void) { atomic_store(&graphics_cancelled, true); }
 void ryu_graphics_prepare(void) { atomic_store(&graphics_cancelled, false); }
 static int is_graphics_cancelled(void) { return atomic_load(&graphics_cancelled) ? 1 : 0; }
+typedef struct { int action, status; const char *source, *directory; char *report; size_t capacity; } ContentWork;
+static void *run_content(void *context) {
+    ContentWork *work = context;
+    work->status = ryu_core_content(work->action, (const uint8_t *)work->source, (const uint8_t *)work->directory, (uint8_t *)work->report, work->capacity);
+    return NULL;
+}
+int ryu_content(int action, const char *source, const char *directory, char *report, size_t capacity) {
+    if (!directory || !report || capacity < 2) return -1;
+    if (atomic_flag_test_and_set(&running)) { snprintf(report, capacity, "Another emulator operation is running."); return -2; }
+    ContentWork work = { action, -1, source, directory, report, capacity };
+    int status = ryu_core_on_thread(run_content, &work, RYU_CORE_STACK_SIZE);
+    if (status == 0) status = work.status;
+    else snprintf(report, capacity, "Could not start system-file worker: %s.", strerror(status));
+    atomic_flag_clear(&running); return status;
+}
 static void *run_graphics(void *context) {
     GraphicsWork *work = context;
     if (work->program != NULL) {
@@ -158,6 +173,8 @@ void ryu_touch_set(int down, int x, int y) { ryu_core_touch_set(down, x, y); }
 void ryu_input_reset(void) { ryu_core_input_reset(); }
 void ryu_pause(int paused) { ryu_core_pause(paused); }
 uint64_t ryu_audio_frames(void) { return ryu_audio_counter(NULL, 2); }
+void ryu_ui_poll(char *r, size_t n) { ryu_core_ui_poll((uint8_t *)r, n); }
+void ryu_ui_answer(int id, int ok, const char *s) { ryu_core_ui_answer(id, ok, (const uint8_t *)s); }
 
 int ryu_homebrew_run(const char *library, void *metal_layer, int width, int height,
     const char *program, const char *directory, char *report, size_t report_capacity) {

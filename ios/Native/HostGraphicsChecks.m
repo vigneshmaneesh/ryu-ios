@@ -77,6 +77,9 @@ static void *check_renderer(void *unused) {
             ryu_core_input_reset();
             testStatus = ryu_core_audio_configure(ryu_audio_open, ryu_audio_enqueue, ryu_audio_control, ryu_audio_counter, ryu_audio_close);
             if (testStatus != 0) break;
+            testStatus = ryu_core_imports_check((const uint8_t *)dataPath.UTF8String, (uint8_t *)report, sizeof(report));
+            printf("%s\n", report);
+            if (testStatus != 0) break;
             testStatus = ryu_core_homebrew_run(guestCode, guestCode, 256UL * 1024 * 1024,
                 begin_write, publish_code, (const uint8_t *)libraryPath.UTF8String,
                 (__bridge void *)testLayer, 640, 360, ryu_create_metal_surface, never_cancel,

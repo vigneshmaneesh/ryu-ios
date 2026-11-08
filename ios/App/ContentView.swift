@@ -8,12 +8,13 @@ struct ContentView: View {
     @StateObject private var library = GameLibrary()
     @StateObject private var graphics = GraphicsCheck()
     @StateObject private var guest = GraphicsCheck(isGuest: true)
+    @StateObject private var system = SystemFiles()
     @State private var showingImporter = false
     @State private var showingGraphics = false
     @State private var showingGuest = false
 
     private var blocked: Bool {
-        model.isRunning || backend.isRunning || horizon.isRunning || guest.isRunning || graphics.isRunning || library.isImporting ||
+        model.isRunning || backend.isRunning || horizon.isRunning || guest.isRunning || graphics.isRunning || library.isImporting || system.isBusy ||
         model.needsRestart || horizon.needsRestart || guest.needsRestart || graphics.needsRestart
     }
     var body: some View {
@@ -47,7 +48,7 @@ struct ContentView: View {
                             Label("A playable Switch homebrew game", systemImage: "gamecontroller.fill").font(.headline)
                             Text("Move your ship and collect targets. Use the touch stick, tap the game screen, or connect a controller. A boosts and beeps; B resets. Green pips show your score.")
                                 .foregroundStyle(.secondary)
-                            Button("Play Ryu Catch") { guest.programURL = nil; showingGuest = true }
+                            Button("Play Ryu Catch") { guest.programURL = nil; guest.displayTitle = "Ryu Catch"; showingGuest = true }
                                 .buttonStyle(.borderedProminent).disabled(!model.passed || blocked)
                             if !model.passed { Text("Enable JIT to play.").font(.caption).foregroundStyle(.secondary) }
                         }.frame(maxWidth: .infinity, alignment: .leading)
@@ -65,7 +66,7 @@ struct ContentView: View {
                                     }
                                     Spacer()
                                     if let executable = library.executableURL(for: title) {
-                                        Button("Play") { guest.programURL = executable; showingGuest = true }
+                                        Button("Play") { guest.programURL = executable; guest.displayTitle = title.name; showingGuest = true }
                                             .disabled(!model.passed || blocked)
                                     } else { Text("Import only").font(.caption).foregroundStyle(.secondary) }
                                 }
@@ -73,10 +74,11 @@ struct ContentView: View {
                             if !library.message.isEmpty { Text(library.message).font(.callout).textSelection(.enabled) }
                             if library.isImporting { ProgressView() }
                             Button("Import game or homebrew") { showingImporter = true }.buttonStyle(.bordered).disabled(blocked)
-                            Text("NRO homebrew can launch. Game containers can be imported; firmware, keys and commercial game launch are still being developed.")
+                            Text("Launch base games in NSP/XCI format, or NRO/NSO homebrew. Commercial games need your keys and firmware below. Title compatibility is being developed; updates and DLC are not connected yet.")
                                 .font(.caption).foregroundStyle(.secondary)
                         }.frame(maxWidth: .infinity, alignment: .leading)
                     }
+                    SystemFilesPanel(system: system, blocked: blocked)
                     DisclosureGroup("Diagnostics and backend checks") {
                         VStack(alignment: .leading, spacing: 16) {
                             Text("First commercial compatibility target: Tomodachi Life: Living the Dream").font(.callout)

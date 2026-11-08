@@ -7,6 +7,10 @@
 // Return 0 on success; failures write a bounded, NUL-terminated report.
 // The caller keeps both aliases and callbacks alive throughout the call.
 uint32_t ryu_core_abi_version(void);
+void ryu_core_ui_poll(uint8_t *report, uintptr_t capacity);
+void ryu_core_ui_answer(int id, int accepted, const uint8_t *text);
+int32_t ryu_core_content(int action, const uint8_t *source, const uint8_t *directory, uint8_t *report, uintptr_t capacity);
+int32_t ryu_core_imports_check(const uint8_t *directory, uint8_t *report, uintptr_t capacity);
 uint64_t ryu_core_guest_frames(void);
 void ryu_core_input_set(uint64_t buttons, int lx, int ly, int rx, int ry);
 void ryu_core_touch_set(int down, int x, int y);

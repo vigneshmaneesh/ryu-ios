@@ -19,10 +19,12 @@ internal static unsafe class HomebrewSession
         delegate* unmanaged<nint, nint, ulong*, int> createSurface, delegate* unmanaged<int> cancelled,
         string program, string directory, Action<ulong> updateFrames)
     {
-        if (!File.Exists(program) || !program.EndsWith(".nro", StringComparison.OrdinalIgnoreCase))
-            throw new ArgumentException("Select an existing NRO homebrew executable.");
+        string extension = Path.GetExtension(program).ToLowerInvariant();
+        if (!File.Exists(program) || extension is not (".nro" or ".nso" or ".nsp" or ".xci"))
+            throw new ArgumentException("Select an NRO, NSO, NSP or XCI file.");
         HorizonJournal.Write("Mounting filesystem and account services");
         ServiceBootstrap.Initialize(directory);
+        if (extension is ".nsp" or ".xci") ContentImports.RequireGameSystem();
         GraphicsBindings.Configure(library);
         using Vk api = GraphicsBindings.CreateApi();
         VulkanRenderer renderer = null;
@@ -41,6 +43,7 @@ internal static unsafe class HomebrewSession
         void RequestExit(ulong pid) => Volatile.Write(ref requestedExit, unchecked((long)pid));
         Logger.Updated += HorizonJournal.Observe;
         StartupDiagnostics.Checkpoint = HorizonJournal.Write;
+        NativeHostUi.Begin(cancelled);
         try
         {
             renderer = new VulkanRenderer(api, (instance, _) =>
@@ -61,8 +64,9 @@ internal static unsafe class HomebrewSession
             renderer.Window.SetSize(width, height);
             renderer.Window.ChangeVSyncMode(device.VSyncMode);
             device.Gpu.SetGpuThread();
-            HorizonJournal.Write("Loading guest NRO: " + Path.GetFileName(program));
-            if (!device.LoadProgram(program)) throw new InvalidOperationException("The NRO loader rejected this homebrew.");
+            HorizonJournal.Write("Loading guest " + extension + ": " + Path.GetFileName(program));
+            bool loaded = extension switch { ".nsp" => device.LoadNsp(program), ".xci" => device.LoadXci(program), _ => device.LoadProgram(program) };
+            if (!loaded) throw new InvalidOperationException("The loader could not start this title. Check the base game, keys and firmware; share diagnostics for the missing service or load error.");
             ulong applicationPid = device.Processes.ActiveApplication?.ProcessId ?? 0;
             device.Gpu.InitializeShaderCache(CancellationToken.None);
             gpuReady = true;
@@ -107,6 +111,7 @@ internal static unsafe class HomebrewSession
         {
             if (device != null)
             {
+                NativeHostUi.End();
                 device.ApplicationExitRequested -= RequestExit;
                 if (!gpuReady)
                 {
@@ -124,6 +129,7 @@ internal static unsafe class HomebrewSession
             Logger.Updated -= HorizonJournal.Observe;
             Logger.Updated -= ObserveInput;
             PlayerInput.Reset();
+            NativeHostUi.End();
         }
     }
 }

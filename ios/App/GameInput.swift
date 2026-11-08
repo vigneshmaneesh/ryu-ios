@@ -12,9 +12,10 @@ final class GameInput: ObservableObject {
     func start() {
         stop()
         GCController.startWirelessControllerDiscovery(completionHandler: nil)
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60, repeats: true) { [weak self] _ in
+        timer = Timer(timeInterval: 1.0 / 60, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.publish() }
         }
+        if let timer { RunLoop.main.add(timer, forMode: .common) }
     }
     func stop() {
         timer?.invalidate(); timer = nil
@@ -26,6 +27,7 @@ final class GameInput: ObservableObject {
         publish()
     }
     func leftStick(_ x: Float, _ y: Float) { stick = SIMD2(x, y); publish() }
+    func releaseVirtual() { buttons = 0; stick = .zero; ryu_touch_set(0, 0, 0); publish() }
     private func publish() {
         var mask = buttons
         var left = stick, right = SIMD2<Float>(0, 0)

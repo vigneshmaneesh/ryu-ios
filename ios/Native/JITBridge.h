@@ -17,6 +17,9 @@ void ryu_touch_set(int down, int x, int y);
 void ryu_input_reset(void);
 void ryu_pause(int paused);
 uint64_t ryu_audio_frames(void);
+int ryu_content(int action, const char *source, const char *directory, char *report, size_t capacity);
+void ryu_ui_poll(char *report, size_t capacity);
+void ryu_ui_answer(int id, int accepted, const char *text);
 
 enum RyuJITStage {
     RYU_JIT_IDLE, RYU_JIT_WAITING, RYU_JIT_PREPARING, RYU_JIT_EMITTING,

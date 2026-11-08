@@ -21,7 +21,7 @@ final class GameLibrary: ObservableObject {
     }
 
     func executableURL(for title: ImportedTitle) -> URL? {
-        guard title.storedFilename.lowercased().hasSuffix(".nro"),
+        guard ["nro", "nso", "nsp", "xci"].contains(URL(fileURLWithPath: title.storedFilename).pathExtension.lowercased()),
               URL(fileURLWithPath: title.storedFilename).lastPathComponent == title.storedFilename else { return nil }
         return try? Self.directory().appendingPathComponent(title.storedFilename)
     }
