@@ -152,7 +152,7 @@ internal sealed class NativeSettings
         Bool("MatchSystemTime") ? 0 : (long)Number("SystemTimeOffset"), Text("SystemTimeZone"), MemoryManagerMode.SoftwarePageTable,
         Bool("IgnoreMissingServices"), Choice<AspectRatio>("AspectRatio"), (float)Number("AudioVolume"), false,
         Text("MultiplayerLanInterfaceId"), Choice<MultiplayerMode>("MultiplayerMode"), Bool("MultiplayerDisableP2p"),
-        Text("MultiplayerLdnPassphrase"), Text("LdnServer"), Bool("EnableGdbStub"), (ushort)Int("GdbStubPort"), Bool("DebuggerSuspendOnStart"), Int("CustomVSyncInterval"));
+        Text("MultiplayerLdnPassphrase"), string.IsNullOrEmpty(Text("LdnServer")) ? Ryujinx.Common.SharedConstants.DefaultLanPlayHost : Text("LdnServer"), Bool("EnableGdbStub"), (ushort)Int("GdbStubPort"), Bool("DebuggerSuspendOnStart"), Int("CustomVSyncInterval"));
     internal IDisposable StartLog(string root) => new SessionLog(root, Bool("EnableFileLog"));
     private sealed class SessionLog : IDisposable
     {

@@ -298,6 +298,49 @@
     "integer": false
   },
   {
+    "key": "FocusLostActionType",
+    "title": "Focus Lost Action Type",
+    "section": "Interface",
+    "description": "How the emulator should behave when you click off/on the window.",
+    "default": "PauseEmulation",
+    "kind": "enum",
+    "integer": false,
+    "choices": [
+      "DoNothing",
+      "BlockInput",
+      "MuteAudio",
+      "BlockInputAndMuteAudio",
+      "PauseEmulation"
+    ]
+  },
+  {
+    "key": "ShowConfirmExit",
+    "title": "Show Confirm Exit",
+    "section": "Interface",
+    "description": "Show \"Confirm Exit\" Dialog",
+    "default": true,
+    "kind": "bool",
+    "integer": false
+  },
+  {
+    "key": "IgnoreApplet",
+    "title": "Ignore Applet",
+    "section": "System",
+    "description": "Ignore Controller Applet dialog",
+    "default": false,
+    "kind": "bool",
+    "integer": false
+  },
+  {
+    "key": "SkipUserProfiles",
+    "title": "Skip User Profiles",
+    "section": "System",
+    "description": "Skip user profiles manager dialog during gameplay(the used profile in the configuration will be selected)",
+    "default": false,
+    "kind": "bool",
+    "integer": false
+  },
+  {
     "key": "VSyncMode",
     "title": "VSync Mode",
     "section": "Graphics",
@@ -464,6 +507,24 @@
     "integer": false
   },
   {
+    "key": "StartFullscreen",
+    "title": "Start Fullscreen",
+    "section": "Interface",
+    "description": "Start games in fullscreen mode",
+    "default": false,
+    "kind": "bool",
+    "integer": false
+  },
+  {
+    "key": "StartNoUI",
+    "title": "Start No UI",
+    "section": "Interface",
+    "description": "Start games with UI hidden",
+    "default": false,
+    "kind": "bool",
+    "integer": false
+  },
+  {
     "key": "EnableKeyboard",
     "title": "Enable Keyboard",
     "section": "Input",
@@ -566,6 +627,15 @@
     "section": "Debug",
     "description": "Suspend execution when starting an application",
     "default": false,
+    "kind": "bool",
+    "integer": false
+  },
+  {
+    "key": "PauseEmulationWhileScanningAmiibo",
+    "title": "Pause Emulation While Scanning Amiibo",
+    "section": "Interface",
+    "description": "Pause emulation while scanning Amiibo",
+    "default": true,
     "kind": "bool",
     "integer": false
   }

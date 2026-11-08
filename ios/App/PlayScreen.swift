@@ -8,6 +8,23 @@ struct PlayScreen: View {
     @State private var launched = false
     @State private var closeRequested = false
     @State private var paused = false
+    @State private var showingMenu = false
+    @State private var confirmStop = false
+    @State private var showHUD = true
+    @State private var fullscreen = false
+    @State private var focusPaused = false
+    @State private var focusVolume: Double?
+    private var configuration: [String: Any] { SessionControl.configuration(model.programURL) }
+    private var aspect: CGFloat? {
+        switch configuration["AspectRatio"] as? String ?? "Fixed16x9" {
+        case "Fixed4x3": return 4 / 3
+        case "Fixed16x10": return 16 / 10
+        case "Fixed21x9": return 21 / 9
+        case "Fixed32x9": return 32 / 9
+        case "Stretched": return nil
+        default: return 16 / 9
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -16,14 +33,14 @@ struct PlayScreen: View {
                 MetalSurfaceView(guestTouch: true) { layer in
                     if !launched { launched = true; input.start(program: model.programURL); model.run(layer: layer) }
                 }
-                .aspectRatio(16 / 9, contentMode: .fit)
+                .aspectRatio(aspect, contentMode: .fit)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 VStack {
-                    HStack {
+                    if showHUD { HStack {
                         Text(input.controllerName).font(.caption)
                         Spacer()
                         Text("\(model.fps) FPS").font(.caption.monospacedDigit())
-                    }.padding(10).background(.black.opacity(0.45))
+                    }.padding(10).background(.black.opacity(0.45)) }
                     Spacer()
                     if model.isRunning && input.showTouch {
                         HStack(alignment: .bottom) {
@@ -64,15 +81,20 @@ struct PlayScreen: View {
             .navigationTitle(model.displayTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.black, for: .navigationBar)
+            .toolbar(fullscreen ? .hidden : .visible, for: .navigationBar)
+            .overlay(alignment: .topLeading) { if fullscreen { Button { showingMenu = true } label: { Image(systemName: "ellipsis.circle.fill").font(.title).padding(12).background(.black.opacity(0.4), in: Circle()) }.padding() } }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button(paused ? "Resume" : "Pause", systemImage: paused ? "play.fill" : "pause.fill") {
-                        input.releaseVirtual(); paused.toggle(); input.setPaused(paused); ryu_pause(paused ? 1 : 0)
+                        togglePause()
                     }.disabled(!model.isRunning)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
+                    Button("Menu", systemImage: "ellipsis.circle") { showingMenu = true }.disabled(!model.isRunning)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     Button(model.isRunning ? "Stop" : "Close") {
-                        if model.isRunning { closeRequested = true; input.stop(); model.cancel() } else { dismiss() }
+                        if model.isRunning { requestStop() } else { dismiss() }
                     }
                 }
             }
@@ -80,14 +102,37 @@ struct PlayScreen: View {
                 if !running { input.stop(); paused = false; if closeRequested { dismiss() } }
             }
             .onChange(of: scenePhase) { _, phase in
-                if phase != .active && model.isRunning { input.releaseVirtual(); paused = true; input.setPaused(true); ryu_pause(1) }
+                guard model.isRunning else { return }
+                if phase == .active {
+                    input.blockInput(false)
+                    if let volume = focusVolume { SessionControl.send(1, volume); focusVolume = nil }
+                    if focusPaused { focusPaused = false; if paused { togglePause() } }
+                } else {
+                    let action = configuration["FocusLostActionType"] as? String ?? "PauseEmulation"
+                    if action == "BlockInput" || action == "BlockInputAndMuteAudio" { input.blockInput(true) }
+                    if action == "MuteAudio" || action == "BlockInputAndMuteAudio", focusVolume == nil { focusVolume = Double(model.session.volume); SessionControl.send(1, 0) }
+                    if phase == .background || action == "PauseEmulation", !paused { focusPaused = true; togglePause() }
+                }
             }
             .onDisappear { input.stop(); model.cancel() }
             .interactiveDismissDisabled(model.isRunning)
-            .alert(model.applet?.title ?? "Game", isPresented: Binding(get: { model.applet != nil }, set: { if !$0 { model.answerApplet(false) } })) {
+            .onAppear { showHUD = !(configuration["StartNoUI"] as? Bool ?? false); fullscreen = configuration["StartFullscreen"] as? Bool ?? false }
+            .sheet(isPresented: $showingMenu) {
+                NavigationStack { PlayMenu(model: model, paused: paused, pause: togglePause, stop: { showingMenu = false; requestStop() })
+                    .toolbar { ToolbarItem(placement: .topBarLeading) { Button(showHUD ? "Hide HUD" : "Show HUD") { showHUD.toggle() } }; ToolbarItem(placement: .topBarTrailing) { Button("Done") { showingMenu = false } } }
+                }
+            }
+            .confirmationDialog("Stop this game? Unsaved progress may be lost.", isPresented: $confirmStop, titleVisibility: .visible) { Button("Stop game", role: .destructive, action: stopGame) }
+            .alert(model.applet?.title ?? "Game", isPresented: promptBinding(choices: false)) {
                 if model.applet?.kind == 1 { TextField("Text", text: $model.appletText) }
                 Button("OK") { model.answerApplet(true) }
                     .disabled(model.applet?.kind == 1 && model.appletText.utf16.count < (model.applet?.minimum ?? 0))
+                Button("Cancel", role: .cancel) { model.answerApplet(false) }
+            } message: { Text(model.applet?.message ?? "") }
+            .confirmationDialog(model.applet?.title ?? "Game", isPresented: promptBinding(choices: true), titleVisibility: .visible) {
+                ForEach(model.applet?.choices ?? []) { choice in
+                    Button(choice.name) { if model.applet?.kind == 3 { input.configurePlayers(choice.id) }; model.answerChoice(choice.id) }
+                }
                 Button("Cancel", role: .cancel) { model.answerApplet(false) }
             } message: { Text(model.applet?.message ?? "") }
             .onChange(of: model.appletText) { _, value in
@@ -97,4 +142,12 @@ struct PlayScreen: View {
         }
         .preferredColorScheme(.dark)
     }
+    private func promptBinding(choices: Bool) -> Binding<Bool> {
+        Binding(get: { guard let prompt = model.applet else { return false }; return choices ? prompt.kind >= 2 : prompt.kind < 2 }, set: { visible in
+            if !visible, let id = model.applet?.id { DispatchQueue.main.async { if model.applet?.id == id { model.answerApplet(false) } } }
+        })
+    }
+    private func togglePause() { input.releaseVirtual(); paused.toggle(); input.setPaused(paused); ryu_pause(paused ? 1 : 0) }
+    private func requestStop() { if configuration["ShowConfirmExit"] as? Bool ?? true { confirmStop = true } else { stopGame() } }
+    private func stopGame() { closeRequested = true; input.stop(); model.cancel() }
 }

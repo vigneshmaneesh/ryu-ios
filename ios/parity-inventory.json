@@ -250,28 +250,28 @@
       "type": "FocusLostType",
       "description": "How the emulator should behave when you click off/on the window.",
       "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
-      "status": "pending"
+      "status": "runtime-wired"
     },
     {
       "key": "ShowConfirmExit",
       "type": "bool",
       "description": "Show \"Confirm Exit\" Dialog",
       "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
-      "status": "pending"
+      "status": "runtime-wired"
     },
     {
       "key": "IgnoreApplet",
       "type": "bool",
       "description": "Ignore Controller Applet dialog",
       "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
-      "status": "pending"
+      "status": "runtime-wired"
     },
     {
       "key": "SkipUserProfiles",
       "type": "bool",
       "description": "Skip user profiles manager dialog during gameplay(the used profile in the configuration will be selected)",
       "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
-      "status": "pending"
+      "status": "runtime-wired"
     },
     {
       "key": "RememberWindowState",
@@ -536,14 +536,14 @@
       "type": "bool",
       "description": "Start games in fullscreen mode",
       "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
-      "status": "pending"
+      "status": "runtime-wired"
     },
     {
       "key": "StartNoUI",
       "type": "bool",
       "description": "Start games with UI hidden",
       "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
-      "status": "pending"
+      "status": "runtime-wired"
     },
     {
       "key": "ShowConsole",
@@ -714,7 +714,7 @@
       "type": "bool",
       "description": "Pause emulation while scanning Amiibo",
       "source": "src/Ryujinx/Systems/Configuration/ConfigurationFileFormat.cs",
-      "status": "pending"
+      "status": "runtime-wired"
     }
   ],
   "commands": [

@@ -39,7 +39,7 @@ final class SystemFiles: ObservableObject {
                     let access = selection.startAccessingSecurityScopedResource()
                     defer { if access { selection.stopAccessingSecurityScopedResource() } }
                     let name = selection.lastPathComponent
-                    if action == 1 && !["prod.keys", "title.keys"].contains(name) { throw CocoaError(.fileReadCorruptFile, userInfo: [NSLocalizedDescriptionKey: "Select prod.keys or title.keys with its original filename."]) }
+                    if action == 1 && !["prod.keys", "title.keys", "key_retail.bin"].contains(name) { throw CocoaError(.fileReadCorruptFile, userInfo: [NSLocalizedDescriptionKey: "Select prod.keys, title.keys or key_retail.bin with its original filename."]) }
                     let ext = selection.pathExtension.lowercased()
                     if action == 2 && !["zip", "xci"].contains(ext) { throw CocoaError(.fileReadCorruptFile, userInfo: [NSLocalizedDescriptionKey: "Select a firmware ZIP or an XCI containing firmware."]) }
                     let temporary = root.appendingPathComponent("import-" + UUID().uuidString, isDirectory: true)

@@ -7,6 +7,7 @@ import UIKit
 import AVFAudio
 
 struct GameApplet: Decodable {
+    struct Choice: Decodable, Identifiable { let id: String; let name: String }
     let id: Int32
     let kind: Int
     let title: String
@@ -14,6 +15,15 @@ struct GameApplet: Decodable {
     let initial: String
     let maximum: Int
     let minimum: Int
+    let choices: [Choice]
+}
+
+struct SessionStatus: Decodable {
+    var active = false
+    var screenshot = "", error = "", titleId = ""
+    var amiiboSearching = false
+    var volume: Float = 1
+    var vsync = 0
 }
 
 @MainActor
@@ -27,6 +37,7 @@ final class GraphicsCheck: ObservableObject {
     @Published var fps = 0
     @Published var applet: GameApplet?
     @Published var appletText = ""
+    @Published var session = SessionStatus()
     let isGuest: Bool
     var programURL: URL?
     var displayTitle = "Ryu Catch"
@@ -75,6 +86,7 @@ final class GraphicsCheck: ObservableObject {
                     previousFrames = count; previousTime = now
                     self?.audioFrames = ryu_audio_frames() &- audioStart
                     self?.pollApplet()
+                    self?.pollSession()
                     try? await Task.sleep(for: .milliseconds(250))
                 }
             }
@@ -143,6 +155,13 @@ final class GraphicsCheck: ObservableObject {
         guard let prompt = applet else { return }
         appletText.withCString { ryu_ui_answer(prompt.id, accepted ? 1 : 0, $0) }
         applet = nil
+    }
+    func answerChoice(_ id: String) { appletText = id; answerApplet(true) }
+    func pollSession() {
+        var report = [CChar](repeating: 0, count: 8192)
+        report.withUnsafeMutableBufferPointer { ryu_session_poll($0.baseAddress, $0.count) }
+        let text = report.withUnsafeBufferPointer { String(cString: $0.baseAddress!) }
+        if let result = try? JSONDecoder().decode(SessionStatus.self, from: Data(text.utf8)) { session = result }
     }
 }
 

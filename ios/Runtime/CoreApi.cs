@@ -13,6 +13,10 @@ public static unsafe class CoreApi
     private static int _resolverReady;
     private static long _guestFrames;
     public const uint AbiVersion = 1;
+    [UnmanagedCallersOnly(EntryPoint = "ryu_core_session_command")]
+    public static int SessionCommand(int command, double value, byte* text) => SessionCommands.Enqueue(command, value, text == null ? "" : Marshal.PtrToStringUTF8((nint)text));
+    [UnmanagedCallersOnly(EntryPoint = "ryu_core_session_poll")]
+    public static void PollSession(byte* report, nuint capacity) { if (report != null && capacity >= 2 && capacity <= int.MaxValue) WriteReport(report, capacity, SessionCommands.Poll()); }
     [UnmanagedCallersOnly(EntryPoint = "ryu_core_app")]
     public static int ManageApp(byte* directory, byte* request, byte* report, nuint capacity)
     {

@@ -190,5 +190,11 @@ internal static class TitleContent
 
 internal static class SettingsLanguage
 {
-    internal static int IntLanguage(this NativeSettings settings) => (int)settings.Choice<Ryujinx.HLE.HOS.SystemState.SystemLanguage>("SystemLanguage");
+    internal static int IntLanguage(this NativeSettings settings)
+    {
+        string name = settings.Text("SystemLanguage");
+        if (name == "Chinese") name = "SimplifiedChinese";
+        if (name == "Taiwanese") name = "TraditionalChinese";
+        return Enum.TryParse<TitleLanguage>(name, out var language) ? (int)language : 0;
+    }
 }

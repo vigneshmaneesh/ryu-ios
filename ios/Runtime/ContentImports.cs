@@ -49,6 +49,16 @@ internal static class ContentImports
     {
         ServiceBootstrap.Initialize(root);
         string name = Path.GetFileName(source);
+        if (name == "key_retail.bin")
+        {
+            if (new FileInfo(source).Length != 160) throw new InvalidDataException("key_retail.bin must contain 160 bytes.");
+            byte[] bytes = File.ReadAllBytes(source);
+            if (bytes.Length != 160) throw new InvalidDataException("key_retail.bin must contain 160 bytes.");
+            _ = Ryujinx.HLE.HOS.Services.Nfc.AmiiboDecryption.AmiiboMasterKey.FromCombinedBin(bytes);
+            string destination = Path.Combine(AppDataManager.KeysDirPath, name), temporary = destination + ".tmp";
+            File.WriteAllBytes(temporary, bytes); File.Move(temporary, destination, true);
+            return "Imported amiibo key file.\n" + Status(root);
+        }
         if (name is not ("prod.keys" or "title.keys")) throw new ArgumentException("Select prod.keys or title.keys with its original filename.");
         if (new FileInfo(source).Length > 4 * 1024 * 1024) throw new ArgumentException("The key file is unexpectedly large.");
         string staging = Path.Combine(root, "key-import-" + Guid.NewGuid().ToString("N"));

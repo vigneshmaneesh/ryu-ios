@@ -23,6 +23,8 @@ import simd
     private var mousePoint = SIMD2<Float>(640, 360)
     private var wheel = SIMD2<Float>.zero
     private var suspended = false
+    private var blocked = false
+    func blockInput(_ blocked: Bool) { self.blocked = blocked; if blocked { for output in haptics.values { output.stop() }; haptics.removeAll() }; publish() }
 
     func start(program: URL? = nil) {
         stop()
@@ -36,6 +38,7 @@ import simd
         }
         lastTime = ProcessInfo.processInfo.systemUptime
         suspended = false
+        blocked = false
         timer = Timer(timeInterval: 1 / configuration.pollRate, repeats: true) { [weak self] _ in Task { @MainActor in self?.publish() } }
         if let timer { RunLoop.main.add(timer, forMode: .common) }
         publish()
@@ -52,6 +55,19 @@ import simd
     func button(_ bit: Int, down: Bool) { if down { buttons |= UInt64(1) << bit } else { buttons &= ~(UInt64(1) << bit) }; publish() }
     func leftStick(_ x: Float, _ y: Float) { stick = SIMD2(x, y); publish() }
     func setRightStick(_ x: Float, _ y: Float) { rightStick = SIMD2(x, y); publish() }
+    func configurePlayers(_ arrangement: String) {
+        let parts = arrangement.split(separator: ":")
+        guard parts.count == 2, let type = Int32(parts[0]), let count = Int(parts[1]), (1...8).contains(count) else { return }
+        for player in 0..<8 {
+            if player < count {
+                let profileIndex: Int
+                if let id = configuration.assignments[player], let found = configuration.profiles.firstIndex(where: { $0.id == id }) { profileIndex = found }
+                else { var profile = ControllerProfile(); profile.name = "Player \(player + 1)"; profile.device = player; configuration.profiles.append(profile); profileIndex = configuration.profiles.count - 1 }
+                configuration.profiles[profileIndex].type = type; configuration.assignments[player] = configuration.profiles[profileIndex].id
+            } else { configuration.assignments[player] = nil }
+        }
+        publish()
+    }
     func setPaused(_ paused: Bool) {
         suspended = paused
         if paused { for output in haptics.values { output.stop() }; haptics.removeAll() }
@@ -82,6 +98,7 @@ import simd
             if down.contains(227) || down.contains(231) { modifiers |= 16 }
         }
         ryu_keyboard_set(keys[0], keys[1], keys[2], keys[3], modifiers)
+        if blocked { down.removeAll(); ryu_keyboard_set(0, 0, 0, 0, 0) }
         for player in 0..<8 {
             guard let id = configuration.assignments[player], let profile = configuration.profiles.first(where: { $0.id == id }) else {
                 ryu_input_player(Int32(player), 0, 1, 0, 0, 0, 0, 0); continue
@@ -114,11 +131,12 @@ import simd
                 return value * scale * SIMD2(invertX ? -1 : 1, invertY ? -1 : 1)
             }
             left = axis(left, invertX: profile.invertLeftX, invertY: profile.invertLeftY); right = axis(right, invertX: profile.invertRightX, invertY: profile.invertRightY)
+            if blocked { mask = 0; left = .zero; right = .zero }
             func raw(_ value: Float) -> Int32 { Int32(max(-1, min(1, value)) * 32767) }
             ryu_input_player(Int32(player), 1, profile.type, mask, raw(left.x), raw(left.y), raw(right.x), raw(right.y))
             publishMotion(player, profile, controller, delta)
             var rumble = [Float](repeating: 0, count: 8); rumble.withUnsafeMutableBufferPointer { ryu_rumble_read(Int32(player), $0.baseAddress) }
-            if profile.rumble {
+            if profile.rumble && !blocked {
                 let intensity = min(1, ([rumble[0], rumble[2], rumble[4], rumble[6]].max() ?? 0) * profile.rumbleStrength)
                 if intensity > 0 && haptics[player] == nil { haptics[player] = ControllerHaptics(controller: controller, allowDevice: player == 0) }
                 haptics[player]?.update(intensity, sharpness: min(1, max(rumble[2], rumble[6])))
@@ -127,6 +145,7 @@ import simd
         publishMouse()
     }
     private func publishMotion(_ player: Int, _ profile: ControllerProfile, _ controller: GCController?, _ delta: Double) {
+        if blocked { var neutral = [Float](repeating: 0, count: 18); neutral[9] = 1; neutral[13] = 1; neutral[17] = 1; neutral.withUnsafeBufferPointer { ryu_motion_set(Int32(player), $0.baseAddress) }; return }
         var acceleration = SIMD3<Double>(0, 0, -1), gyro = SIMD3<Double>.zero
         var attitude = simd_quatf(angle: 0, axis: SIMD3(0, 0, 1))
         if profile.motion == "device", let motion = motionManager.deviceMotion {
@@ -160,7 +179,7 @@ import simd
         }
         var buttons: UInt32 = 0
         if let input = mouse?.mouseInput { if input.leftButton.isPressed { buttons |= 1 }; if input.rightButton?.isPressed == true { buttons |= 2 }; if input.middleButton?.isPressed == true { buttons |= 4 } }
-        ryu_mouse_set(Int32(mousePoint.x), Int32(mousePoint.y), buttons, Int32(wheel.x), Int32(wheel.y), mouse == nil ? 0 : 1); wheel = .zero
+        ryu_mouse_set(Int32(mousePoint.x), Int32(mousePoint.y), blocked ? 0 : buttons, blocked ? 0 : Int32(wheel.x), blocked ? 0 : Int32(wheel.y), mouse == nil ? 0 : 1); wheel = .zero
     }
 }
 

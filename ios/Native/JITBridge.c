@@ -196,6 +196,8 @@ void ryu_pause(int paused) { ryu_core_pause(paused); }
 uint64_t ryu_audio_frames(void) { return ryu_audio_counter(NULL, 2); }
 void ryu_ui_poll(char *r, size_t n) { ryu_core_ui_poll((uint8_t *)r, n); }
 void ryu_ui_answer(int id, int ok, const char *s) { ryu_core_ui_answer(id, ok, (const uint8_t *)s); }
+int ryu_session_command(int command, double value, const char *text) { return ryu_core_session_command(command, value, (const uint8_t *)text); }
+void ryu_session_poll(char *report, size_t capacity) { ryu_core_session_poll((uint8_t *)report, capacity); }
 
 int ryu_homebrew_run(const char *library, void *metal_layer, int width, int height,
     const char *program, const char *directory, char *report, size_t report_capacity) {

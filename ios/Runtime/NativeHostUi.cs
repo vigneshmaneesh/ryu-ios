@@ -10,16 +10,20 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 
 namespace Ryu.iOS.Runtime;
 
-internal sealed record AppletPrompt(int Id, int Kind, string Title, string Message, string Initial, int Maximum, int Minimum);
+internal sealed record AppletChoice(string Id, string Name);
+internal sealed record AppletPrompt(int Id, int Kind, string Title, string Message, string Initial, int Maximum, int Minimum, AppletChoice[] Choices);
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
 [JsonSerializable(typeof(AppletPrompt))]
 internal partial class AppletJson : JsonSerializerContext;
 
 internal sealed unsafe class NativeHostUi : IHostUIHandler
 {
+    private readonly NativeSettings _settings;
+    internal NativeHostUi(NativeSettings settings = null) => _settings = settings;
     public bool UsesNativeKeyboard => true;
     private sealed class Request(AppletPrompt prompt)
     {
@@ -33,6 +37,7 @@ internal sealed unsafe class NativeHostUi : IHostUIHandler
     private static int _nextId;
     private static bool _active;
     private static delegate* unmanaged<int> _cancelled;
+    internal static bool HasPendingPrompt { get { lock (Gate) return Requests.Count > 0; } }
     internal static void Begin(delegate* unmanaged<int> cancelled) { lock (Gate) { _cancelled = cancelled; _active = true; } }
     internal static void End()
     {
@@ -45,7 +50,7 @@ internal sealed unsafe class NativeHostUi : IHostUIHandler
             Requests.Dequeue(); r.Accepted = accepted; r.Text = text; r.Done.Set();
         }
     }
-    private static bool Ask(int kind, string title, string message, string initial, int maximum, out string text, int minimum = 0)
+    private static bool Ask(int kind, string title, string message, string initial, int maximum, out string text, int minimum = 0, AppletChoice[] choices = null)
     {
         Request r;
         lock (Gate) {
@@ -53,7 +58,7 @@ internal sealed unsafe class NativeHostUi : IHostUIHandler
             if (!_active) return false;
             static string Bound(string s, int length) => s.Length > length ? s[..length] : s;
             int limit = Math.Clamp(maximum <= 0 ? 1024 : maximum, 1, 1024);
-            r = new Request(new AppletPrompt(++_nextId, kind, Bound(title ?? "Game", 128), Bound(message ?? "", 2048), Bound(text, limit), limit, Math.Clamp(minimum, 0, limit)));
+            r = new Request(new AppletPrompt(++_nextId, kind, Bound(title ?? "Game", 128), Bound(message ?? "", 2048), Bound(text, limit), limit, Math.Clamp(minimum, 0, limit), choices ?? []));
             Requests.Enqueue(r);
         }
         while (!r.Done.Wait(100)) {
@@ -66,17 +71,42 @@ internal sealed unsafe class NativeHostUi : IHostUIHandler
     }
     public bool DisplayInputDialog(SoftwareKeyboardUIArgs args, out string text) => Ask(1, args.HeaderText, (args.SubtitleText ?? "") + "\n" + (args.GuideText ?? ""), args.InitialText, args.StringLengthMax, out text, args.StringLengthMin);
     public bool DisplayMessageDialog(string title, string message) => Ask(0, title, message, "", 0, out _);
-    public bool DisplayMessageDialog(ControllerAppletUIArgs args) { DisplayMessageDialog("Controller setup", "This build provides one player with a Pro Controller. This title requested a different controller setup."); return false; }
+    public bool DisplayMessageDialog(ControllerAppletUIArgs args)
+    {
+        if (_settings?.Bool("IgnoreApplet") == true) return false;
+        var options = new List<AppletChoice>();
+        foreach (var type in new[] { Ryujinx.HLE.HOS.Services.Hid.ControllerType.ProController, Ryujinx.HLE.HOS.Services.Hid.ControllerType.JoyconPair, Ryujinx.HLE.HOS.Services.Hid.ControllerType.JoyconLeft, Ryujinx.HLE.HOS.Services.Hid.ControllerType.JoyconRight, Ryujinx.HLE.HOS.Services.Hid.ControllerType.Handheld })
+        {
+            if ((args.SupportedStyles & type) == 0 || (args.IsDocked && type == Ryujinx.HLE.HOS.Services.Hid.ControllerType.Handheld)) continue;
+            for (int count = Math.Clamp(args.PlayerCountMin, 1, 8); count <= Math.Clamp(args.PlayerCountMax, 1, 8); count++)
+            {
+                if (type == Ryujinx.HLE.HOS.Services.Hid.ControllerType.Handheld && count != 1) continue;
+                options.Add(new AppletChoice($"{(int)type}:{count}", $"{count} × {type}"));
+            }
+        }
+        return Ask(3, "Controller setup", "Choose a supported controller arrangement. Connected devices and touch controls use these player slots.", "", 64, out _, choices: options.ToArray()) && PlayerInput.WaitUntilApplied(1000);
+    }
     public bool DisplayCabinetDialog(out string text) => Ask(1, "Amiibo name", "Enter a name", "", 40, out text);
-    public void DisplayCabinetMessageDialog() => DisplayMessageDialog("Amiibo", "Amiibo scanning is not connected yet.");
-    public bool DisplayErrorAppletDialog(string title, string message, string[] buttons, (uint Module, uint Description)? code = null) { DisplayMessageDialog(title, message); return false; }
+    public void DisplayCabinetMessageDialog() => DisplayMessageDialog("Amiibo", "Open Amiibo in the in-game menu while the game is searching for a tag.");
+    public bool DisplayErrorAppletDialog(string title, string message, string[] buttons, (uint Module, uint Description)? code = null)
+    {
+        bool accepted = Ask(4, title, message, "", 16, out string answer, choices: buttons.Select((b, i) => new AppletChoice(i.ToString(), b)).ToArray());
+        return accepted && int.TryParse(answer, out int selected) && selected != buttons.Length - 1;
+    }
     public void ExecuteProgram(Switch device, ProgramSpecifyKind kind, ulong value) {
-        HorizonJournal.Write("Title requested a program transition; ending this session");
+        device.Configuration.UserChannelPersistence.ExecuteProgram(kind, value);
+        HorizonJournal.Write($"Title requested program transition: {kind} {value}");
         if (device.Processes.ActiveApplication is { } process) device.RequestApplicationExit(process.ProcessId);
     }
-    public UserProfile ShowPlayerSelectDialog() => ServiceBootstrap.Accounts.LastOpenedUser;
+    public UserProfile ShowPlayerSelectDialog()
+    {
+        var accounts = ServiceBootstrap.Accounts;
+        if (_settings?.Bool("SkipUserProfiles") == true) return accounts.LastOpenedUser;
+        var users = accounts.GetAllUsers().ToArray();
+        return Ask(2, "Choose a profile", "Select the user for this game.", accounts.LastOpenedUser.UserId.ToString(), 32, out string selected, choices: users.Select(u => new AppletChoice(u.UserId.ToString(), u.Name)).ToArray()) ? users.FirstOrDefault(u => u.UserId.ToString() == selected) : null;
+    }
     public IHostUITheme HostUITheme { get; } = new Theme();
-    public void TakeScreenshot() { }
+    public void TakeScreenshot() => SessionCommands.Enqueue(0, 0, "");
     public IDynamicTextInputHandler CreateDynamicTextInputHandler() => new TextInput();
     private sealed class Theme : IHostUITheme {
         public string FontFamily => "Arial";

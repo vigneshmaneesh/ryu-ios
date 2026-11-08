@@ -3,6 +3,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text.Json.Nodes;
+using System.Buffers.Binary;
 
 namespace Ryu.iOS.Runtime;
 
@@ -60,6 +61,20 @@ public static class ParityChecks
         SaveManager.Recover(recovery);
         if (!File.Exists(Path.Combine(save, "old")) || File.Exists(Path.Combine(save, "new")) || Directory.Exists(stage)) throw new InvalidOperationException("Interrupted save restore did not roll back.");
         OwnedFiles.Delete(root, recovery);
-        return "PASS persistent global/per-game settings, inheritance and reset\nPASS invalid settings preserve the previous configuration\nPASS AOT settings contract serialization\nPASS ZIP traversal rejection\nPASS real account creation/selection/rename/persistence/delete\nPASS real save-index enumeration and interrupted-restore recovery\n" + Ryujinx.HLE.HOS.Tamper.AotCheatChecks.Run();
+        string capture = Path.Combine(root, "pixel-fixture.png");
+        PngCapture.Write(capture, new Ryujinx.Graphics.GAL.ScreenCaptureImageInfo(2, 2, true, [3,2,1,255, 6,5,4,255, 9,8,7,255, 12,11,10,255], true, true));
+        byte[] png = File.ReadAllBytes(capture);
+        using var deflated = new MemoryStream();
+        for (int offset = 8; offset < png.Length;)
+        {
+            int count = BinaryPrimitives.ReadInt32BigEndian(png.AsSpan(offset, 4));
+            if (System.Text.Encoding.ASCII.GetString(png, offset + 4, 4) == "IDAT") deflated.Write(png, offset + 8, count);
+            offset += 12 + count;
+        }
+        deflated.Position = 0;
+        using var decoded = new MemoryStream(); using (var zlib = new ZLibStream(deflated, CompressionMode.Decompress, true)) zlib.CopyTo(decoded);
+        if (!decoded.ToArray().SequenceEqual(new byte[] { 0,10,11,12,255,7,8,9,255, 0,4,5,6,255,1,2,3,255 })) throw new InvalidOperationException("Screenshot export did not preserve channel order or flips.");
+        File.Delete(capture);
+        return "PASS persistent global/per-game settings, inheritance and reset\nPASS invalid settings preserve the previous configuration\nPASS AOT settings contract serialization\nPASS ZIP traversal rejection\nPASS real account creation/selection/rename/persistence/delete\nPASS real save-index enumeration and interrupted-restore recovery\nPASS PNG screenshot pixels / BGRA conversion / both flips\n" + Ryujinx.HLE.HOS.Tamper.AotCheatChecks.Run();
     }
 }

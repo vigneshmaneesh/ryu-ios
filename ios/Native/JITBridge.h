@@ -25,6 +25,8 @@ void ryu_pause(int paused);
 uint64_t ryu_audio_frames(void);
 int ryu_content(int action, const char *source, const char *directory, char *report, size_t capacity);
 int ryu_app(const char *directory, const char *request, char *report, size_t capacity);
+int ryu_session_command(int command, double value, const char *text);
+void ryu_session_poll(char *report, size_t capacity);
 void ryu_ui_poll(char *report, size_t capacity);
 void ryu_ui_answer(int id, int accepted, const char *text);
 

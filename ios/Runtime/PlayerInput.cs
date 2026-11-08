@@ -4,6 +4,7 @@ using Ryujinx.HLE.HOS.Services.Hid.Types.SharedMemory.TouchScreen;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using System.Threading;
 
 namespace Ryu.iOS.Runtime;
 
@@ -20,7 +21,11 @@ internal static class PlayerInput
     private static readonly bool[] Touches = new bool[16];
     private static readonly uint[] TouchX = new uint[16], TouchY = new uint[16];
     private static readonly ulong[] Keys = new ulong[4];
-    private static int _modifiers, _mouseX, _mouseY, _scrollX, _scrollY, _revision;
+    private static int _modifiers, _mouseX, _mouseY, _scrollX, _scrollY, _revision, _appliedRevision;
+    internal static bool WaitUntilApplied(int milliseconds)
+    {
+        lock (Gate) { int requested = _revision; long until = Environment.TickCount64 + milliseconds; while (_appliedRevision < requested) { int remaining = (int)(until - Environment.TickCount64); if (remaining <= 0) return false; Monitor.Wait(Gate, remaining); } return true; }
+    }
     private static uint _mouseButtons;
     private static bool _mouseConnected, _paused;
     internal static bool Paused { get { lock (Gate) return _paused; } set { lock (Gate) _paused = value; } }
@@ -106,6 +111,7 @@ internal static class PlayerInput
                 device.Hid.Mouse.Update(_mouseX, _mouseY, _mouseButtons, _scrollX, _scrollY, _mouseConnected); _scrollX = _scrollY = 0;
             }
             device.Hid.Npads.Update(_states);
+            lock (Gate) { _appliedRevision = _configurationRevision; Monitor.PulseAll(Gate); }
             device.Hid.Npads.UpdateSixAxis(_motion);
             device.Hid.Touchscreen.Update(_points.AsSpan(0, touchCount));
             foreach (var state in _states)

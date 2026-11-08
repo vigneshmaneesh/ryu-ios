@@ -11,8 +11,9 @@ internal static class AppOperations
     internal static JsonObject Execute(string root, JsonObject request)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(root);
+        if (!Path.IsPathFullyQualified(root)) throw new ArgumentException("An absolute app data folder is required.");
         root = Path.GetFullPath(root);
-        if (!Path.IsPathFullyQualified(root) || root == Path.GetPathRoot(root)) throw new ArgumentException("An app data folder is required.");
+        if (root == Path.GetPathRoot(root)) throw new ArgumentException("An app data folder is required.");
         Directory.CreateDirectory(root);
         string operation = request["operation"]?.GetValue<string>() ?? throw new ArgumentException("Missing operation.");
         string program = request["program"]?.GetValue<string>();

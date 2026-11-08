@@ -51,6 +51,8 @@ static int never_cancel(void) {
     }
     ryu_core_input_set(frames >= 210 ? (1ULL << 10) : (1ULL << 14) | 1, 0, 0, 0, 0);
     ryu_core_touch_set(frames >= 80 && frames < 95, 920, 440);
+    static bool screenshotQueued;
+    if (frames >= 100 && !screenshotQueued) { screenshotQueued = ryu_core_session_command(0, 0, NULL) == 0; }
 #endif
 #if !TARGET_OS_OSX
     static int calls;
@@ -90,6 +92,14 @@ static void *check_renderer(void *unused) {
                 testStatus = -1;
             }
             printf("Nonzero guest PCM frames consumed by AudioQueue: %llu\n", (unsigned long long)ryu_audio_counter(NULL, 4));
+            if (testStatus == 0) {
+                NSString *folder = [dataPath stringByAppendingPathComponent:@"Screenshots"];
+                NSArray<NSString *> *files = [NSFileManager.defaultManager contentsOfDirectoryAtPath:folder error:NULL];
+                bool decoded = false;
+                for (NSString *name in files) if ([name.pathExtension isEqualToString:@"png"]) { NSImage *image = [[NSImage alloc] initWithContentsOfFile:[folder stringByAppendingPathComponent:name]]; if (image.isValid && image.size.width > 0 && image.size.height > 0) decoded = true; }
+                if (!decoded) { fprintf(stderr, "The real renderer screenshot did not decode as a PNG.\n"); testStatus = -1; }
+                else printf("PASS real guest renderer screenshot decoded by AppKit\n");
+            }
 #else
             testStatus = ryu_core_graphics_check((const uint8_t *)libraryPath.UTF8String,
                 (__bridge void *)testLayer, 640, 360, ryu_create_metal_surface, never_cancel,

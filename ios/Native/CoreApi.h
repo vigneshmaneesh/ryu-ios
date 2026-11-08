@@ -7,6 +7,8 @@
 // Return 0 on success; failures write a bounded, NUL-terminated report.
 // The caller keeps both aliases and callbacks alive throughout the call.
 uint32_t ryu_core_abi_version(void);
+int32_t ryu_core_session_command(int command, double value, const uint8_t *text);
+void ryu_core_session_poll(uint8_t *report, uintptr_t capacity);
 int32_t ryu_core_app(const uint8_t *directory, const uint8_t *request, uint8_t *report, uintptr_t capacity);
 void ryu_core_ui_poll(uint8_t *report, uintptr_t capacity);
 void ryu_core_ui_answer(int id, int accepted, const uint8_t *text);
