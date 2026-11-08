@@ -64,6 +64,12 @@ def prepare(offline=False):
     overlay = HERE / 'overlay'
     if overlay.exists():
         shutil.copytree(overlay, DEST, dirs_exist_ok=True)
+    # Upstream moved sparse-table selection out of AddressTable.CreateForArm;
+    # retain MeloNX's iOS restriction at both new call sites.
+    for backend in ('Jit/JitCpuContext.cs', 'LightningJit/LightningJitCpuContext.cs'):
+        edit('src/Ryujinx.Cpu/' + backend,
+             'bool sparse = memory.Type is not MemoryManagerType.SoftwareMmu and not MemoryManagerType.SoftwarePageTable;\n            IAddressTable<ulong> functionTable = sparse ? SparseAddressTable<ulong>.CreateForArm(for64Bit) : AddressTable<ulong>.CreateForArm(for64Bit);',
+             'IAddressTable<ulong> functionTable = ArmAddressTableFactory.Create(memory.Type, for64Bit, System.OperatingSystem.IsIOS());')
     swift = 'src/MeloNX/MeloNX/'
     apply_jit_flow_fix(swift)
     path = DEST / (swift + 'Core/RyujinxController.swift')
@@ -193,6 +199,7 @@ def prepare(offline=False):
                       review_runtime_changes='reverted at user request',
                       jit_helper='original BreakpointJIT.framework; StikDebug universal.js with process-local readiness',
                       jit_flow='single activation handoff, explicit retry, cancelled view polling',
+                      cpu_tables='multi-level on iOS for both CPU backends; no 1 TiB sparse reservation',
                       molten_vk='original MeloNX bundled libMoltenVK.dylib',
                       native_dependencies='supplied binary dependencies require independent provenance verification')
     (DEST / 'integration-provenance.json').write_text(json.dumps(provenance, indent=2) + '\n')

@@ -43,6 +43,8 @@ jobs:
         run: |
           xcrun swiftc ios/MeloIntegration/overlay/src/MeloNX/MeloNX/Common/JIT/JITSessionState.swift ios/MeloIntegration/JITFlowChecks.swift -o ios/build/JITFlowChecks
           ios/build/JITFlowChecks
+      - name: Check iOS CPU memory-table regression
+        run: dotnet run --project ios/MeloIntegration/MemoryChecks -c Release -p:NuGetAudit=false -p:BuildInParallel=false -p:UseSharedCompilation=false -p:GeneratePackageOnBuild=false
       - name: Build native engine and IPA
         run: bash ios/MeloIntegration/build.sh
       - uses: actions/upload-artifact@v4

@@ -45,3 +45,18 @@ SHA-256 manifest of the native binaries actually packaged.
 `JITFlowChecks.swift` exercises the actual production activation coordinator's
 return/retry and readiness transitions on the Mac runner. It does not substitute
 for device-side StikDebug or gameplay validation.
+
+The Tomodachi startup logs supplied on 2026-11-08 all ended at
+`[SparseMemoryBlock] Reserving 1048576 MB`. Upstream moved CPU table selection
+into both CPU contexts, bypassing MeloNX's previous iOS sparse-table exclusion.
+The integration restores that exclusion through `ArmAddressTableFactory` for
+both engines. iOS now uses the multi-level translation lookup table, allocating
+small pages as needed instead of reserving the flat 1 TiB range. Game RAM size,
+memory-manager selection and JIT code-cache behavior are unchanged.
+
+`MemoryChecks` tests the production factory for every memory-manager type and
+both guest CPU widths, writes/reads translations at distant guest addresses,
+and checks dispatcher defaults, isolation and invalidation. The device logs
+identify the shared last startup operation; they do not contain Apple's final
+termination reason, so this is not proof of the exact OS termination mechanism
+or a guarantee that no later game-compatibility issue will appear.
