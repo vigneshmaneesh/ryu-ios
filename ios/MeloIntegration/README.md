@@ -48,13 +48,20 @@ native input and rendering code are preserved. This does not establish complete
 desktop feature parity or compatibility with any commercial title. Build checks
 and the security review are separate from device and gameplay validation.
 
-The in-game host menu is always visible at the top-right, above the Metal view,
-virtual controller and loading overlay. It uses a native, labelled Menu with a
-44-point minimum touch target, safe-area margins and a dark contrasting
-background. The previous menu was gated by a setting, rendered below virtual
-controls and hidden by a five-second timer; those paths and their touch-driven
-visibility publishers are removed. Global/per-game settings now display
-"Always visible" instead of offering to hide the only exit control. Existing
+The in-game host menu starts hidden. A tap in the upper half of the game window
+reveals its button for six seconds; repeated taps reset the deadline. The button
+stays above the Metal view, virtual controller and loading overlay, at the
+upper-centre when a physical controller is connected and upper-right otherwise.
+It uses a native, labelled Menu with a 44-point minimum touch target, safe-area
+margins and a dark contrasting background. A temporary window-level UIKit tap
+observer detects taps even when virtual controls receive them, permits simultaneous
+gestures, and neither cancels nor delays game/controller touches. It is removed
+when the gameplay view leaves. Visibility updates and timer cancellation run on
+the main actor; the menu view stays mounted while its button fades, preserving
+native menu/sheet identity. Hidden buttons cannot receive taps or accessibility
+focus. Global/per-game settings explain the upper-half gesture rather than
+offering to disable the only exit control. The reveal tap also reaches the game.
+Existing
 Pause/Resume, Stop Emulation, controller configuration and iPhone rotation lock
 actions remain. Restart and full in-game settings have not been added.
 

@@ -18,6 +18,8 @@ struct EmulationView: View {
     @StateObject private var nativeSettingsManager: NativeSettingsManager = .shared
 
     @State var isConnected = false
+    @State private var isMenuVisible = false
+    @State private var hideMenuTask: Task<Void, Never>?
 
     @ViewBuilder
     func emulationView(_ airplay: Bool = false) -> some View {
@@ -52,19 +54,41 @@ struct EmulationView: View {
                     Air.shared.connectionCallbacks.append { self.isConnected = $0 }
                     Air.play(AnyView(emulationView(true)))
                 }
+                .onDisappear {
+                    hideMenuTask?.cancel()
+                    hideMenuTask = nil
+                    isMenuVisible = false
+                }
+                .background {
+                    GameMenuTapObserver(onTap: revealMenu)
+                }
                 .overlay {
                     if !statisticsHandler.started {
                         LoadingOverlayView(game: game, showLogs: false)
                     }
                 }
-                // Keep the host menu above video, loading UI and virtual input.
-                // Only the button receives taps; the remaining game area stays
-                // available to the game's touchscreen and controller overlay.
-                .overlay(alignment: .topTrailing) {
+                // Keep the menu mounted so fading its button doesn't destroy an
+                // open native menu or controller settings sheet.
+                .overlay(alignment: controllerManager.hasPhysicalController ? .top : .topTrailing) {
                     InGameConfigView()
+                        .opacity(isMenuVisible ? 1 : 0)
+                        .allowsHitTesting(isMenuVisible)
+                        .accessibilityHidden(!isMenuVisible)
                         .padding(.top, max(12, geometry.safeAreaInsets.top + 8))
-                        .padding(.trailing, max(12, geometry.safeAreaInsets.trailing + 8))
+                        .padding(.horizontal, max(12, max(geometry.safeAreaInsets.leading, geometry.safeAreaInsets.trailing) + 8))
                 }
+        }
+    }
+
+    @MainActor
+    private func revealMenu() {
+        hideMenuTask?.cancel()
+        withAnimation(.easeInOut(duration: 0.2)) { isMenuVisible = true }
+        hideMenuTask = Task { @MainActor in
+            do { try await Task.sleep(for: .seconds(6)) }
+            catch { return }
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: 0.2)) { isMenuVisible = false }
         }
     }
 }

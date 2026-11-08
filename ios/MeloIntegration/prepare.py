@@ -73,14 +73,14 @@ def prepare(offline=False):
     swift = 'src/MeloNX/MeloNX/'
     apply_jit_flow_fix(swift)
     apply_guest_ram_fix(swift)
-    # The host menu is always reachable above virtual controls. Replace the old
-    # hide switch in global/per-game settings, including existing saved values.
+    # The host menu is revealed by upper-half taps above all gameplay layers.
+    # Replace the old hide switch, including existing saved values.
     for settings_view in ('UI/Main/Settings/SettingsView.swift', 'UI/Main/Settings/PerGameSettings.swift'):
         edit(swift + settings_view,
              '''                NativeToggleRow("Menu Button (in-game)", icon: "arrow.left.circle",
                                 isOn: nativeSettingsManager.showScreenShotButton(true).projectedValue,
                                 info: "Shows an in-game menu button to exit, lock orientation (iPhone only), change aspect ratio, or change controllers.")''',
-             '                LabeledContent("Menu Button (in-game)", value: "Always visible")')
+             '                LabeledContent("Menu Button (in-game)", value: "Tap upper half (6 seconds)")')
     path = DEST / (swift + 'Core/RyujinxController.swift')
     source = path.read_text(encoding='utf-8-sig')
     # Retain MeloNX's memory-capability gates. The final sideloader must grant
@@ -220,7 +220,7 @@ def prepare(offline=False):
                       jit_helper='original BreakpointJIT.framework; StikDebug universal.js with process-local readiness',
                       jit_flow='single activation handoff, explicit retry, cancelled view polling',
                       cpu_tables='multi-level on iOS for both CPU backends; no 1 TiB sparse reservation',
-                      in_game_menu='always-visible native Menu above loading/video/virtual controls; independent of saved hide setting and touch reveal',
+                      in_game_menu='upper-half tap reveals Menu for 6 seconds; non-cancelling window observer; above gameplay; upper-centre with physical controller, upper-right otherwise',
                       guest_ram='stock MeloNX allocation flags; startup rollback and error details',
                       ram_donor='stock MeloNXRamDonor.appex, com.stossy11.MeloNX.RamDonor',
                       signing='ad-hoc entitlement request for AltStore re-signing; increased-memory-limit and get-task-allow; device grants must be verified after installation',
