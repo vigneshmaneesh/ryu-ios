@@ -22,16 +22,16 @@ struct InGameConfigView: View {
         Menu {
             menuButton
         } label: {
-            Label("Menu", systemImage: "ellipsis.circle.fill")
-                .font(.headline)
+            Image(systemName: "ellipsis")
+                .font(.system(size: 18, weight: .semibold))
                 .foregroundStyle(.white)
-                .padding(.horizontal, 14)
-                .frame(minWidth: 88, minHeight: 44)
-                .background(.black.opacity(0.8), in: Capsule())
+                .frame(width: 30, height: 30)
+                .background(.black.opacity(0.75), in: Circle())
                 .overlay {
-                    Capsule().strokeBorder(.white.opacity(0.35), lineWidth: 1)
+                    Circle().strokeBorder(.white.opacity(0.3), lineWidth: 1)
                 }
-                .contentShape(Capsule())
+                .frame(width: 44, height: 44)
+                .contentShape(Circle())
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)

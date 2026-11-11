@@ -40,6 +40,7 @@ struct MetalViewContainer: View {
                 VStack(spacing: 0) {
                     MetalViewRepresentable(showView: showView)
                         .frame(width: size.width, height: size.height)
+                        .anchorPreference(key: GameViewportPreferenceKey.self, value: .bounds) { $0 }
                         .allowsHitTesting(true)
 
                     if isPortrait && !isStretched {

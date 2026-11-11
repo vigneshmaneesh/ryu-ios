@@ -73,14 +73,14 @@ def prepare(offline=False):
     swift = 'src/MeloNX/MeloNX/'
     apply_jit_flow_fix(swift)
     apply_guest_ram_fix(swift)
-    # The host menu is revealed by upper-half taps above all gameplay layers.
+    # The host menu is revealed only by a narrow top-edge strip above gameplay.
     # Replace the old hide switch, including existing saved values.
     for settings_view in ('UI/Main/Settings/SettingsView.swift', 'UI/Main/Settings/PerGameSettings.swift'):
         edit(swift + settings_view,
              '''                NativeToggleRow("Menu Button (in-game)", icon: "arrow.left.circle",
                                 isOn: nativeSettingsManager.showScreenShotButton(true).projectedValue,
                                 info: "Shows an in-game menu button to exit, lock orientation (iPhone only), change aspect ratio, or change controllers.")''',
-             '                LabeledContent("Menu Button (in-game)", value: "Tap upper half (6 seconds)")')
+             '                LabeledContent("Menu Button (in-game)", value: "Tap top edge (6 seconds)")')
     path = DEST / (swift + 'Core/RyujinxController.swift')
     source = path.read_text(encoding='utf-8-sig')
     # Retain MeloNX's memory-capability gates. The final sideloader must grant
@@ -220,7 +220,7 @@ def prepare(offline=False):
                       jit_helper='original BreakpointJIT.framework; StikDebug universal.js with process-local readiness',
                       jit_flow='single activation handoff, explicit retry, cancelled view polling',
                       cpu_tables='multi-level on iOS for both CPU backends; no 1 TiB sparse reservation',
-                      in_game_menu='upper-half tap reveals Menu for 6 seconds; non-cancelling window observer; above gameplay; upper-centre with physical controller, upper-right otherwise',
+                      in_game_menu='32-point top-edge strip reveals icon for 6 seconds; corner placement prefers letterboxing and respects safe areas; no centre placement; non-cancelling touch observer',
                       guest_ram='stock MeloNX allocation flags; startup rollback and error details',
                       ram_donor='stock MeloNXRamDonor.appex, com.stossy11.MeloNX.RamDonor',
                       signing='ad-hoc entitlement request for AltStore re-signing; increased-memory-limit and get-task-allow; device grants must be verified after installation',

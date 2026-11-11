@@ -48,18 +48,24 @@ native input and rendering code are preserved. This does not establish complete
 desktop feature parity or compatibility with any commercial title. Build checks
 and the security review are separate from device and gameplay validation.
 
-The in-game host menu starts hidden. A tap in the upper half of the game window
-reveals its button for six seconds; repeated taps reset the deadline. The button
-stays above the Metal view, virtual controller and loading overlay, at the
-upper-centre when a physical controller is connected and upper-right otherwise.
-It uses a native, labelled Menu with a 44-point minimum touch target, safe-area
-margins and a dark contrasting background. A temporary window-level UIKit tap
+The in-game host menu starts hidden. Only a narrow 32-point strip at the top of
+the usable screen reveals its button for six seconds; the rest of the game
+touchscreen cannot reveal it. Repeated strip/button taps reset the deadline.
+The button stays above the Metal view, virtual controller and loading overlay.
+Its visible label is a small 30-point ellipsis symbol, with a transparent
+44-point touch target and an accessibility label. It never moves to the centre.
+Actual game-image bounds are passed up with a SwiftUI anchor preference. The
+layout prefers safe upper-right/upper-left corners outside those bounds; with
+no virtual controls, lower black-border corners can also be used. If the game
+fills all eligible corners, it uses the safe upper-right corner. Safe-area
+insets and margins keep the control away from the Dynamic Island and cutouts.
+A temporary window-level UIKit tap
 observer detects taps even when virtual controls receive them, permits simultaneous
 gestures, and neither cancels nor delays game/controller touches. It is removed
 when the gameplay view leaves. Visibility updates and timer cancellation run on
 the main actor; the menu view stays mounted while its button fades, preserving
 native menu/sheet identity. Hidden buttons cannot receive taps or accessibility
-focus. Global/per-game settings explain the upper-half gesture rather than
+focus. Global/per-game settings explain the top-edge gesture rather than
 offering to disable the only exit control. The reveal tap also reaches the game.
 Existing
 Pause/Resume, Stop Emulation, controller configuration and iPhone rotation lock

@@ -59,9 +59,6 @@ struct EmulationView: View {
                     hideMenuTask = nil
                     isMenuVisible = false
                 }
-                .background {
-                    GameMenuTapObserver(onTap: revealMenu)
-                }
                 .overlay {
                     if !statisticsHandler.started {
                         LoadingOverlayView(game: game, showLogs: false)
@@ -69,13 +66,26 @@ struct EmulationView: View {
                 }
                 // Keep the menu mounted so fading its button doesn't destroy an
                 // open native menu or controller settings sheet.
-                .overlay(alignment: controllerManager.hasPhysicalController ? .top : .topTrailing) {
-                    InGameConfigView()
-                        .opacity(isMenuVisible ? 1 : 0)
-                        .allowsHitTesting(isMenuVisible)
-                        .accessibilityHidden(!isMenuVisible)
-                        .padding(.top, max(12, geometry.safeAreaInsets.top + 8))
-                        .padding(.horizontal, max(12, max(geometry.safeAreaInsets.leading, geometry.safeAreaInsets.trailing) + 8))
+                .overlayPreferenceValue(GameViewportPreferenceKey.self) { viewportAnchor in
+                    let bounds = CGRect(origin: .zero, size: geometry.size)
+                    let viewport = viewportAnchor.map { geometry[$0] } ?? bounds
+                    let layout = GameMenuLayout(bounds: bounds, safeInsets: geometry.safeAreaInsets,
+                                                viewport: viewport,
+                                                hasTouchControls: controllerManager.hasVirtualController())
+                    ZStack(alignment: .topLeading) {
+                        InGameConfigView()
+                            .opacity(isMenuVisible ? 1 : 0)
+                            .allowsHitTesting(isMenuVisible)
+                            .accessibilityHidden(!isMenuVisible)
+                            .position(layout.buttonCenter)
+                    }
+                    .frame(width: geometry.size.width, height: geometry.size.height,
+                           alignment: .topLeading)
+                    .background {
+                        GameMenuTapObserver(revealRegion: layout.revealRegion,
+                                            buttonRegion: layout.buttonFrame,
+                                            isButtonVisible: isMenuVisible, onTap: revealMenu)
+                    }
                 }
         }
     }
