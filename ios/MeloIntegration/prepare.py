@@ -287,10 +287,70 @@ def apply_live_docked_mode(swift):
 def apply_profile_manager_fix(swift):
     library = 'src/Ryujinx.Library/Library.cs'
     accounts = 'src/Ryujinx.HLE/HOS/Services/Account/Acc/'
+    edit(accounts + 'ApplicationServiceServer.cs',
+         '''            // NOTE: As we returned an invalid UserId if there is more than one user earlier, now we can return only the first one.
+            context.Device.System.AccountManager.GetFirst().UserId.Write(context.ResponseData);''',
+         '''            // Honor the profile selected in the frontend when a game auto-selects a user.
+            AccountManager manager = context.Device.System.AccountManager;
+            (manager.LastOpenedUser ?? manager.GetFirst()).UserId.Write(context.ResponseData);''')
     edit(accounts + 'AccountManager.cs',
          'OpenUser(commandLineUserProfileOverride.IsNull ? _accountSaveDataManager.LastOpened : commandLineUserProfileOverride);',
          '''UserId selected = commandLineUserProfileOverride.IsNull ? _accountSaveDataManager.LastOpened : commandLineUserProfileOverride;
                 OpenUser(_profiles.ContainsKey(selected.ToString()) ? selected : DefaultUserId);''')
+    edit(accounts + 'AccountManager.cs',
+         '''            if (_profiles.TryGetValue(userId.ToString(), out UserProfile profile))
+            {
+                // TODO: Support multiple open users ?
+                foreach (UserProfile userProfile in GetAllUsers())
+                {
+                    if (userProfile == LastOpenedUser)
+                    {
+                        userProfile.AccountState = AccountState.Closed;
+
+                        break;
+                    }
+                }
+
+                (LastOpenedUser = profile).AccountState = AccountState.Open;
+                _accountSaveDataManager.LastOpened = userId;
+            }
+
+            _accountSaveDataManager.Save(_profiles);''',
+         '''            if (!_profiles.TryGetValue(userId.ToString(), out UserProfile profile))
+            {
+                return;
+            }
+
+            UserProfile previousUser = LastOpenedUser;
+            UserId previousId = _accountSaveDataManager.LastOpened;
+            AccountState previousState = previousUser?.AccountState ?? AccountState.Closed;
+            long previousTimestamp = previousUser?.LastModifiedTimestamp ?? 0;
+            AccountState nextState = profile.AccountState;
+            long nextTimestamp = profile.LastModifiedTimestamp;
+            if (previousUser != null && previousUser != profile)
+            {
+                previousUser.AccountState = AccountState.Closed;
+            }
+            (LastOpenedUser = profile).AccountState = AccountState.Open;
+            _accountSaveDataManager.LastOpened = userId;
+
+            try
+            {
+                _accountSaveDataManager.Save(_profiles);
+            }
+            catch
+            {
+                profile.AccountState = nextState;
+                profile.LastModifiedTimestamp = nextTimestamp;
+                if (previousUser != null)
+                {
+                    previousUser.AccountState = previousState;
+                    previousUser.LastModifiedTimestamp = previousTimestamp;
+                }
+                LastOpenedUser = previousUser;
+                _accountSaveDataManager.LastOpened = previousId;
+                throw;
+            }''')
     edit(accounts + 'AccountManager.cs',
          '''                AddUser("MeloNX", DefaultUserImage, DefaultUserId);
 
