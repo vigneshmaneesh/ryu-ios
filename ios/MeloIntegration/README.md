@@ -67,9 +67,16 @@ the main actor; the menu view stays mounted while its button fades, preserving
 native menu/sheet identity. Hidden buttons cannot receive taps or accessibility
 focus. Global/per-game settings explain the top-edge gesture rather than
 offering to disable the only exit control. The reveal tap also reaches the game.
-Existing
-Pause/Resume, Stop Emulation, controller configuration and iPhone rotation lock
-actions remain. Restart and full in-game settings have not been added.
+The menu includes Pause/Resume, Docked Mode, Stop Emulation, controller
+configuration and iPhone rotation lock. Docked Mode becomes available after
+the first frame and uses the desktop engine's live mode change, including
+guest display and controller notifications. The change lasts for the current
+session; the saved game settings determine the next launch mode.
+
+In Profile Manager, tap a profile row to select it and use its pencil button
+to edit it. The engine writes the profile changes before the edit sheet
+closes and keeps the original user ID. Removing a profile entry leaves its
+game save files on the device.
 
 Security findings, the rollback status, binary provenance limits and inconsistent
 supplied license notices are documented in `../SecurityReview/MELO-NX-REVIEW.md`.

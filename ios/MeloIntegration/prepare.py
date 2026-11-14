@@ -73,6 +73,8 @@ def prepare(offline=False):
     swift = 'src/MeloNX/MeloNX/'
     apply_jit_flow_fix(swift)
     apply_guest_ram_fix(swift)
+    apply_live_docked_mode(swift)
+    apply_profile_manager_fix(swift)
     # The host menu is revealed only by a narrow top-edge strip above gameplay.
     # Replace the old hide switch, including existing saved values.
     for settings_view in ('UI/Main/Settings/SettingsView.swift', 'UI/Main/Settings/PerGameSettings.swift'):
@@ -220,7 +222,8 @@ def prepare(offline=False):
                       jit_helper='original BreakpointJIT.framework; StikDebug universal.js with process-local readiness',
                       jit_flow='single activation handoff, explicit retry, cancelled view polling',
                       cpu_tables='multi-level on iOS for both CPU backends; no 1 TiB sparse reservation',
-                      in_game_menu='32-point top-edge strip reveals icon for 6 seconds; corner placement prefers letterboxing and respects safe areas; no centre placement; non-cancelling touch observer',
+                      in_game_menu='32-point top-edge strip reveals safe corner icon for 6 seconds; non-cancelling touch observer; session-only live docked mode toggle',
+                      profiles='engine-backed selection and edits preserve profile IDs; refresh restores the selected profile',
                       guest_ram='stock MeloNX allocation flags; startup rollback and error details',
                       ram_donor='stock MeloNXRamDonor.appex, com.stossy11.MeloNX.RamDonor',
                       signing='ad-hoc entitlement request for AltStore re-signing; increased-memory-limit and get-task-allow; device grants must be verified after installation',
@@ -231,6 +234,256 @@ def prepare(offline=False):
         if re.search(r'^<<<<<<< |^>>>>>>> ', path.read_text(encoding='utf-8-sig'), re.M):
             raise RuntimeError('Unresolved conflict: ' + str(path))
     print('Prepared MeloNX', MELO, '+ latest Ryubing', RYU)
+
+def apply_live_docked_mode(swift):
+    library = 'src/Ryujinx.Library/Library.cs'
+    window = 'src/Ryujinx.Library/Window/WindowBase.cs'
+    edit(library, '        [UnmanagedCallersOnly(EntryPoint = "toggle_pause_emulation")]',
+         '''        [UnmanagedCallersOnly(EntryPoint = "request_docked_mode")]
+        public static byte RequestDockedMode(byte docked)
+        {
+            return Volatile.Read(ref _window)?.RequestDockedMode(docked != 0) == true ? (byte)1 : (byte)0;
+        }
+
+        [UnmanagedCallersOnly(EntryPoint = "toggle_pause_emulation")]''')
+    edit(window, '        public bool _isActive;',
+         '''        public volatile bool _isActive;
+        private int _pendingDockedMode = -1;
+
+        public bool RequestDockedMode(bool docked)
+        {
+            if (!_isActive)
+            {
+                return false;
+            }
+
+            Interlocked.Exchange(ref _pendingDockedMode, docked ? 1 : 0);
+            return true;
+        }''')
+    edit(window, '                UpdateFrame();',
+         '''                // Apply on the session thread before updating guest controllers.
+                if (Volatile.Read(ref _pendingDockedMode) >= 0)
+                {
+                    int docked = Interlocked.Exchange(ref _pendingDockedMode, -1);
+                    Device.System.ChangeDockedModeState(docked != 0);
+                }
+
+                UpdateFrame();''')
+    edit(swift + 'Core/MeloNX-Bridging-Header.h', 'void report_memory_pressure(uint8_t critical);',
+         'void report_memory_pressure(uint8_t critical);\nuint8_t request_docked_mode(uint8_t docked);')
+    edit(swift + 'Core/RyujinxController.swift', '    @Published var _isPaused: Bool = false',
+         '''    @Published private(set) var isSessionDocked = false
+
+    func setSessionDockedMode(_ docked: Bool) {
+        guard isRunning.isRunning(), request_docked_mode(docked ? 1 : 0) != 0 else { return }
+        isSessionDocked = docked
+    }
+
+    @Published var _isPaused: Bool = false''')
+    edit(swift + 'Core/RyujinxController.swift', '        settings.backendThreading = .on',
+         '        settings.backendThreading = .on\n        isSessionDocked = !settings.disableDockedMode')
+
+
+def apply_profile_manager_fix(swift):
+    library = 'src/Ryujinx.Library/Library.cs'
+    accounts = 'src/Ryujinx.HLE/HOS/Services/Account/Acc/'
+    edit(accounts + 'AccountManager.cs',
+         'OpenUser(commandLineUserProfileOverride.IsNull ? _accountSaveDataManager.LastOpened : commandLineUserProfileOverride);',
+         '''UserId selected = commandLineUserProfileOverride.IsNull ? _accountSaveDataManager.LastOpened : commandLineUserProfileOverride;
+                OpenUser(_profiles.ContainsKey(selected.ToString()) ? selected : DefaultUserId);''')
+    edit(accounts + 'AccountManager.cs',
+         '''                AddUser("MeloNX", DefaultUserImage, DefaultUserId);
+
+                OpenUser(DefaultUserId);
+            }
+        }''',
+         '''                AddUser("MeloNX", DefaultUserImage, DefaultUserId);
+            }
+
+            UserId selected = _accountSaveDataManager.LastOpened;
+            if (!_profiles.ContainsKey(selected.ToString()))
+            {
+                selected = _profiles.ContainsKey(DefaultUserId.ToString()) ? DefaultUserId : _profiles.Values.First().UserId;
+            }
+            OpenUser(selected);
+        }
+
+        public bool UpdateUser(UserId id, string name, byte[] image)
+        {
+            if (!_profiles.TryGetValue(id.ToString(), out UserProfile profile) || string.IsNullOrWhiteSpace(name))
+            {
+                return false;
+            }
+
+            string previousName = profile.Name;
+            byte[] previousImage = profile.Image;
+            long previousTimestamp = profile.LastModifiedTimestamp;
+            profile.Name = name;
+            if (image != null)
+            {
+                profile.Image = image;
+            }
+
+            try
+            {
+                _accountSaveDataManager.Save(_profiles);
+                return true;
+            }
+            catch
+            {
+                profile.Name = previousName;
+                profile.Image = previousImage;
+                profile.LastModifiedTimestamp = previousTimestamp;
+                throw;
+            }
+        }''')
+    edit(accounts + 'AccountSaveDataManager.cs',
+         '                        profiles.AddOrUpdate(profile.UserId, addedProfile, (key, old) => addedProfile);',
+         '                        profiles.AddOrUpdate(addedProfile.UserId.ToString(), addedProfile, (key, old) => addedProfile);')
+    edit(accounts + 'AccountSaveDataManager.cs',
+         '            JsonHelper.SerializeToFile(_profilesJsonPath, profilesJson, _serializerContext.ProfilesJson);',
+         '''            if (OperatingSystem.IsIOS())
+            {
+                string temporaryPath = _profilesJsonPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
+                try
+                {
+                    JsonHelper.SerializeToFile(temporaryPath, profilesJson, _serializerContext.ProfilesJson);
+                    File.Move(temporaryPath, _profilesJsonPath, overwrite: true);
+                }
+                finally
+                {
+                    File.Delete(temporaryPath);
+                }
+            }
+            else
+            {
+                JsonHelper.SerializeToFile(_profilesJsonPath, profilesJson, _serializerContext.ProfilesJson);
+            }''')
+    edit(library,
+         '''        [UnmanagedCallersOnly(EntryPoint = "open_user")]
+        public static void OpenUser(IntPtr userId)
+        {
+            string name = Marshal.PtrToStringAnsi(userId);
+
+            HLE.HOS.Services.Account.Acc.UserId userIdObj = new HLE.HOS.Services.Account.Acc.UserId(name);
+            _accountManager.OpenUser(userIdObj);
+        }''',
+         '''        [UnmanagedCallersOnly(EntryPoint = "open_user")]
+        public static byte OpenUser(nint userId)
+        {
+            try
+            {
+                AccountManager accountManager = _accountManager;
+                var id = new HLE.HOS.Services.Account.Acc.UserId(Marshal.PtrToStringUTF8(userId));
+                if (accountManager == null || !accountManager.GetAllUsers().Any(profile => profile.UserId == id))
+                {
+                    return 0;
+                }
+
+                accountManager.OpenUser(id);
+                return 1;
+            }
+            catch (Exception error)
+            {
+                Console.WriteLine($"[Profiles] Select failed: {error.Message}");
+                return 0;
+            }
+        }
+
+        [UnmanagedCallersOnly(EntryPoint = "update_user_profile")]
+        public static byte UpdateUserProfile(nint userId, nint name, nint image, int imageLength)
+        {
+            try
+            {
+                var id = new HLE.HOS.Services.Account.Acc.UserId(Marshal.PtrToStringUTF8(userId));
+                byte[] avatar = null;
+                if (image != 0 && imageLength > 0)
+                {
+                    avatar = new byte[imageLength];
+                    Marshal.Copy(image, avatar, 0, imageLength);
+                }
+
+                return _accountManager?.UpdateUser(id, Marshal.PtrToStringUTF8(name), avatar) == true ? (byte)1 : (byte)0;
+            }
+            catch (Exception error)
+            {
+                Console.WriteLine($"[Profiles] Update failed: {error.Message}");
+                return 0;
+            }
+        }''')
+    edit(library, '            _accountManager.OpenUser(userIdObj);', '            _accountManager.CloseUser(userIdObj);')
+    edit(swift + 'Core/MeloNX-Bridging-Header.h', 'uint8_t request_docked_mode(uint8_t docked);',
+         '''uint8_t request_docked_mode(uint8_t docked);
+uint8_t open_user(const char* user_id);
+uint8_t update_user_profile(const char* user_id, const char* name, const void* image, int32_t image_length);''')
+    edit(swift + 'Core/Ryujinx.swift',
+         '''    static func openUser(userId: String) {
+        userId.withCString { open_user($0) }
+    }''',
+         '''    @discardableResult
+    static func openUser(userId: String) -> Bool {
+        userId.withCString { open_user($0) != 0 }
+    }
+
+    static func updateUser(userId: String, name: String, image: Data?) -> Bool {
+        userId.withCString { id in
+            name.withCString { name in
+                guard let image else { return update_user_profile(id, name, nil, 0) != 0 }
+                return image.withUnsafeBytes { buffer in
+                    update_user_profile(id, name, buffer.baseAddress, Int32(buffer.count)) != 0
+                }
+            }
+        }
+    }''')
+    edit(swift + 'Core/Ryujinx.swift',
+         '@_silgen_name("open_user")\nfileprivate func open_user(_ userid: UnsafePointer<CChar>!)\n\n', '')
+    edit(swift + 'UI/Main/Accounts/AccountSelector.swift',
+         '''                                Ryujinx.closeUser(userId: profiles.last_opened)
+                                
+                                Ryujinx.openUser(userId: profile.user_id)''',
+         '''                                guard Ryujinx.openUser(userId: profile.user_id) else { return }''')
+    edit(swift + 'UI/Main/Accounts/EditAccount.swift',
+         '    @Binding var account: Account?',
+         '    let account: Account\n    @State private var saveFailed = false')
+    edit(swift + 'UI/Main/Accounts/EditAccount.swift',
+         '        if let account {\n            NavigationStack {',
+         '        NavigationStack {')
+    edit(swift + 'UI/Main/Accounts/EditAccount.swift',
+         '''            }
+        }
+    }
+    
+    func saveChanges() {
+        if name.isEmpty { return }
+        guard let account else { return }
+        
+        self.account?.name = name
+        if let selectedImage {
+            let imageData = selectedImage.jpgData() ?? Data()
+            self.account?.image = imageData.base64EncodedString()
+        }
+        
+        presentationMode.wrappedValue.dismiss()
+        print("Account Updated for \\(account.name)")
+    }''',
+         '''        }
+        .alert("Could not save profile", isPresented: $saveFailed) {
+            Button("OK", role: .cancel) { }
+        }
+    }
+
+    func saveChanges() {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else { return }
+        let avatar = selectedImage?.jpgData()
+        guard (selectedImage == nil || avatar != nil),
+              Ryujinx.updateUser(userId: account.id, name: trimmedName, image: avatar) else {
+            saveFailed = true
+            return
+        }
+        presentationMode.wrappedValue.dismiss()
+    }''')
+
 
 def apply_guest_ram_fix(swift):
     path = 'src/Ryujinx.HLE/Switch.cs'

@@ -10,6 +10,7 @@ import Melo_Controller
 import Combine
 
 struct InGameConfigView: View {
+    let canSwitchDockedMode: Bool
     @EnvironmentObject var ryujinxController: RyujinxController
     @ObservedObject var controllerManager: ControllerManager = .shared
     @State var rotationlock: Bool = false
@@ -56,6 +57,14 @@ struct InGameConfigView: View {
             }
         }
         
+        Toggle(isOn: Binding(
+            get: { ryujinxController.isSessionDocked },
+            set: { ryujinxController.setSessionDockedMode($0) }
+        )) {
+            Label("Docked Mode", systemImage: "dock.rectangle")
+        }
+        .disabled(!canSwitchDockedMode)
+
         Button {
             showControllerSettings = true
         } label: {

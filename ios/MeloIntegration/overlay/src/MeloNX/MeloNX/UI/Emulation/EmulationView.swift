@@ -73,7 +73,7 @@ struct EmulationView: View {
                                                 viewport: viewport,
                                                 hasTouchControls: controllerManager.hasVirtualController())
                     ZStack(alignment: .topLeading) {
-                        InGameConfigView()
+                        InGameConfigView(canSwitchDockedMode: statisticsHandler.started)
                             .opacity(isMenuVisible ? 1 : 0)
                             .allowsHitTesting(isMenuVisible)
                             .accessibilityHidden(!isMenuVisible)
