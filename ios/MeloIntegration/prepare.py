@@ -312,6 +312,7 @@ def apply_profile_manager_fix(swift):
                 }
 
                 (LastOpenedUser = profile).AccountState = AccountState.Open;
+
                 _accountSaveDataManager.LastOpened = userId;
             }
 
