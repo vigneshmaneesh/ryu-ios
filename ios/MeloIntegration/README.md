@@ -12,9 +12,13 @@ MetalFX now prefers the supported Metal 4 spatial path with compatible spatial
 fallback. The built-in performance HUD identifies the actual implementation and
 OS version. FSR1's colour-only Vulkan shaders come from AMD FSR SDK 2.4.0, with
 portable 32-bit GLSL adapters; see [Fsr/README.md](Fsr/README.md).
-The quality ratio labels preserve the existing scale settings; FSR sharpness
-is separate from the scale guide. No automatic internal-resolution reduction
-is applied. These integrations do not add temporal upscaling or frame generation.
+Global and per-game graphics settings offer an Upscaling Preset for MetalFX
+and FSR. The app divides the game's native render resolution by the selected
+ratio at launch and uses the chosen filter to upscale to the display. For
+example, Performance (2.0x) renders a 720p game at approximately 360p.
+Native Res renders at 1.0x and uses standard display scaling. Manual restores
+the saved Resolution Scale and MetalFX Output Scale. Older settings load in
+Manual. Relaunch the game to apply a preset.
 
 The native MeloNX frontend and iOS platform changes are merged with the latest
 official Ryubing commit verified on 2026-11-08. Both inputs are immutable pins

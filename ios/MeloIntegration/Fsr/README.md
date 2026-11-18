@@ -27,9 +27,9 @@ metadata that this emulator's present-only scaler does not expose.
 FSR4 desktop ML/runtime requirements are not a compatible replacement for this
 iPhone/iPad path. A larger renderer integration would be needed for those.
 
-Quality names are labels for ratios: Native 1.0x, Ultra Quality 1.3x,
-Quality 1.5x, Balanced 1.7x, Performance 2.0x, Ultra Performance 3.0x.
-As requested, no preset silently changes the game's internal render resolution.
-FSR automatically fits the display; the settings show a ratio guide separately
-from FSR sharpness. The existing OpenGL FSR path is retained and identified as
-legacy in telemetry; the updated shaders above belong to the iOS Vulkan path.
+The Upscaling Preset divides the native game resolution by the selected ratio.
+The presets are Native 1.0x, Ultra Quality 1.3x, Quality 1.5x, Balanced 1.7x,
+Performance 2.0x and Ultra Performance 3.0x. Manual uses the saved render scale.
+FSR automatically fits the display and has a separate sharpening control.
+The overlay identifies the OpenGL FSR path as legacy. The updated shaders above
+belong to the iOS Vulkan path.

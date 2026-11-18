@@ -45,7 +45,21 @@ details are unavailable, this file does not invent them.
   for fewer tests and more progress. Prefer CI/local checks and one focused
   device attempt when the actual hardware is necessary.
 
-## Current work: November 18
+## Upscaling performance preset update
+
+After build 23 the owner clarified that the purpose of the upscaling settings
+is to reduce GPU rendering work, and explicitly requested an app update.
+That supersedes the earlier choice to label ratios only. The new **Upscaling
+Preset** works for MetalFX and FSR in global and per-game graphics settings.
+Performance (2.0x) loads a 0.50x render scale, about 360p from a 720p
+handheld baseline. Other presets use the same reciprocal calculation. MetalFX
+targets the display directly and FSR already fits the output to the display.
+Native Res runs at 1.0x with standard display scaling. Manual uses the
+user's saved render and output scales and is the default for existing configs.
+Settings show the approximate launch resolution. Relaunch the game to apply.
+The actual resolution and FPS depend on the title and hardware.
+
+## Build 23 work: November 18
 
 The owner requested all of the following:
 
@@ -672,7 +686,8 @@ Labels:
 Do not incorrectly call 2.0x Ultra Performance just to fit a 1x–2x range.
 MetalFX keeps its existing numeric/Host values. FSR fits the display; its
 sharpness is not a quality scale. Show the ratio guide separately instead of
-mislabeling the sharpness percentage. No hidden resScale changes are authorized.
+mislabeling the sharpness percentage. The separate performance preset update
+above was explicitly authorized after build 23.
 
 Telemetry:
 

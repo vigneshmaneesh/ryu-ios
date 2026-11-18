@@ -76,7 +76,7 @@ def prepare(offline=False):
     apply_live_docked_mode(swift)
     apply_profile_manager_fix(swift)
     apply_photo_export(swift)
-    apply_scaling_labels(swift)
+    apply_upscale_presets(swift)
     apply_upscaler_telemetry(swift)
     # The host menu is revealed only by a narrow top-edge strip above gameplay.
     # Replace the old hide switch, including existing saved values.
@@ -231,6 +231,7 @@ def prepare(offline=False):
                       photos='add-only Photos access; host screenshots and guest album captures use native image encoding; local copy survives denied access',
                       metalfx='Metal 4 spatial scaler where supported, with spatial compatibility fallback; temporal/depth data is not exposed',
                       fsr='FSR1 GPU header from AMD FSR SDK 2.4.0, 7539ae8b6568ad29ed78a753404351daf3b5cca7; 32-bit portable Vulkan EASU/RCAS',
+                      upscale_presets='MetalFX and FSR quality presets set launch render scale and upscale to the display; Manual retains saved values',
                       guest_ram='stock MeloNX allocation flags; startup rollback and error details',
                       ram_donor='stock MeloNXRamDonor.appex, com.stossy11.MeloNX.RamDonor',
                       signing='ad-hoc entitlement request for AltStore re-signing; increased-memory-limit and get-task-allow; device grants must be verified after installation',
@@ -348,19 +349,69 @@ def apply_photo_export(swift):
             using SKBitmap bitmap = new(new SKImageInfo(ScreenshotWidth, ScreenshotHeight, SKColorType.Rgba8888));''')
 
 
-def apply_scaling_labels(swift):
+def apply_upscale_presets(swift):
+    options = swift + 'Core/Models/Options/Options.swift'
+    edit(options, '    var resScale: Float = 1.0',
+         '''    var resScale: Float = 1.0
+    var upscalePreset: UpscalePreset = .manual
+
+    var usesUpscalePreset: Bool {
+        upscalePreset != .manual && (scalingFilter == .metalFx || scalingFilter == .fsr)
+    }
+
+    var effectiveRenderScale: Float {
+        usesUpscalePreset ? upscalePreset.renderScale : resScale
+    }''')
+    edit(options, 'n.pointee.ResScale                = resScale',
+         'n.pointee.ResScale                = effectiveRenderScale')
+    edit(options, 'n.pointee.ScalingFilter           = scalingFilter',
+         'n.pointee.ScalingFilter           = usesUpscalePreset && upscalePreset == .native ? .bilinear : scalingFilter')
+    edit(options, 'n.pointee.MetalFxUpscaleFactor    = metalFxUpscaleFactor',
+         '''// 4.0 selects the display viewport directly in the native MetalFX path.
+        n.pointee.MetalFxUpscaleFactor    = usesUpscalePreset && scalingFilter == .metalFx ? 4.0 : metalFxUpscaleFactor''')
+
+    codec = swift + 'Core/Models/Options/Options+Codable.swift'
+    edit(codec, 'case antiAliasing, scalingFilter, scalingFilterLevel, metalFxUpscaleFactor',
+         'case antiAliasing, scalingFilter, scalingFilterLevel, metalFxUpscaleFactor, upscalePreset')
+    edit(codec, '        try c.encode(metalFxUpscaleFactor,        forKey: .metalFxUpscaleFactor)',
+         '''        try c.encode(metalFxUpscaleFactor,        forKey: .metalFxUpscaleFactor)
+        try c.encode(upscalePreset.rawValue,       forKey: .upscalePreset)''')
+    edit(codec, '        let decodedMetalFxFactor',
+         '''        let savedUpscalePreset = try c.decodeIfPresent(String.self, forKey: .upscalePreset)
+        upscalePreset = savedUpscalePreset.flatMap(UpscalePreset.init(rawValue:)) ?? .manual
+        let decodedMetalFxFactor''')
+
     for name in ('SettingsView.swift', 'PerGameSettings.swift'):
-        edit(swift + 'UI/Main/Settings/' + name,
+        path_name = swift + 'UI/Main/Settings/' + name
+        edit(path_name, 'let val = Float(base) * config.wrappedValue.resScale',
+             'let val = Float(base) * config.wrappedValue.effectiveRenderScale')
+        edit(path_name, '''                if nativeSettingsManager.allowCustomResValue.value {
+                    let formatter''',
+             '''                if config.wrappedValue.usesUpscalePreset {
+                    let scale = config.wrappedValue.effectiveRenderScale
+                    LabeledContent("Render Resolution", value: "≈\\(currentResolution) · \\(String(format: "%.2f", scale))x")
+                } else if nativeSettingsManager.allowCustomResValue.value {
+                    let formatter''')
+        edit(path_name, 'if nativeSettingsManager.allowCustomResValue.value {\n                    Text("Custom scale mode enabled via long-press.")',
+             'if !config.wrappedValue.usesUpscalePreset && nativeSettingsManager.allowCustomResValue.value {\n                    Text("Custom scale mode enabled via long-press.")')
+        edit(path_name,
              '                if config.wrappedValue.scalingFilter == .fsr {',
-             '''                if config.wrappedValue.scalingFilter == .fsr {
-                    UpscaleRatioGuide()''')
-        path = DEST / (swift + 'UI/Main/Settings/' + name)
+             '''                if config.wrappedValue.scalingFilter == .fsr || config.wrappedValue.scalingFilter == .metalFx {
+                    UpscalePresetControl(preset: config.upscalePreset)
+                }
+
+                if config.wrappedValue.scalingFilter == .fsr && config.wrappedValue.upscalePreset != .native {''')
+        path = DEST / path_name
         source = path.read_text(encoding='utf-8-sig')
         start = source.index('                    let outputScaleBinding = Binding<Float>(')
         end = source.index('\n                }', start)
-        source = source[:start] + '''                    MetalFxScaleControl(value: config.metalFxUpscaleFactor)
-                    Text(MetalFxBridge.backendDescription)
-                        .font(.caption).foregroundStyle(.secondary)''' + source[end:]
+        source = source[:start] + '''                    if config.wrappedValue.upscalePreset == .manual {
+                        MetalFxScaleControl(value: config.metalFxUpscaleFactor)
+                    }
+                    if config.wrappedValue.upscalePreset != .native {
+                        Text(MetalFxBridge.backendDescription)
+                            .font(.caption).foregroundStyle(.secondary)
+                    }''' + source[end:]
         path.write_text(source, encoding='utf-8', newline='\n')
     edit(swift + 'Core/Models/Options/NativeModels.swift',
          'case .metalFx: return String(localized: "MetalFX")',
