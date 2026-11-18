@@ -13,6 +13,7 @@ struct InGameConfigView: View {
     let canSwitchDockedMode: Bool
     @EnvironmentObject var ryujinxController: RyujinxController
     @ObservedObject var controllerManager: ControllerManager = .shared
+    @ObservedObject private var nativeSettings = NativeSettingsManager.shared
     @State var rotationlock: Bool = false
     @State var showingKeyboardConfig: Bool = false
     @State var showControllerSettings: Bool = false
@@ -64,6 +65,10 @@ struct InGameConfigView: View {
             Label("Docked Mode", systemImage: "dock.rectangle")
         }
         .disabled(!canSwitchDockedMode)
+
+        Toggle(isOn: nativeSettings.performacehud(false).projectedValue) {
+            Label("Performance Overlay", systemImage: "gauge.with.dots.needle.50percent")
+        }
 
         Button {
             _ = request_screenshot()

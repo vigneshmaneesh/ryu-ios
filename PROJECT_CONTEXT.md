@@ -70,6 +70,8 @@ Work in progress, until the delivery receipt below is updated:
 - Updated colour-only FSR1 GPU shaders from AMD FSR SDK 2.4.0, retaining an ARM
   GPU path through Vulkan/MoltenVK.
 - Runtime upscaler telemetry in the existing FPS/RAM overlay.
+- An in-game Performance Overlay switch, so the owner can reveal the upscaler
+  status without exiting the game to change settings.
 - Global and per-game quality-ratio labels that preserve current configuration.
 - Image encoding, channel-order, flip and Metal 4 checks in CI.
 
@@ -677,7 +679,8 @@ Telemetry:
 - Keep the existing 33-byte statistics ABI intact; a separate status callback
   updates the performance overlay only on change.
 - The HUD row belongs to the built-in performance overlay and appears when
-  that overlay is enabled.
+  that overlay is enabled. The in-game ellipsis menu provides a Performance
+  Overlay toggle; the existing Settings option remains available.
 
 ## Useful primary references
 
