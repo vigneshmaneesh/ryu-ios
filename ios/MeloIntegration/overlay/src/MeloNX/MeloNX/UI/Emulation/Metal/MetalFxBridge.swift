@@ -9,7 +9,7 @@ import MetalFX
 import MetalPerformanceShaders
 
 @available(iOS 26.0, *)
-private struct MetalFxInteropRequest {
+nonisolated private struct MetalFxInteropRequest {
     var device: UnsafeMutableRawPointer?
     var commandQueue: UnsafeMutableRawPointer?
     var inputTexture: UnsafeMutableRawPointer?
@@ -26,7 +26,7 @@ private struct MetalFxInteropRequest {
 }
 
 @available(iOS 26.0, *)
-private final class MetalFxSpatialState {
+nonisolated private final class MetalFxSpatialState {
     private struct Configuration: Equatable {
         let deviceRegistryID: UInt64
         let inputWidth: Int
@@ -242,7 +242,7 @@ private final class MetalFxSpatialState {
 }
 
 @available(iOS 26.0, *)
-enum MetalFxBridge {
+nonisolated enum MetalFxBridge {
     private static let probeCallback = "MetalFxProbe"
     private static let configureCallback = "MetalFxConfigure"
     private static let encodeCallback = "MetalFxEncode"
@@ -267,54 +267,44 @@ enum MetalFxBridge {
         return MTLFXSpatialScalerDescriptor.supportsDevice(device)
     }
     
+    @MainActor
     static func registerCallbacks() {
         lock.lock()
         defer { lock.unlock() }
-        
-        guard !registered else {
-            return
-        }
-        
+        guard !registered else { return }
         registered = true
-        
-        CallbackManager.register(name: probeCallback) { callbackData in
-            autoreleasepool {
-                withRequest(callbackData) { request in
-                    guard let device = metalDevice(from: request.pointee.device) else {
-                        request.pointee.result = 0
-                        return
-                    }
-                    
-                    request.pointee.result = MTLFXSpatialScalerDescriptor.supportsDevice(device) ? 1 : 0
+        CallbackManager.register(name: probeCallback, handler: receiveProbe)
+        CallbackManager.register(name: configureCallback, handler: receiveConfigure)
+        CallbackManager.register(name: encodeCallback, handler: receiveEncode)
+        CallbackManager.register(name: resetCallback, handler: receiveReset)
+    }
+
+    private static func receiveProbe(_ data: CallbackData) {
+        autoreleasepool {
+            withRequest(data) { request in
+                guard let device = metalDevice(from: request.pointee.device) else {
+                    request.pointee.result = 0
+                    return
                 }
-            }
-        }
-        
-        CallbackManager.register(name: configureCallback) { callbackData in
-            autoreleasepool {
-                withRequest(callbackData) { request in
-                    configure(request)
-                }
-            }
-        }
-        
-        CallbackManager.register(name: encodeCallback) { callbackData in
-            autoreleasepool {
-                withRequest(callbackData) { request in
-                    encode(request)
-                }
-            }
-        }
-        
-        CallbackManager.register(name: resetCallback) { _ in
-            autoreleasepool {
-                lock.lock()
-                state = nil
-                lock.unlock()
+                request.pointee.result = MTLFXSpatialScalerDescriptor.supportsDevice(device) ? 1 : 0
             }
         }
     }
-    
+
+    private static func receiveConfigure(_ data: CallbackData) {
+        autoreleasepool { withRequest(data, configure) }
+    }
+
+    private static func receiveEncode(_ data: CallbackData) {
+        autoreleasepool { withRequest(data, encode) }
+    }
+
+    private static func receiveReset(_ data: CallbackData) {
+        lock.lock()
+        state = nil
+        lock.unlock()
+    }
+
     private static func withRequest(
         _ callbackData: CallbackData,
         _ body: (UnsafeMutablePointer<MetalFxInteropRequest>) -> Void

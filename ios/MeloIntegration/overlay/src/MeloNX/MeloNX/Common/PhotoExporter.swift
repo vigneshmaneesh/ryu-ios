@@ -12,28 +12,30 @@ enum PhotoExporter {
     static func register() {
         guard !registered else { return }
         registered = true
-        CallbackManager.register(name: "ExportImageCapture") { data in
-            autoreleasepool {
-                guard let pointer = data.ptr,
-                      data.len >= MemoryLayout<ImageCaptureRequest>.size else { return }
-                let request = pointer.assumingMemoryBound(to: ImageCaptureRequest.self)
-                request.pointee.result = 0
-                guard let jpeg = CaptureImageEncoder.jpeg(request.pointee) else { return }
-                let suppliedPath = request.pointee.filePath.map { String(cString: $0) }
-                // Preserve an album copy even when Photos access is denied.
-                let file = suppliedPath.map { URL(fileURLWithPath: $0) }
-                    ?? URL.documentsDirectory.appendingPathComponent("screenshots")
-                        .appendingPathComponent("Screenshot-\(UUID().uuidString).jpg")
-                do {
-                    try FileManager.default.createDirectory(at: file.deletingLastPathComponent(),
-                                                            withIntermediateDirectories: true)
-                    try jpeg.write(to: file, options: .atomic)
-                    request.pointee.result = 1
-                    Task { @MainActor in enqueue(file) }
-                } catch {
-                    print("[Photos] Local capture failed: \(error.localizedDescription)")
-                    Task { @MainActor in showFailure("Could not save the picture. \(error.localizedDescription)") }
-                }
+        CallbackManager.register(name: "ExportImageCapture", handler: receive)
+    }
+
+    nonisolated private static func receive(_ data: CallbackData) {
+        autoreleasepool {
+            guard let pointer = data.ptr,
+                  data.len >= MemoryLayout<ImageCaptureRequest>.size else { return }
+            let request = pointer.assumingMemoryBound(to: ImageCaptureRequest.self)
+            request.pointee.result = 0
+            guard let jpeg = CaptureImageEncoder.jpeg(request.pointee) else { return }
+            let suppliedPath = request.pointee.filePath.map { String(cString: $0) }
+            // Preserve an album copy even when Photos access is denied.
+            let file = suppliedPath.map { URL(fileURLWithPath: $0) }
+                ?? URL.documentsDirectory.appendingPathComponent("screenshots")
+                    .appendingPathComponent("Screenshot-\(UUID().uuidString).jpg")
+            do {
+                try FileManager.default.createDirectory(at: file.deletingLastPathComponent(),
+                                                        withIntermediateDirectories: true)
+                try jpeg.write(to: file, options: .atomic)
+                request.pointee.result = 1
+                Task { @MainActor in enqueue(file) }
+            } catch {
+                print("[Photos] Local capture failed: \(error.localizedDescription)")
+                Task { @MainActor in showFailure("Could not save the picture. \(error.localizedDescription)") }
             }
         }
     }
