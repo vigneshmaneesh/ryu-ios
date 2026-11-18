@@ -8,6 +8,10 @@ enum PhotoExporter {
     private static let encoderQueue = DispatchQueue(label: "MeloNX.imageExport", qos: .utility)
     private static var waiting: [URL] = []
     private static var exporting = false
+    nonisolated private static var captureDirectory: URL {
+        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("screenshots")
+    }
 
     static func register() {
         guard !registered else { return }
@@ -25,7 +29,7 @@ enum PhotoExporter {
             let suppliedPath = request.pointee.filePath.map { String(cString: $0) }
             // Preserve an album copy even when Photos access is denied.
             let file = suppliedPath.map { URL(fileURLWithPath: $0) }
-                ?? URL.documentsDirectory.appendingPathComponent("screenshots")
+                ?? captureDirectory
                     .appendingPathComponent("Screenshot-\(UUID().uuidString).jpg")
             do {
                 try FileManager.default.createDirectory(at: file.deletingLastPathComponent(),
@@ -45,7 +49,7 @@ enum PhotoExporter {
             showFailure("Could not prepare this picture.")
             return
         }
-        let file = URL.documentsDirectory.appendingPathComponent("screenshots")
+        let file = captureDirectory
             .appendingPathComponent("Picture-\(UUID().uuidString).jpg")
         encoderQueue.async {
             do {
