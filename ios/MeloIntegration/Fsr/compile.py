@@ -31,7 +31,10 @@ def main():
     executable = "glslang.exe" if platform.system() == "Windows" else "glslang"
     compiler = cache / executable
     with zipfile.ZipFile(io.BytesIO(data)) as z:
-        matches = [p for p in z.namelist() if Path(p).name in (executable, "glslangValidator.exe" if platform.system() == "Windows" else "glslangValidator")]
+        matches = [p for p in z.namelist() if Path(p).name == executable]
+        if not matches:
+            legacy_name = "glslangValidator.exe" if platform.system() == "Windows" else "glslangValidator"
+            matches = [p for p in z.namelist() if Path(p).name == legacy_name]
         assert len(matches) == 1, matches
         compiler.write_bytes(z.read(matches[0]))
     if platform.system() != "Windows":
