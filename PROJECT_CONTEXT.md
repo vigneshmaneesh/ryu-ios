@@ -2,6 +2,11 @@
 
 Last updated: **2026-11-18, Europe/London**.
 
+**Current delivered version: 1.0.0, integration build 23.**
+The verified local IPA is `ios/build/delivery/Ryu-MeloNX-iOS27.ipa`.
+Build 23 includes Photos exports, spatial upscaler updates and live HUD status.
+See the final delivery section for source/CI IDs, checksum and test limitations.
+
 This is the main continuation document requested by the project owner. Read it
 before changing this project. It records the available conversation history,
 decisions, source layout, accepted device results, build process and limitations.
@@ -26,7 +31,7 @@ details are unavailable, this file does not invent them.
   are `ios/MeloIntegration/prepare.py`, `resolutions.json` and `overlay/`.
 - The supplied original checkout at `MeloNX Source Code/MeloNX` is preserved.
   Do not directly modify it or use generated-source-only edits as final changes.
-- Current delivered baseline at the start of this work: **integration build 17**.
+- Current delivered app: **integration build 23**; the baseline before this work was build 17.
   Do not confuse integration build numbers with the older v0.x prototype numbers.
 - The owner confirmed playable gameplay on the restored MeloNX configuration
   and a later update installing flawlessly. Do not use the obsolete prototype
@@ -57,7 +62,7 @@ The owner requested all of the following:
    and the owner's Apple devices.
 7. Create this Markdown context file so future conversations need no full recap.
 
-Work in progress, until the delivery receipt below is updated:
+Implemented and packaged in build 23 (verification and device limits below):
 
 - A Photos exporter with add-only authorization and error handling.
 - An in-game Save Screenshot to Photos menu action.
@@ -75,8 +80,9 @@ Work in progress, until the delivery receipt below is updated:
 - Global and per-game quality-ratio labels that preserve current configuration.
 - Image encoding, channel-order, flip and Metal 4 checks in CI.
 
-Do not call these shipped or device-tested just because this list exists.
-The final section records the actual last delivered build and remaining checks.
+These features have been built and delivered locally. Do not call the new
+Photos authorization or Metal 4 hardware path device-tested from CI alone.
+The final section records the delivered build and remaining checks.
 
 ## Owner preferences and scope decisions
 
@@ -701,15 +707,99 @@ Telemetry:
 
 ## Continuation checklist and delivery status
 
-At creation of this handoff:
+Final November 18 delivery:
 
-- Last completed delivery: build 17, at the path and hash above.
-- November 18 work is in source and undergoing final preparation/build checks.
-- Both new FSR shaders compile locally with pinned glslang.
-- New device Photos authorization and Metal 4 behavior have not been observed.
-- No new owner crash report is available for the current Photos failure.
-- Build status, final commit/run/IPA hash and any test limitations must be
-  recorded here when the pending build finishes.
+| Field | Value |
+| --- | --- |
+| App version | 1.0.0 (23) |
+| Build source commit | `fa3f8b3168a0c374fe86e60fa30fa900859005cd` |
+| Branch | `feature/melonx-ryubing` |
+| Successful CI | <https://github.com/vigneshmaneesh/ryu-ios/actions/runs/44399160268> |
+| CI job | `135137128981` |
+| Artifact | `14472725093` (`Ryu-MeloNX-iOS27`) |
+| IPA | `ios/build/delivery/Ryu-MeloNX-iOS27.ipa` |
+| IPA size | 49,323,668 bytes |
+| IPA SHA-256 | `544bb006be1a452c855217cb5c3d637423436d79daedf10d95125d1aa80da1f4` |
+| Main/helper IDs | Stock MeloNX IDs above; unchanged |
+| Native libraries | 14 verified dependency closures; original JIT/MoltenVK machine code |
+| Photos purpose text | Present and checked in the final Info.plist |
+| FSR source notice | Vendored AMD header checked against its SHA-256 in the IPA |
+
+Verified results:
+
+- Local full managed engine compilation passed.
+- Native capture ABI checked on a 64-bit host: pinned pixel bytes, UTF-8 path,
+  format/flip flags, missing handler and invalid-size rejection.
+- Apple CI passed all JPEG colour/channel-order and flip checks.
+- JIT lifecycle, 12 CPU/memory configurations, 60 translation mappings and
+  stock 4 GiB allocation/cleanup checks passed.
+- Both FSR shader passes compiled to portable Vulkan SPIR-V on Windows and
+  in the successful Mac CI.
+- NativeAOT and Xcode Release builds passed.
+- Entitlement requests, bundle/helper identity, signed native code and the final
+  package checksum passed verification.
+- Final log review confirmed the new photo receiver no longer uses a
+  main-actor-isolated URL extension from a worker thread.
+- Metal's legacy Objective-C handle types still produce Sendable migration
+  warnings around completion-handler retention in Swift 5 mode. The retained
+  resources and recycled frame pool have explicit synchronization; do not treat
+  this as a completed Swift 6 strict-concurrency migration.
+
+Not established by those checks:
+
+- **Metal 4 GPU execution was explicitly skipped**: the GitHub runner does
+  not expose a supported Metal 4 GPU. The Metal 4 APIs compiled, but actual
+  iPhone 16/M1 rendering remains a hardware check.
+- The owner's Photos permission prompt, allowed/denied behavior and actual
+  photo-library save have not been observed on their devices.
+- The new FSR output has not been visually verified in the target game on
+  either device.
+- No FPS improvement, full desktop feature parity or universal game
+  compatibility is claimed.
+- No recent Apple crash report was supplied for the original Photos crash.
+
+Owner-facing controls:
+
+- Open the in-game menu using the existing narrow top-edge tap and ellipsis.
+- Choose **Save Screenshot to Photos** for a renderer screenshot.
+- Game album captures also export through the permission-aware path.
+- Game Info artwork's **Save to Photos** uses the same exporter.
+- Toggle **Performance Overlay** in-game to see the active upscaler.
+- MetalFX reports Metal 4/Compatible spatial plus OS version; FSR reports
+  SDK 2.4 / source revision; fallback/bypass is reported honestly.
+- Quality names are in global and per-game Settings. FSR's ratio guide is
+  distinct from sharpening. Saved render resolution is not silently reduced.
+- Keep the installed app and use the same AltStore identity when updating.
+
+Build history during this feature work:
+
+- Build 18 stopped on a debug assignment to Metal 4 queue's read-only label.
+- Build 19 passed the image checks; superseded by the in-game HUD toggle.
+- Build 20 was superseded by explicit nonisolated native callback receivers.
+- Build 21 exposed the Mac compiler ZIP's current-name/legacy-alias pair.
+- Build 22 compiled and packaged successfully, but final warning review found
+  one main-actor-isolated file-path helper in the photo receiver.
+- Build 23 removes that dependency through nonisolated Foundation path lookup
+  and is the final delivered candidate.
+- Installer backups include build 17 and the intermediate build 22, alongside
+  older preserved installers. These are not backups of device save data.
+- A later documentation-only branch commit may follow the build source commit;
+  it does not change the delivered binary.
+
+Earlier owner-supplied diagnostic files (not new Photos crash reports) were
+under `C:/Users/vigne/Desktop/`:
+
+- `MeloNX-Log-2026-11-08 144923 +0000.log`
+- `MeloNX-Log-2026-11-08 145058 +0000.log`
+- `MeloNX-Log-2026-11-08 145155 +0000.log`
+- `MeloNX-Log-2026-11-08 145222 +0000.log`
+- `MeloNX-Log-2026-11-08 145319 +0000.log`
+- `MeloNX-Log-2026-11-08 152346 +0000.log`
+- `MeloNX-Log-2026-11-08 152349 +0000.log`
+- `MeloNX-Log-2026-11-08 172524 +0000.log`
+
+Their key findings are summarized in the memory/JIT history above. The later
+logs were from iPhone 16. File availability must be checked before reading them.
 
 Before making a later change:
 
