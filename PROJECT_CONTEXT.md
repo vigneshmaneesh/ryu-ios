@@ -2,10 +2,10 @@
 
 Last updated: **2026-11-18, Europe/London**.
 
-**Current delivered version: 1.0.0, integration build 23.**
+**Current delivered version: 1.0.0, integration build 24.**
 The verified local IPA is `ios/build/delivery/Ryu-MeloNX-iOS27.ipa`.
-Build 23 includes Photos exports, spatial upscaler updates and live HUD status.
-See the final delivery section for source/CI IDs, checksum and test limitations.
+Build 24 adds working MetalFX and FSR render resolution presets. See the
+upscaling preset update below for the build receipt and device test limits.
 
 This is the main continuation document requested by the project owner. Read it
 before changing this project. It records the available conversation history,
@@ -31,7 +31,7 @@ details are unavailable, this file does not invent them.
   are `ios/MeloIntegration/prepare.py`, `resolutions.json` and `overlay/`.
 - The supplied original checkout at `MeloNX Source Code/MeloNX` is preserved.
   Do not directly modify it or use generated-source-only edits as final changes.
-- Current delivered app: **integration build 23**; the baseline before this work was build 17.
+- Current delivered app: **integration build 24**. Build 23 is archived locally.
   Do not confuse integration build numbers with the older v0.x prototype numbers.
 - The owner confirmed playable gameplay on the restored MeloNX configuration
   and a later update installing flawlessly. Do not use the obsolete prototype
@@ -58,6 +58,18 @@ Native Res runs at 1.0x with standard display scaling. Manual uses the
 user's saved render and output scales and is the default for existing configs.
 Settings show the approximate launch resolution. Relaunch the game to apply.
 The actual resolution and FPS depend on the title and hardware.
+
+- Build source: `39a4c03bbdaeb1ffb0294da9a62055e3a404a4a9`.
+- [GitHub Actions build 24](https://github.com/vigneshmaneesh/ryu-ios/actions/runs/44405866721).
+- Job `135160785587`, artifact `14476555337`.
+- IPA size: 49,327,982 bytes.
+- IPA SHA-256: `0cbb90133a7b6e32277717369f149c82b43a8f02a7341e24cdcaed259405c62c`.
+- Generated source preparation, both FSR shader compiles, JIT, memory,
+  image encoding, NativeAOT, Xcode and package verification passed.
+- The runner skipped Metal 4 GPU execution. Actual game resolution,
+  image quality and FPS still need a check on the target device.
+- Bundle IDs and memory helper were verified. Build 23 is preserved at
+  `ios/build/delivery/previous-builds/Ryu-MeloNX-iOS27-build23.ipa`.
 
 ## Build 23 work: November 18
 
