@@ -1,0 +1,49 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+#include "ffx_glsl_compat.h"
+layout(local_size_x = 8, local_size_y = 8) in;
+layout(rgba8, binding = 0, set = 3) uniform writeonly image2D imgOutput;
+layout(binding = 1, set = 2) uniform sampler2D Source;
+layout(std140, binding = 2) uniform Dimensions {
+    float srcX0; float srcX1; float srcY0; float srcY1;
+    float dstX0; float dstX1; float dstY0; float dstY1;
+    float scaleX; float scaleY;
+};
+
+#define FFX_FSR_EASU_FLOAT 1
+vec4 FsrEasuRF(vec2 p) { return textureGather(Source, p, 0); }
+vec4 FsrEasuGF(vec2 p) { return textureGather(Source, p, 1); }
+vec4 FsrEasuBF(vec2 p) { return textureGather(Source, p, 2); }
+#include "upstream/ffx_fsr1.h"
+
+void filterPixel(ivec2 pixel) {
+    if (any(greaterThanEqual(pixel, imageSize(imgOutput)))) { return; }
+    vec2 origin = min(vec2(dstX0, dstY0), vec2(dstX1, dstY1));
+    vec2 end = max(vec2(dstX0, dstY0), vec2(dstX1, dstY1));
+    if (any(lessThan(vec2(pixel), origin)) || any(greaterThanEqual(vec2(pixel), end))) {
+        imageStore(imgOutput, pixel, vec4(0, 0, 0, 1));
+        return;
+    }
+    vec2 sourceOrigin = min(vec2(srcX0, srcY0), vec2(srcX1, srcY1));
+    vec2 sourceExtent = abs(vec2(srcX1-srcX0, srcY1-srcY0));
+    vec2 outputExtent = abs(vec2(dstX1-dstX0, dstY1-dstY0));
+    vec2 localPixel = vec2(pixel) - origin;
+    // Destination extents already encode the presentation orientation.
+    if (dstX1 < dstX0) localPixel.x = outputExtent.x - 1 - localPixel.x;
+    if (dstY1 < dstY0) localPixel.y = outputExtent.y - 1 - localPixel.y;
+    uvec4 c0, c1, c2, c3;
+    ffxFsrPopulateEasuConstantsOffset(c0, c1, c2, c3,
+        sourceExtent.x, sourceExtent.y, float(textureSize(Source,0).x), float(textureSize(Source,0).y),
+        outputExtent.x, outputExtent.y, sourceOrigin.x, sourceOrigin.y);
+    vec3 colour;
+    ffxFsrEasuFloat(colour, uvec2(localPixel), c0, c1, c2, c3);
+    imageStore(imgOutput, pixel, vec4(colour, 1));
+}
+
+void main() {
+    ivec2 origin = ivec2(gl_GlobalInvocationID.xy) * 2;
+    filterPixel(origin);
+    filterPixel(origin + ivec2(1,0));
+    filterPixel(origin + ivec2(0,1));
+    filterPixel(origin + ivec2(1,1));
+}

@@ -10,6 +10,7 @@ app = Path(sys.argv[1]).resolve()
 info = plistlib.loads((app / 'Info.plist').read_bytes())
 assert info['CFBundleIdentifier'] == 'com.stossy11.MeloNX', info['CFBundleIdentifier']
 assert float(info['MinimumOSVersion']) >= 27
+assert info.get('NSPhotoLibraryAddUsageDescription'), 'Missing Photos add-only privacy description'
 helpers = list((app / 'PlugIns').iterdir())
 assert len(helpers) == 1 and helpers[0].name == 'MeloNXRamDonor.appex', helpers
 helper = helpers[0]

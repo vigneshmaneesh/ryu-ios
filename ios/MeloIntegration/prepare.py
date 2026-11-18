@@ -75,6 +75,9 @@ def prepare(offline=False):
     apply_guest_ram_fix(swift)
     apply_live_docked_mode(swift)
     apply_profile_manager_fix(swift)
+    apply_photo_export(swift)
+    apply_scaling_labels(swift)
+    apply_upscaler_telemetry(swift)
     # The host menu is revealed only by a narrow top-edge strip above gameplay.
     # Replace the old hide switch, including existing saved values.
     for settings_view in ('UI/Main/Settings/SettingsView.swift', 'UI/Main/Settings/PerGameSettings.swift'):
@@ -211,6 +214,7 @@ def prepare(offline=False):
     with info.open('rb') as stream: data = plistlib.load(stream)
     data['CFBundleDisplayName'] = 'Ryu MeloNX'
     data['CFBundleShortVersionString'] = '1.0.0'
+    data['NSPhotoLibraryAddUsageDescription'] = 'Save game pictures, screenshots and game artwork to Photos.'
     data['LSApplicationQueriesSchemes'] = sorted(set(data.get('LSApplicationQueriesSchemes', []) + ['stikdebug', 'stikjit']))
     with info.open('wb') as stream: plistlib.dump(data, stream)
     # Retain all upstream notices; provenance travels with the app and IPA.
@@ -224,6 +228,9 @@ def prepare(offline=False):
                       cpu_tables='multi-level on iOS for both CPU backends; no 1 TiB sparse reservation',
                       in_game_menu='32-point top-edge strip reveals safe corner icon for 6 seconds; non-cancelling touch observer; session-only live docked mode toggle',
                       profiles='engine-backed selection and edits preserve profile IDs; refresh restores the selected profile',
+                      photos='add-only Photos access; host screenshots and guest album captures use native image encoding; local copy survives denied access',
+                      metalfx='Metal 4 spatial scaler where supported, with spatial compatibility fallback; temporal/depth data is not exposed',
+                      fsr='FSR1 GPU header from AMD FSR SDK 2.4.0, 7539ae8b6568ad29ed78a753404351daf3b5cca7; 32-bit portable Vulkan EASU/RCAS',
                       guest_ram='stock MeloNX allocation flags; startup rollback and error details',
                       ram_donor='stock MeloNXRamDonor.appex, com.stossy11.MeloNX.RamDonor',
                       signing='ad-hoc entitlement request for AltStore re-signing; increased-memory-limit and get-task-allow; device grants must be verified after installation',
@@ -234,6 +241,225 @@ def prepare(offline=False):
         if re.search(r'^<<<<<<< |^>>>>>>> ', path.read_text(encoding='utf-8-sig'), re.M):
             raise RuntimeError('Unresolved conflict: ' + str(path))
     print('Prepared MeloNX', MELO, '+ latest Ryubing', RYU)
+
+def apply_photo_export(swift):
+    library = 'src/Ryujinx.Library/Library.cs'
+    window = 'src/Ryujinx.Library/Window/WindowBase.cs'
+    edit(swift + 'UI/MeloNXApp.swift', '        Ryujinx.initialize()',
+         '        Ryujinx.initialize()\n        PhotoExporter.register()')
+    edit(swift + 'UI/Main/GamesList/Elements/GameInfoSheet.swift',
+         'UIImageWriteToSavedPhotosAlbum(icon, nil, nil, nil)', 'PhotoExporter.save(icon)')
+    edit(swift + 'Core/MeloNX-Bridging-Header.h', 'uint8_t request_docked_mode(uint8_t docked);',
+         'uint8_t request_docked_mode(uint8_t docked);\nuint8_t request_screenshot(void);')
+    edit(library, '        [UnmanagedCallersOnly(EntryPoint = "request_docked_mode")]',
+         '''        [UnmanagedCallersOnly(EntryPoint = "request_screenshot")]
+        public static byte RequestScreenshot()
+        {
+            WindowBase window = Volatile.Read(ref _window);
+            if (window == null || !window._isActive)
+            {
+                return 0;
+            }
+            window.TakeScreenshot();
+            return 1;
+        }
+
+        [UnmanagedCallersOnly(EntryPoint = "request_docked_mode")]''')
+    edit(window, '        private int _pendingDockedMode = -1;',
+         '        private int _pendingDockedMode = -1;\n        private int _captureRequested;')
+    edit(window, '            Renderer = renderer;',
+         '            Renderer = renderer;\n            Renderer.ScreenCaptured += OnScreenCaptured;')
+    edit(window, '                    if (Device.PresentLoop(SwapBuffers))',
+         '''                    if (Interlocked.Exchange(ref _captureRequested, 0) != 0)
+                    {
+                        Device.Gpu.Renderer.Screenshot();
+                    }
+
+                    if (Device.PresentLoop(SwapBuffers))''')
+    edit(window, '''            Logger.Warning?.Print(LogClass.Application, "TakeScreenshot is not supported in headless mode.");''',
+         '''            Interlocked.Exchange(ref _captureRequested, 1);''')
+    edit(window, '        public void Dispose()',
+         '''        private void OnScreenCaptured(object sender, ScreenCaptureImageInfo image)
+        {
+            // Readback is complete. Encode and write away from the GPU thread.
+            Task.Run(() =>
+            {
+                try
+                {
+                    if (!ImageCaptureBridge.Export(image.Data, image.Width, image.Height,
+                            image.IsBgra, image.FlipX, image.FlipY))
+                    {
+                        Logger.Warning?.Print(LogClass.Application, "Screenshot export was not available.");
+                    }
+                }
+                catch (Exception error)
+                {
+                    Logger.Warning?.Print(LogClass.Application, $"Screenshot export failed: {error.Message}");
+                }
+            });
+        }
+
+        public void Dispose()''')
+    edit(window, '                _disposed = true;',
+         '''                _disposed = true;
+                if (Renderer != null)
+                {
+                    Renderer.ScreenCaptured -= OnScreenCaptured;
+                }''')
+    edit('src/Ryujinx.HLE/HOS/Services/Caps/CaptureManager.cs',
+         '        public ResultCode SaveScreenShot(\n',
+         '''        public ResultCode SaveScreenShot(byte[] screenshotData, ulong appletResourceUserId,
+            ulong titleId, out ApplicationAlbumEntry applicationAlbumEntry)
+        {
+            try
+            {
+                return SaveScreenShotCore(screenshotData, appletResourceUserId, titleId, out applicationAlbumEntry);
+            }
+            catch (Exception error) when (OperatingSystem.IsIOS())
+            {
+                applicationAlbumEntry = default;
+                Logger.Warning?.Print(LogClass.ServiceCaps, $"Cannot save the screenshot: {error.Message}");
+                return ResultCode.InvalidArgument;
+            }
+        }
+
+        private ResultCode SaveScreenShotCore(
+''')
+    edit('src/Ryujinx.HLE/HOS/Services/Caps/CaptureManager.cs',
+         '            using SKBitmap bitmap = new(new SKImageInfo(ScreenshotWidth, ScreenshotHeight, SKColorType.Rgba8888));',
+         '''            if (OperatingSystem.IsIOS())
+            {
+                // The desktop Skia native library isn't bundled for iOS.
+                // The native callback writes the guest album JPEG, then offers
+                // it to Photos asynchronously without blocking this service.
+                try
+                {
+                    return Ryujinx.Common.Callbacks.ImageCaptureBridge.Export(screenshotData,
+                        ScreenshotWidth, ScreenshotHeight, filePath: filePath)
+                        ? ResultCode.Success : ResultCode.InvalidArgument;
+                }
+                catch (Exception error)
+                {
+                    Logger.Warning?.Print(LogClass.ServiceCaps, $"Image export failed: {error.Message}");
+                    return ResultCode.InvalidArgument;
+                }
+            }
+
+            using SKBitmap bitmap = new(new SKImageInfo(ScreenshotWidth, ScreenshotHeight, SKColorType.Rgba8888));''')
+
+
+def apply_scaling_labels(swift):
+    for name in ('SettingsView.swift', 'PerGameSettings.swift'):
+        edit(swift + 'UI/Main/Settings/' + name,
+             '                if config.wrappedValue.scalingFilter == .fsr {',
+             '''                if config.wrappedValue.scalingFilter == .fsr {
+                    UpscaleRatioGuide()''')
+        path = DEST / (swift + 'UI/Main/Settings/' + name)
+        source = path.read_text(encoding='utf-8-sig')
+        start = source.index('                    let outputScaleBinding = Binding<Float>(')
+        end = source.index('\n                }', start)
+        source = source[:start] + '''                    MetalFxScaleControl(value: config.metalFxUpscaleFactor)
+                    Text(MetalFxBridge.backendDescription)
+                        .font(.caption).foregroundStyle(.secondary)''' + source[end:]
+        path.write_text(source, encoding='utf-8', newline='\n')
+    edit(swift + 'Core/Models/Options/NativeModels.swift',
+         'case .metalFx: return String(localized: "MetalFX")',
+         'case .metalFx: return String(localized: "MetalFX (Auto: Metal 4 / Compatible)")')
+    edit(swift + 'Core/Models/Options/NativeModels.swift',
+         'case .fsr: return String(localized: "FSR")',
+         'case .fsr: return String(localized: "FSR 1 (SDK 2.4 shaders)")')
+
+
+def apply_upscaler_telemetry(swift):
+    window = 'src/Ryujinx.Library/Window/WindowBase.cs'
+    edit(window, '        private int _captureRequested;',
+         '        private int _captureRequested;\n        private string _lastUpscalerStatus;')
+    edit(window, '            Device = device;',
+         '            Device = device;\n            UpscalerTelemetry.Report("Waiting for renderer");')
+    edit(window, '            Span<byte> bytes = stackalloc byte[33];',
+         '''            string upscaler = UpscalerTelemetry.Status;
+            if (_lastUpscalerStatus != upscaler)
+            {
+                _lastUpscalerStatus = upscaler;
+                CallbackRegistry.Invoke("upscaler_status", Encoding.UTF8.GetBytes(upscaler));
+            }
+            Span<byte> bytes = stackalloc byte[33];''')
+    path = 'src/Ryujinx.Graphics.Vulkan/Window.cs'
+    edit(path, '            if (metalFxPrepared)\n            {\n                ClearSwapchain',
+         '''            if (!metalFxPrepared)
+            {
+                string active = _scalingFilter is FsrScalingFilter ? "FSR 1 · SDK 2.4 / 7539ae8"
+                    : _scalingFilter is AreaScalingFilter ? "Area"
+                    : _currentScalingFilter == ScalingFilter.Nearest ? "Nearest"
+                    : _currentScalingFilter == ScalingFilter.MetalFx
+                        ? (_metalFxUpscaleFactor <= 1 ? "Bilinear · MetalFX bypassed (1.0x)" : "Bilinear · MetalFX fallback")
+                    : "Bilinear";
+                Ryujinx.Common.Callbacks.UpscalerTelemetry.Report(active);
+            }
+            if (metalFxPrepared)
+            {
+                ClearSwapchain''')
+    path = 'src/Ryujinx.Graphics.Vulkan/Effects/MetalFxScalingFilter.cs'
+    edit(path, '''            if (Invoke(EncodeCallback, ref _pendingRequest))
+            {
+                return true;''',
+         '''            if (Invoke(EncodeCallback, ref _pendingRequest))
+            {
+                UpscalerTelemetry.Report(_pendingRequest.Result == 2
+                    ? "MetalFX · Metal 4 spatial" : "MetalFX · Compatible spatial");
+                return true;''')
+    edit(path, '            _available = false;\n            CallbackRegistry.Invoke(ResetCallback);',
+         '            _available = false;\n            UpscalerTelemetry.Report("MetalFX encode failed · switching to Bilinear");\n            CallbackRegistry.Invoke(ResetCallback);')
+    edit('src/Ryujinx.Graphics.OpenGL/Window.cs',
+         '            GL.Disable(EnableCap.FramebufferSrgb);',
+         '''            Ryujinx.Common.Callbacks.UpscalerTelemetry.Report(_currentScalingFilter switch
+            {
+                ScalingFilter.Fsr => "FSR 1 · legacy OpenGL shader",
+                ScalingFilter.Area => "Area",
+                ScalingFilter.Nearest => "Nearest",
+                _ => "Bilinear",
+            });
+            GL.Disable(EnableCap.FramebufferSrgb);''')
+    edit(swift + 'Common/StatisticsHandler.swift',
+         '    @Published var fifo: Double = 0',
+         '    @Published var fifo: Double = 0\n    @Published var upscaler = "Waiting for renderer"')
+    edit(swift + 'Common/StatisticsHandler.swift', '    func registerPush() {',
+         '''    func registerPush() {
+        CallbackManager.register(name: "upscaler_status") { data in
+            guard let ptr = data.ptr, data.len > 0, data.len < 512 else { return }
+            let message = String(decoding: Data(bytes: ptr, count: Int(data.len)), as: UTF8.self)
+            Task { @MainActor in
+                self.upscaler = message.hasPrefix("MetalFX")
+                    ? message + " · OS " + UIDevice.current.systemVersion : message
+            }
+        }''')
+    hud = swift + 'UI/Emulation/PerformanceDisplay/PerformanceOverlay.swift'
+    edit(hud, '''            HStack(spacing: 8) {
+                overlayText
+            }''',
+         '''            VStack(alignment: .trailing, spacing: 4) {
+                HStack(spacing: 8) { overlayText }
+                upscalerLabel
+            }''')
+    edit(hud, '''            VStack(alignment: .trailing, spacing: 8) {
+                overlayText
+            }''',
+         '''            VStack(alignment: .trailing, spacing: 8) {
+                overlayText
+                upscalerLabel
+            }''')
+    edit(hud, '    var body: some View {',
+         '''    private var upscalerLabel: some View {
+        Text("Upscaler: " + statisticsHandler.upscaler)
+            .font(.caption2)
+            .foregroundStyle(.white)
+            .lineLimit(2)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityIdentifier("emulation.upscaler")
+    }
+
+    var body: some View {''')
+
 
 def apply_live_docked_mode(swift):
     library = 'src/Ryujinx.Library/Library.cs'

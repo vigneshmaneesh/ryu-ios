@@ -10,6 +10,7 @@ dotnet workload install mobile-librarybuilder --skip-manifest-update
 # Use MeloNX's supplied MoltenVK and BreakpointJIT machine code unchanged.
 sdk="$(xcrun --sdk iphoneos --show-sdk-path)"
 export SDKROOT="$sdk"
+python3 ios/MeloIntegration/Fsr/compile.py
 
 dotnet publish "$source_root/src/Ryujinx.Library/Ryujinx.Library.csproj" \
   -c Release -r ios-arm64 -p:NativeLib=Shared -p:NuGetAudit=false \
@@ -34,6 +35,8 @@ mkdir -p "$app/SourceNotices"
 cp "$source_root/LICENSE.txt" "$source_root/README.md" "$source_root/integration-provenance.json" "$app/SourceNotices/"
 cp "$source_root/distribution/legal/THIRDPARTY.md" "$app/SourceNotices/"
 cp ios/SecurityReview/MELO-NX-REVIEW.md "$app/SourceNotices/"
+cp ios/MeloIntegration/Fsr/README.md "$app/SourceNotices/FSR-SHADERS.md"
+cp ios/MeloIntegration/Fsr/upstream/ffx_fsr1.h "$app/SourceNotices/AMD-ffx_fsr1.h"
 find "$source_root/src/Ryujinx.Library/bin/Release/net10.0/ios-arm64" -name 'icudt*.dat' -exec cp {} "$app/" \;
 
 # Embed the stock memory entitlement request and helper before AltStore signs

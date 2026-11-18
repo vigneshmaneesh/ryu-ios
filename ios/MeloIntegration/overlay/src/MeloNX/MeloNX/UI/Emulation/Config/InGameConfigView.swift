@@ -66,6 +66,13 @@ struct InGameConfigView: View {
         .disabled(!canSwitchDockedMode)
 
         Button {
+            _ = request_screenshot()
+        } label: {
+            Label("Save Screenshot to Photos", systemImage: "camera")
+        }
+        .disabled(!canSwitchDockedMode)
+
+        Button {
             showControllerSettings = true
         } label: {
             Label {

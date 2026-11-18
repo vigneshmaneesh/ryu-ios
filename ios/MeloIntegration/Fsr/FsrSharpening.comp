@@ -1,0 +1,30 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+#include "ffx_glsl_compat.h"
+layout(local_size_x = 8, local_size_y = 8) in;
+layout(rgba8, binding = 0, set = 3) uniform writeonly image2D imgOutput;
+layout(binding = 1, set = 2) uniform sampler2D source;
+layout(std140, binding = 4) uniform Sharpness { float sharpening_data; };
+#define FSR_RCAS_F 1
+vec4 FsrRcasLoadF(ivec2 p) {
+    return texelFetch(source, clamp(p, ivec2(0), textureSize(source,0)-1), 0);
+}
+void FsrRcasInputF(inout float r, inout float g, inout float b) {}
+#include "upstream/ffx_fsr1.h"
+
+void filterPixel(ivec2 pixel, uvec4 constants) {
+    if (any(greaterThanEqual(pixel, imageSize(imgOutput)))) { return; }
+    vec3 colour;
+    FsrRcasF(colour.r, colour.g, colour.b, uvec2(pixel), constants);
+    imageStore(imgOutput, pixel, vec4(colour, 1));
+}
+
+void main() {
+    uvec4 constants;
+    FsrRcasCon(constants, sharpening_data);
+    ivec2 origin = ivec2(gl_GlobalInvocationID.xy) * 2;
+    filterPixel(origin, constants);
+    filterPixel(origin + ivec2(1,0), constants);
+    filterPixel(origin + ivec2(0,1), constants);
+    filterPixel(origin + ivec2(1,1), constants);
+}

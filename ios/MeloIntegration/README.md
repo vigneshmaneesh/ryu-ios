@@ -1,5 +1,21 @@
 # Ryu MeloNX integration
 
+For conversation history, current delivered build, known limits and continuation
+instructions, read [PROJECT_CONTEXT.md](../../PROJECT_CONTEXT.md).
+
+The November 18 update adds permission-aware Photos exports for artwork, renderer
+screenshots and guest album captures. It keeps a local copy before offering the
+image to Photos. Save Screenshot to Photos is in the in-game ellipsis menu.
+The native iOS capture path uses CoreGraphics/ImageIO instead of desktop Skia.
+
+MetalFX now prefers the supported Metal 4 spatial path with compatible spatial
+fallback. The built-in performance HUD identifies the actual implementation and
+OS version. FSR1's colour-only Vulkan shaders come from AMD FSR SDK 2.4.0, with
+portable 32-bit GLSL adapters; see [Fsr/README.md](Fsr/README.md).
+The quality ratio labels preserve the existing scale settings; FSR sharpness
+is separate from the scale guide. No automatic internal-resolution reduction
+is applied. These integrations do not add temporal upscaling or frame generation.
+
 The native MeloNX frontend and iOS platform changes are merged with the latest
 official Ryubing commit verified on 2026-11-08. Both inputs are immutable pins
 in `prepare.py`; the original supplied checkout remains untouched.

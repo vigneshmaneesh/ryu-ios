@@ -1,4 +1,9 @@
-# Ryu iOS: production renderer bring-up (v0.6.0)
+# Historical Ryu iOS prototype: renderer bring-up (v0.6.0)
+
+The current app is the Ryu MeloNX integration. See
+[PROJECT_CONTEXT.md](../PROJECT_CONTEXT.md) for the current project handoff and
+[MeloIntegration/README.md](MeloIntegration/README.md) for its build process.
+The prototype notes below predate the playable MeloNX integration.
 
 This is an iOS 27 **CPU prototype**, not a playable Switch emulator yet.
 The first commercial compatibility target is **Tomodachi Life: Living the Dream**;
