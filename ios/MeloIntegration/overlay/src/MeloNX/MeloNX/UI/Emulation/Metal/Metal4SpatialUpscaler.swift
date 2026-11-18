@@ -46,7 +46,6 @@ nonisolated final class Metal4SpatialUpscaler {
         self.compiler = compiler
         self.scaler = scaler
         self.freeFrames = frames
-        queue.label = "MeloNX Metal 4 spatial upscaler"
     }
 
     // The completion buffer stays on the original MoltenVK queue. It waits for
