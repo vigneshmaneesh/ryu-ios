@@ -72,4 +72,6 @@ using (var transferred = GuestRamAllocator.Create(ramSize, MemoryManagerMode.Hos
 }
 Console.WriteLine("PASS stock MeloNX 4 GiB guest RAM: edge/middle page access, six failed-startup releases/retries, successful ownership transfer.");
 
+TextureScaleChecks.Run();
+
 sealed class TestStartupFailure : Exception { }

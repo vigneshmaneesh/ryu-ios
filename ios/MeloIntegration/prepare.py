@@ -77,6 +77,7 @@ def prepare(offline=False):
     apply_profile_manager_fix(swift)
     apply_photo_export(swift)
     apply_upscale_presets(swift)
+    apply_mip_chain_downscale_guard()
     apply_upscaler_telemetry(swift)
     # The host menu is revealed only by a narrow top-edge strip above gameplay.
     # Replace the old hide switch, including existing saved values.
@@ -232,6 +233,7 @@ def prepare(offline=False):
                       metalfx='Metal 4 spatial scaler where supported, with spatial compatibility fallback; temporal/depth data is not exposed',
                       fsr='FSR1 GPU header from AMD FSR SDK 2.4.0, 7539ae8b6568ad29ed78a753404351daf3b5cca7; 32-bit portable Vulkan EASU/RCAS',
                       upscale_presets='MetalFX and FSR quality presets set launch render scale and upscale to the display; Manual retains saved values',
+                      mip_chain_downscale='sub-native rendering keeps mipmapped texture storage and its views at native size',
                       guest_ram='stock MeloNX allocation flags; startup rollback and error details',
                       ram_donor='stock MeloNXRamDonor.appex, com.stossy11.MeloNX.RamDonor',
                       signing='ad-hoc entitlement request for AltStore re-signing; increased-memory-limit and get-task-allow; device grants must be verified after installation',
@@ -419,6 +421,41 @@ def apply_upscale_presets(swift):
     edit(swift + 'Core/Models/Options/NativeModels.swift',
          'case .fsr: return String(localized: "FSR")',
          'case .fsr: return String(localized: "FSR 1 (SDK 2.4 shaders)")')
+
+
+def apply_mip_chain_downscale_guard():
+    texture_cache = 'src/Ryujinx.Graphics.Gpu/Image/TextureCache.cs'
+    edit(texture_cache, '''        private static TextureScaleMode IsUpscaleCompatible(TextureInfo info, bool withUpscale)
+        {''', '''        private static TextureScaleMode IsUpscaleCompatible(TextureInfo info, bool withUpscale)
+        {
+            // A smaller host texture may not support the guest's full mip range.
+            // Keep its storage and views at the same native size.
+            if (info.Levels > 1 && GraphicsConfig.ResScale < 1f)
+            {
+                return TextureScaleMode.Blacklisted;
+            }
+''')
+
+    texture = 'src/Ryujinx.Graphics.Gpu/Image/Texture.cs'
+    edit(texture, '            texture._viewStorage = this;',
+         '''            texture._viewStorage = this;
+            if (Info.Levels > 1 && GraphicsConfig.ResScale < 1f)
+            {
+                // An existing single-level texture can be reparented as a mip view.
+                texture.ScaleMode = TextureScaleMode.Blacklisted;
+            }''')
+    edit(texture, '''        public void SetScale(float scale)
+        {
+            bool unscaled''', '''        public void SetScale(float scale)
+        {
+            // Also protect storage reached through a single-level child view.
+            if (scale < 1f && _viewStorage.Info.Levels > 1)
+            {
+                scale = 1f;
+                ScaleMode = TextureScaleMode.Blacklisted;
+            }
+
+            bool unscaled''')
 
 
 def apply_upscaler_telemetry(swift):
