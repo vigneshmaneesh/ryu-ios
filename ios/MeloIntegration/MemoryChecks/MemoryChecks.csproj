@@ -7,5 +7,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../build/melonx/src/Ryujinx.HLE/Ryujinx.HLE.csproj" />
+    <ProjectReference Include="../../build/melonx/src/Ryujinx.Graphics.Vulkan/Ryujinx.Graphics.Vulkan.csproj" />
   </ItemGroup>
 </Project>

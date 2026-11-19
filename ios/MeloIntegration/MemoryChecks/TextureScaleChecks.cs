@@ -3,6 +3,7 @@ using System.Reflection;
 using Ryujinx.Graphics.GAL;
 using Ryujinx.Graphics.Gpu;
 using Ryujinx.Graphics.Texture;
+using Ryujinx.Graphics.Vulkan;
 using Ryujinx.Memory.Range;
 
 static class TextureScaleChecks
@@ -84,5 +85,43 @@ static class TextureScaleChecks
         }
 
         Console.WriteLine("PASS mipmapped storage stays native at sub-native scales and single-level framebuffers can still downscale.");
+
+        CheckVulkanMipRange();
+        CheckAutomaticMetalFxSize();
+    }
+
+    private static void CheckVulkanMipRange()
+    {
+        var view = typeof(VulkanRenderer).Assembly.GetType("Ryujinx.Graphics.Vulkan.TextureView", throwOnError: true)!;
+        var limit = view.GetMethod("LimitMipRange", BindingFlags.NonPublic | BindingFlags.Static)!;
+
+        static TextureCreateInfo Info(int width, int height, int levels) => new(
+            width, height, 1, levels, 1, 1, 1, 4, Format.R8G8B8A8Unorm, DepthStencilMode.Depth,
+            Target.Texture2D, SwizzleComponent.Red, SwizzleComponent.Green, SwizzleComponent.Blue, SwizzleComponent.Alpha);
+
+        var storage = Info(86, 43, 8);
+        var viewInfo = Info(64, 32, 7);
+        var limited = (TextureCreateInfo)limit.Invoke(null, [viewInfo, storage, 1])!;
+        var unchanged = (TextureCreateInfo)limit.Invoke(null, [viewInfo, storage, 0])!;
+        if (!limited.Equals(Info(64, 32, 6)) || !unchanged.Equals(viewInfo))
+        {
+            throw new Exception("Vulkan texture view exceeds its backing mip range or changed a valid range.");
+        }
+
+        Console.WriteLine("PASS Vulkan view at mip 1 cannot request an eighth level from seven-level storage.");
+    }
+
+    private static void CheckAutomaticMetalFxSize()
+    {
+        var filter = typeof(VulkanRenderer).Assembly.GetType("Ryujinx.Graphics.Vulkan.Effects.MetalFxScalingFilter", throwOnError: true)!;
+        var size = filter.GetMethod("GetAutomaticSpatialSize", BindingFlags.NonPublic | BindingFlags.Static)!;
+
+        if (((int, int))size.Invoke(null, [427, 240, 2096, 1179])! != (854, 480) ||
+            ((int, int))size.Invoke(null, [640, 360, 960, 540])! != (960, 540))
+        {
+            throw new Exception("MetalFX effective resolution is incorrect for Host Display.");
+        }
+
+        Console.WriteLine("PASS MetalFX Host Display limits the 427x240 crash case to a 2x spatial pass.");
     }
 }

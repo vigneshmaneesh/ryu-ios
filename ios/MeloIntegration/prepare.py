@@ -78,6 +78,8 @@ def prepare(offline=False):
     apply_photo_export(swift)
     apply_upscale_presets(swift)
     apply_mip_chain_downscale_guard()
+    apply_moltenvk_texture_view_bounds()
+    apply_metal_fx_recovery(swift)
     apply_upscaler_telemetry(swift)
     # The host menu is revealed only by a narrow top-edge strip above gameplay.
     # Replace the old hide switch, including existing saved values.
@@ -458,6 +460,85 @@ def apply_mip_chain_downscale_guard():
             bool unscaled''')
 
 
+def apply_moltenvk_texture_view_bounds():
+    storage = 'src/Ryujinx.Graphics.Vulkan/TextureStorage.cs'
+    edit(storage, '''            int width,
+            int height)
+        {
+            return new TextureCreateInfo(''', '''            int width,
+            int height,
+            int? levels = null)
+        {
+            return new TextureCreateInfo(''')
+    edit(storage, '                info.Levels,\n                info.Samples,',
+         '                levels ?? info.Levels,\n                info.Samples,')
+
+    view = 'src/Ryujinx.Graphics.Vulkan/TextureView.cs'
+    edit(view, '''        public TextureView(
+            VulkanRenderer gd,
+            Device device,
+            TextureCreateInfo info,
+            TextureStorage storage,''', '''        // A rounded view size can imply more levels than remain in its parent.
+        // Keep both Vulkan and subsequent copies within the backing image's range.
+        internal static TextureCreateInfo LimitMipRange(TextureCreateInfo info, TextureCreateInfo storage, int firstLevel)
+        {
+            if ((uint)firstLevel >= (uint)storage.Levels || info.Levels < 1)
+            {
+                throw new ArgumentOutOfRangeException(nameof(firstLevel),
+                    $"Texture view requested mip {firstLevel} with {info.Levels} levels, but its {storage.Width}x{storage.Height} storage has {storage.Levels} levels.");
+            }
+
+            int availableLevels = storage.Levels - firstLevel;
+            if (info.Levels <= availableLevels)
+            {
+                return info;
+            }
+
+            Ryujinx.Common.Logging.Logger.Warning?.Print(
+                Ryujinx.Common.Logging.LogClass.Gpu,
+                $"Limited texture view {info.Width}x{info.Height} {info.Format}, mip {firstLevel}, from {info.Levels} to {availableLevels} levels for {storage.Width}x{storage.Height} storage.");
+            return TextureStorage.NewCreateInfoWith(ref info, info.Format, info.BytesPerPixel,
+                info.Width, info.Height, availableLevels);
+        }
+
+        public TextureView(
+            VulkanRenderer gd,
+            Device device,
+            TextureCreateInfo info,
+            TextureStorage storage,''')
+    edit(view, '''            _info = info;
+            Storage = storage;''', '''            info = LimitMipRange(info, storage.Info, firstLevel);
+            _info = info;
+            Storage = storage;''')
+
+
+def apply_metal_fx_recovery(swift):
+    path = 'src/Ryujinx.Graphics.Vulkan/Effects/MetalFxScalingFilter.cs'
+    edit(path, '        private const float HostResolutionFactor = 4.0f;',
+         '''        private const float HostResolutionFactor = 4.0f;
+        private const int MaxAutomaticSpatialFactor = 2;
+
+        internal static (int Width, int Height) GetAutomaticSpatialSize(
+            int sourceWidth, int sourceHeight, int outputWidth, int outputHeight)
+        {
+            // Lanczos finishes the resize to the display when its size exceeds this budget.
+            return (Math.Min(outputWidth, sourceWidth * MaxAutomaticSpatialFactor),
+                Math.Min(outputHeight, sourceHeight * MaxAutomaticSpatialFactor));
+        }''')
+    edit(path, '''                renderWidth = outputWidth;
+                renderHeight = outputHeight;''',
+         '''                (renderWidth, renderHeight) = GetAutomaticSpatialSize(
+                    sourceWidth, sourceHeight, outputWidth, outputHeight);''')
+    edit(swift + 'Core/Models/Options/NativeModels.swift',
+         'MetalFX (Auto: Metal 4 / Compatible)', 'MetalFX (Compatible spatial)')
+    edit(swift + 'Core/RyujinxController.swift',
+         '        let expandedRAM = settings.expandRAM', '''        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
+        NSLog("MeloNX %@ build %@", version, build)
+
+        let expandedRAM = settings.expandRAM''')
+
+
 def apply_upscaler_telemetry(swift):
     window = 'src/Ryujinx.Library/Window/WindowBase.cs'
     edit(window, '        private int _captureRequested;',
@@ -493,8 +574,7 @@ def apply_upscaler_telemetry(swift):
                 return true;''',
          '''            if (Invoke(EncodeCallback, ref _pendingRequest))
             {
-                UpscalerTelemetry.Report(_pendingRequest.Result == 2
-                    ? "MetalFX · Metal 4 spatial" : "MetalFX · Compatible spatial");
+                UpscalerTelemetry.Report("MetalFX · Compatible spatial");
                 return true;''')
     edit(path, '            _available = false;\n            CallbackRegistry.Invoke(ResetCallback);',
          '            _available = false;\n            UpscalerTelemetry.Report("MetalFX encode failed · switching to Bilinear");\n            CallbackRegistry.Invoke(ResetCallback);')
