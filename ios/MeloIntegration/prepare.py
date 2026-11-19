@@ -409,17 +409,19 @@ def apply_upscale_presets(swift):
         source = path.read_text(encoding='utf-8-sig')
         start = source.index('                    let outputScaleBinding = Binding<Float>(')
         end = source.index('\n                }', start)
+        backend_control = ('MetalFxBackendControl()' if name == 'SettingsView.swift' else
+                           'Text("MetalFX backend is set in global Graphics settings.")\n'
+                           '                            .font(.caption).foregroundStyle(.secondary)')
         source = source[:start] + '''                    if config.wrappedValue.upscalePreset == .manual {
                         MetalFxScaleControl(value: config.metalFxUpscaleFactor)
                     }
                     if config.wrappedValue.upscalePreset != .native {
-                        Text(MetalFxBridge.backendDescription)
-                            .font(.caption).foregroundStyle(.secondary)
+                        ''' + backend_control + '''
                     }''' + source[end:]
         path.write_text(source, encoding='utf-8', newline='\n')
     edit(swift + 'Core/Models/Options/NativeModels.swift',
          'case .metalFx: return String(localized: "MetalFX")',
-         'case .metalFx: return String(localized: "MetalFX (Auto: Metal 4 / Compatible)")')
+         'case .metalFx: return String(localized: "MetalFX Spatial")')
     edit(swift + 'Core/Models/Options/NativeModels.swift',
          'case .fsr: return String(localized: "FSR")',
          'case .fsr: return String(localized: "FSR 1 (SDK 2.4 shaders)")')
@@ -529,12 +531,11 @@ def apply_metal_fx_recovery(swift):
                 renderHeight = outputHeight;''',
          '''                (renderWidth, renderHeight) = GetAutomaticSpatialSize(
                     sourceWidth, sourceHeight, outputWidth, outputHeight);''')
-    edit(swift + 'Core/Models/Options/NativeModels.swift',
-         'MetalFX (Auto: Metal 4 / Compatible)', 'MetalFX (Compatible spatial)')
     edit(swift + 'Core/RyujinxController.swift',
          '        let expandedRAM = settings.expandRAM', '''        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
         let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
         NSLog("MeloNX %@ build %@", version, build)
+        MetalFxBridge.beginSession()
 
         let expandedRAM = settings.expandRAM''')
 
@@ -574,7 +575,8 @@ def apply_upscaler_telemetry(swift):
                 return true;''',
          '''            if (Invoke(EncodeCallback, ref _pendingRequest))
             {
-                UpscalerTelemetry.Report("MetalFX · Compatible spatial");
+                UpscalerTelemetry.Report(_pendingRequest.Result == 2
+                    ? "MetalFX · Metal 4 spatial" : "MetalFX · Compatible spatial");
                 return true;''')
     edit(path, '            _available = false;\n            CallbackRegistry.Invoke(ResetCallback);',
          '            _available = false;\n            UpscalerTelemetry.Report("MetalFX encode failed · switching to Bilinear");\n            CallbackRegistry.Invoke(ResetCallback);')

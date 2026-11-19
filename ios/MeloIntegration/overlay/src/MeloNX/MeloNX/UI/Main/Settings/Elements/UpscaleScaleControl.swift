@@ -72,3 +72,17 @@ struct MetalFxScaleControl: View {
                   format: "%.1f", maximumValueDisplay: "Host")
     }
 }
+
+struct MetalFxBackendControl: View {
+    @AppStorage(MetalFxBridge.preferMetal4Key) private var preferMetal4 = false
+
+    var body: some View {
+        if MetalFxBridge.supportsMetal4 {
+            Toggle("Use Metal 4 for MetalFX (Test)", isOn: $preferMetal4)
+            Text("Relaunch the game to apply. The Metal 4 test supports up to 2× spatial scaling.")
+                .font(.caption).foregroundStyle(.secondary)
+        } else {
+            LabeledContent("MetalFX Backend", value: "Compatible spatial")
+        }
+    }
+}

@@ -40,12 +40,17 @@ nonisolated private final class MetalFxSpatialState {
     }
     
     private let configuration: Configuration
-    private let scaler: any MTLFXSpatialScaler
+    private let scaler: any MTLFXSpatialScalerBase
+    private let metal4: Metal4SpatialUpscaler?
+    private let compatibleScaler: (any MTLFXSpatialScaler)?
     private let outputTexture: any MTLTexture
     private let presentationTexture: (any MTLTexture)?
     private let presentationScaler: MPSImageLanczosScale?
     
-    init?(device: any MTLDevice, inputTexture: any MTLTexture, destinationTexture: any MTLTexture, inputWidth: Int, inputHeight: Int, outputWidth: Int, outputHeight: Int, renderWidth: Int, renderHeight: Int) {
+    var backendCode: Int32 { metal4 == nil ? 1 : 2 }
+    var metal4Failed: Bool { metal4?.hasFailed == true }
+
+    init?(device: any MTLDevice, inputTexture: any MTLTexture, destinationTexture: any MTLTexture, inputWidth: Int, inputHeight: Int, outputWidth: Int, outputHeight: Int, renderWidth: Int, renderHeight: Int, preferMetal4: Bool) {
         guard inputWidth > 0,
               inputHeight > 0,
               outputWidth > 0,
@@ -57,6 +62,7 @@ nonisolated private final class MetalFxSpatialState {
               destinationTexture.device.registryID == device.registryID,
               inputTexture.textureType == .type2D,
               inputTexture.sampleCount == 1,
+              inputTexture.mipmapLevelCount == 1,
               inputTexture.width == inputWidth,
               inputTexture.height == inputHeight,
               destinationTexture.textureType == .type2D,
@@ -73,13 +79,20 @@ nonisolated private final class MetalFxSpatialState {
         descriptor.outputTextureFormat = destinationTexture.pixelFormat
         descriptor.colorProcessingMode = .perceptual
         
-        // Keep MetalFX and MoltenVK presentation work on the same command queue.
-        guard let scaler = descriptor.makeSpatialScaler(device: device) else { return nil }
-        
-        let requiredInputUsage = scaler.colorTextureUsage.rawValue
-        guard inputTexture.usage.rawValue & requiredInputUsage == requiredInputUsage else {
-            return nil
+        let metal4: Metal4SpatialUpscaler?
+        if preferMetal4, renderWidth <= inputWidth * 2, renderHeight <= inputHeight * 2,
+           let backend = Metal4SpatialUpscaler(device: device, descriptor: descriptor),
+           inputTexture.usage.contains(backend.scaler.colorTextureUsage) {
+            metal4 = backend
+        } else {
+            metal4 = nil
         }
+        let compatibleScaler = metal4 == nil ? descriptor.makeSpatialScaler(device: device) : nil
+        let scaler: any MTLFXSpatialScalerBase
+        if let metal4 { scaler = metal4.scaler }
+        else if let compatibleScaler { scaler = compatibleScaler }
+        else { return nil }
+        guard inputTexture.usage.contains(scaler.colorTextureUsage) else { return nil }
         
         let outputDescriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: destinationTexture.pixelFormat, width: renderWidth, height: renderHeight, mipmapped: false)
         outputDescriptor.storageMode = .private
@@ -121,10 +134,14 @@ nonisolated private final class MetalFxSpatialState {
         )
         
         self.scaler = scaler
+        self.metal4 = metal4
+        self.compatibleScaler = compatibleScaler
         self.outputTexture = outputTexture
         self.presentationTexture = presentationTexture
         self.presentationScaler = presentationScaler
-        NSLog("[MetalFX] Spatial backend: Compatible")
+        let backend = metal4 == nil ? "Compatible" : "Metal 4"
+        NSLog("[MetalFX] %@ spatial, %dx%d to %dx%d, display %dx%d", backend,
+              inputWidth, inputHeight, renderWidth, renderHeight, outputWidth, outputHeight)
     }
     
     func matches(
@@ -175,11 +192,32 @@ nonisolated private final class MetalFxSpatialState {
         
         commandBuffer.label = "MeloNX MetalFX spatial upscale"
         
-        scaler.inputContentWidth = configuration.inputWidth
-        scaler.inputContentHeight = configuration.inputHeight
-        scaler.colorTexture = inputTexture
-        scaler.outputTexture = outputTexture
-        scaler.encode(commandBuffer: commandBuffer)
+        var presentationEncoded = false
+        if let metal4 {
+            guard metal4.encode(legacyQueue: commandQueue, completionBuffer: commandBuffer,
+                                input: inputTexture, output: outputTexture,
+                                width: configuration.inputWidth, height: configuration.inputHeight,
+                                encodePresentation: {
+                presentationEncoded = self.encodePresentation(commandBuffer, to: destinationTexture,
+                                                               x: destinationX, y: destinationY)
+            }) else { return false }
+        } else if let compatibleScaler {
+            scaler.inputContentWidth = configuration.inputWidth
+            scaler.inputContentHeight = configuration.inputHeight
+            scaler.colorTexture = inputTexture
+            scaler.outputTexture = outputTexture
+            compatibleScaler.encode(commandBuffer: commandBuffer)
+            presentationEncoded = encodePresentation(commandBuffer, to: destinationTexture,
+                                                      x: destinationX, y: destinationY)
+        }
+        commandBuffer.commit()
+        scaler.colorTexture = nil
+        scaler.outputTexture = nil
+        return presentationEncoded
+    }
+
+    private func encodePresentation(_ commandBuffer: any MTLCommandBuffer, to destinationTexture: any MTLTexture,
+                                    x: Int, y: Int) -> Bool {
         
         let copySource: any MTLTexture
         
@@ -191,12 +229,7 @@ nonisolated private final class MetalFxSpatialState {
             copySource = outputTexture
         }
         
-        guard let blitEncoder = commandBuffer.makeBlitCommandEncoder() else {
-            commandBuffer.commit()
-            scaler.colorTexture = nil
-            scaler.outputTexture = nil
-            return false
-        }
+        guard let blitEncoder = commandBuffer.makeBlitCommandEncoder() else { return false }
         
         blitEncoder.label = "MeloNX MetalFX presentation copy"
         blitEncoder.copy(
@@ -212,15 +245,9 @@ nonisolated private final class MetalFxSpatialState {
             to: destinationTexture,
             destinationSlice: 0,
             destinationLevel: 0,
-            destinationOrigin: MTLOrigin(x: destinationX, y: destinationY, z: 0)
+            destinationOrigin: MTLOrigin(x: x, y: y, z: 0)
         )
         blitEncoder.endEncoding()
-        
-        commandBuffer.commit()
-        
-        scaler.colorTexture = nil
-        scaler.outputTexture = nil
-        
         return true
     }
 }
@@ -235,10 +262,20 @@ nonisolated enum MetalFxBridge {
     private static let lock = NSLock()
     private static var registered = false
     private static var state: MetalFxSpatialState?
+    private static var preferMetal4 = false
 
-    static var backendDescription: String {
-        isSupported ? "Uses compatible MetalFX spatial upscaling on this device."
-            : "MetalFX is unavailable on this device."
+    static let preferMetal4Key = "preferMetalFxMetal4"
+
+    static var supportsMetal4: Bool {
+        guard let device = MTLCreateSystemDefaultDevice() else { return false }
+        return MTLFXSpatialScalerDescriptor.supportsMetal4FX(device)
+    }
+
+    static func beginSession() {
+        lock.lock()
+        defer { lock.unlock() }
+        state = nil
+        preferMetal4 = UserDefaults.standard.bool(forKey: preferMetal4Key)
     }
     
     static var isSupported: Bool {
@@ -343,6 +380,12 @@ nonisolated enum MetalFxBridge {
         lock.lock()
         defer { lock.unlock() }
         
+        if state?.metal4Failed == true {
+            state = nil
+            preferMetal4 = false
+            NSLog("[MetalFX] Using compatible spatial after Metal 4 command-buffer error")
+        }
+
         if state?.matches(
             device: device,
             inputTexture: inputTexture,
@@ -363,7 +406,8 @@ nonisolated enum MetalFxBridge {
                 outputWidth: outputWidth,
                 outputHeight: outputHeight,
                 renderWidth: renderWidth,
-                renderHeight: renderHeight
+                renderHeight: renderHeight,
+                preferMetal4: preferMetal4
             )
         }
         
@@ -386,7 +430,7 @@ nonisolated enum MetalFxBridge {
                                    destinationTexture: destinationTexture,
                                    destinationX: Int(request.pointee.destinationX),
                                    destinationY: Int(request.pointee.destinationY)) {
-            request.pointee.result = 1
+            request.pointee.result = state.backendCode
         }
     }
 }

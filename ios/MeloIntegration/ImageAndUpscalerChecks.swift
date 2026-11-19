@@ -68,57 +68,79 @@ struct ImageAndUpscalerChecks {
             print("SKIP Metal 4 GPU execution: runner does not expose a supported GPU")
             return
         }
+        checkMetal4(device: device, width: 64, height: 64, format: .rgba8Unorm)
+        checkMetal4(device: device, width: 427, height: 240, format: .bgra8Unorm)
+        print("PASS Metal 4 spatial readback, including the 427x240 case and overlapping presentation submissions")
+    }
+
+    @available(macOS 26.0, *)
+    private static func checkMetal4(device: any MTLDevice, width: Int, height: Int, format: MTLPixelFormat) {
+        let outputWidth = width * 2
+        let outputHeight = height * 2
+        let readbackStride = (outputWidth * 4 + 255) / 256 * 256
         let descriptor = MTLFXSpatialScalerDescriptor()
-        descriptor.inputWidth = 64
-        descriptor.inputHeight = 64
-        descriptor.outputWidth = 128
-        descriptor.outputHeight = 128
-        descriptor.colorTextureFormat = .rgba8Unorm
-        descriptor.outputTextureFormat = .rgba8Unorm
+        descriptor.inputWidth = width
+        descriptor.inputHeight = height
+        descriptor.outputWidth = outputWidth
+        descriptor.outputHeight = outputHeight
+        descriptor.colorTextureFormat = format
+        descriptor.outputTextureFormat = format
         descriptor.colorProcessingMode = .perceptual
         guard let backend = Metal4SpatialUpscaler(device: device, descriptor: descriptor),
               let queue = device.makeCommandQueue() else {
             fatalError("Supported Metal 4 spatial backend failed to initialize")
         }
-        let inputDescriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .rgba8Unorm,
-            width: 64, height: 64, mipmapped: false)
+        let inputDescriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: format,
+            width: width, height: height, mipmapped: false)
         inputDescriptor.storageMode = .shared
         inputDescriptor.usage = backend.scaler.colorTextureUsage
-        let outputDescriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .rgba8Unorm,
-            width: 128, height: 128, mipmapped: false)
+        let outputDescriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: format,
+            width: outputWidth, height: outputHeight, mipmapped: false)
         outputDescriptor.storageMode = .private
         outputDescriptor.usage = backend.scaler.outputTextureUsage
-        let input = device.makeTexture(descriptor: inputDescriptor)!
         let output = device.makeTexture(descriptor: outputDescriptor)!
-        let readback = device.makeBuffer(length: 128 * 128 * 4, options: .storageModeShared)!
-        for iteration in 0..<8 {
-            var pixels = [UInt8](repeating: 0, count: 64 * 64 * 4)
+        let inputs = (0..<3).map { channel in
+            let input = device.makeTexture(descriptor: inputDescriptor)!
+            var pixels = [UInt8](repeating: 0, count: width * height * 4)
             for i in stride(from: 0, to: pixels.count, by: 4) {
-                pixels[i + (iteration % 2)] = 255
+                pixels[i + channel] = 255
                 pixels[i + 3] = 255
             }
             pixels.withUnsafeBytes { bytes in
-                input.replace(region: MTLRegionMake2D(0, 0, 64, 64), mipmapLevel: 0,
-                              withBytes: bytes.baseAddress!, bytesPerRow: 64 * 4)
+                input.replace(region: MTLRegionMake2D(0, 0, width, height), mipmapLevel: 0,
+                              withBytes: bytes.baseAddress!, bytesPerRow: width * 4)
             }
-            let completion = queue.makeCommandBuffer()!
-            require(backend.encode(legacyQueue: queue, completionBuffer: completion,
-                                   input: input, output: output, width: 64, height: 64), "GPU encode failed")
-            let blit = completion.makeBlitCommandEncoder()!
-            blit.copy(from: output, sourceSlice: 0, sourceLevel: 0,
-                      sourceOrigin: MTLOrigin(x: 0, y: 0, z: 0),
-                      sourceSize: MTLSize(width: 128, height: 128, depth: 1),
-                      to: readback, destinationOffset: 0, destinationBytesPerRow: 128 * 4,
-                      destinationBytesPerImage: 128 * 128 * 4)
-            blit.endEncoding()
-            completion.commit()
-            completion.waitUntilCompleted()
-            require(completion.status == .completed, "GPU command failed: \(String(describing: completion.error))")
-            let result = readback.contents().assumingMemoryBound(to: UInt8.self)
-            let offset = (64 * 128 + 64) * 4
-            require(result[offset + (iteration % 2)] > 220 &&
-                    result[offset + (1 - iteration % 2)] < 30, "Stale or incorrect upscaler output")
+            return input
         }
-        print("PASS Metal 4 spatial GPU readback, cross-queue synchronization and allocator reuse")
+        let readbacks = inputs.map { _ in
+            device.makeBuffer(length: readbackStride * outputHeight, options: .storageModeShared)!
+        }
+        for batch in 0..<3 {
+            let buffers = inputs.indices.map { index in
+                let channel = (batch + index) % inputs.count
+                let completion = queue.makeCommandBuffer()!
+                require(backend.encode(legacyQueue: queue, completionBuffer: completion,
+                                       input: inputs[channel], output: output, width: width, height: height) {
+                    let blit = completion.makeBlitCommandEncoder()!
+                    blit.copy(from: output, sourceSlice: 0, sourceLevel: 0,
+                              sourceOrigin: MTLOrigin(x: 0, y: 0, z: 0),
+                              sourceSize: MTLSize(width: outputWidth, height: outputHeight, depth: 1),
+                              to: readbacks[index], destinationOffset: 0, destinationBytesPerRow: readbackStride,
+                              destinationBytesPerImage: readbackStride * outputHeight)
+                    blit.endEncoding()
+                }, "GPU encode failed")
+                completion.commit()
+                return completion
+            }
+            for (index, completion) in buffers.enumerated() {
+                completion.waitUntilCompleted()
+                require(completion.status == .completed, "GPU command failed: \(String(describing: completion.error))")
+                let result = readbacks[index].contents().assumingMemoryBound(to: UInt8.self)
+                let offset = height * readbackStride + width * 4
+                let channel = (batch + index) % inputs.count
+                require(result[offset + channel] > 220 &&
+                        result[offset + (channel + 1) % 3] < 30, "Stale or incorrect upscaler output")
+            }
+        }
     }
 }
