@@ -43,6 +43,10 @@ jobs:
         run: |
           xcrun swiftc ios/MeloIntegration/overlay/src/MeloNX/MeloNX/Common/JIT/JITSessionState.swift ios/MeloIntegration/JITFlowChecks.swift -o ios/build/JITFlowChecks
           ios/build/JITFlowChecks
+      - name: Check device gyro orientation and calibration
+        run: |
+          xcrun swiftc -O ios/MeloIntegration/overlay/src/MeloNX/MeloNX/Core/Controllers/Motion/DeviceMotionSettings.swift ios/MeloIntegration/DeviceMotionChecks.swift -o ios/build/DeviceMotionChecks
+          ios/build/DeviceMotionChecks
       - name: Check iOS CPU memory-table regression
         run: dotnet run --project ios/MeloIntegration/MemoryChecks -c Release -p:NuGetAudit=false -p:BuildInParallel=false -p:UseSharedCompilation=false -p:GeneratePackageOnBuild=false
       - name: Check photo encoding and Metal 4 spatial scaling

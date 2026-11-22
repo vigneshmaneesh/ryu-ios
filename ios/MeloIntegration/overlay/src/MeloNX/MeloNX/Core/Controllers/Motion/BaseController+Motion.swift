@@ -17,9 +17,12 @@ nonisolated final class DeviceMotionFeed {
     private let manager = CMMotionManager()
     private let queue = OperationQueue()
     private let lock = NSLock()
-    private var listeners: [ObjectIdentifier: (CMDeviceMotion, UIDeviceOrientation) -> Void] = [:]
+    private var listeners: [ObjectIdentifier: (DeviceMotionSample, DeviceMotionOrientation) -> Void] = [:]
+    private var previews: Set<UUID> = []
     private var generation: UInt64 = 0
-    private var orientation: UIDeviceOrientation = .landscapeLeft
+    private var sampling = false
+    private var screen: DeviceMotionOrientation = .portrait
+    private var latestSample: DeviceMotionSample?
 
     private init() {
         queue.maxConcurrentOperationCount = 1
@@ -27,58 +30,93 @@ nonisolated final class DeviceMotionFeed {
         manager.deviceMotionUpdateInterval = 1.0 / 60.0
     }
 
-    @MainActor
-    static func observeOrientation() {
-        shared.updateOrientation(UIDevice.current.orientation)
-        NotificationCenter.default.addObserver(forName: UIDevice.orientationDidChangeNotification,
-                                               object: nil, queue: .main) { _ in
-            MainActor.assumeIsolated {
-                shared.updateOrientation(UIDevice.current.orientation)
-            }
-        }
+    var isAvailable: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return manager.isDeviceMotionAvailable
     }
 
-    private func updateOrientation(_ orientation: UIDeviceOrientation) {
-        guard orientation.isValidInterfaceOrientation else { return }
+    func updateScreenOrientation(_ orientation: UIInterfaceOrientation) {
+        let newScreen: DeviceMotionOrientation
+        switch orientation {
+        case .landscapeLeft: newScreen = .portLeft
+        case .landscapeRight: newScreen = .portRight
+        case .portrait: newScreen = .portrait
+        case .portraitUpsideDown: newScreen = .portraitUpsideDown
+        default: return
+        }
         lock.lock()
-        self.orientation = orientation
+        screen = newScreen
         lock.unlock()
     }
 
-    func subscribe(_ id: ObjectIdentifier, receive: @escaping (CMDeviceMotion, UIDeviceOrientation) -> Void) {
+    func subscribe(_ id: ObjectIdentifier, receive: @escaping (DeviceMotionSample, DeviceMotionOrientation) -> Void) {
         lock.lock()
         defer { lock.unlock() }
-        guard manager.isDeviceMotionAvailable else { return }
-        let shouldStart = listeners.isEmpty
         listeners[id] = receive
-        guard shouldStart else { return }
-
-        generation &+= 1
-        let currentGeneration = generation
-        manager.startDeviceMotionUpdates(to: queue) { [weak self] data, _ in
-            guard let self, let data else { return }
-            self.lock.lock()
-            let callbacks = self.generation == currentGeneration ? Array(self.listeners.values) : []
-            let orientation = self.orientation
-            self.lock.unlock()
-            for callback in callbacks { callback(data, orientation) }
-        }
+        updateSampling()
     }
 
     func unsubscribe(_ id: ObjectIdentifier) {
         lock.lock()
         defer { lock.unlock() }
-        if listeners.removeValue(forKey: id) != nil && listeners.isEmpty {
-            generation &+= 1
+        listeners.removeValue(forKey: id)
+        updateSampling()
+    }
+
+    func setPreviewActive(_ active: Bool, id: UUID) {
+        lock.lock()
+        defer { lock.unlock() }
+        if active { previews.insert(id) }
+        else { previews.remove(id) }
+        updateSampling()
+    }
+
+    func snapshot() -> (DeviceMotionSample, DeviceMotionOrientation)? {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let latestSample else { return nil }
+        return (latestSample, screen)
+    }
+
+    private func updateSampling() {
+        let shouldSample = manager.isDeviceMotionAvailable && (!listeners.isEmpty || !previews.isEmpty)
+        guard shouldSample != sampling else { return }
+        sampling = shouldSample
+        generation &+= 1
+        if !shouldSample {
+            latestSample = nil
             manager.stopDeviceMotionUpdates()
+            return
+        }
+        let currentGeneration = generation
+        manager.startDeviceMotionUpdates(to: queue) { [weak self] data, _ in
+            guard let self, let data else { return }
+            let g = data.gravity
+            let a = data.userAcceleration
+            let r = data.rotationRate
+            let sample = DeviceMotionSample(up: SIMD3(-Float(g.x), -Float(g.y), -Float(g.z)),
+                                            linearAcceleration: SIMD3(-Float(a.x), -Float(a.y), -Float(a.z)),
+                                            rotationRate: SIMD3(Float(r.x), Float(r.y), Float(r.z)) * (180 / .pi))
+            self.lock.lock()
+            guard self.generation == currentGeneration else {
+                self.lock.unlock()
+                return
+            }
+            self.latestSample = sample
+            let callbacks = Array(self.listeners.values)
+            let screen = self.screen
+            self.lock.unlock()
+            for callback in callbacks { callback(sample, screen) }
         }
     }
 }
 
 extension BaseController {
-    func refreshMotion(_ source: ControllerMotionSource) {
+    func refreshMotion(_ source: ControllerMotionSource, deviceSettings: DeviceMotionSettings) {
         motionQueue.sync {
             guard motionAttached, isActive else { return }
+            deviceMotionSettings = deviceSettings
             switch source {
             case .off:
                 setMotionRoute(.off)
@@ -139,18 +177,11 @@ extension BaseController {
             }
             motion.sensorsActive = true
         case .device:
-            DeviceMotionFeed.shared.subscribe(ObjectIdentifier(self)) { [weak self] motion, orientation in
-                let gravity = motion.gravity
-                let acceleration = motion.userAcceleration
-                let rotation = motion.rotationRate
-                let accel = SIMD3(-Float(gravity.x + acceleration.x), -Float(gravity.y + acceleration.y),
-                                  -Float(gravity.z + acceleration.z))
-                let gyro = SIMD3(Float(rotation.x), -Float(rotation.y), -Float(rotation.z)) * (180 / .pi)
+            DeviceMotionFeed.shared.subscribe(ObjectIdentifier(self)) { [weak self] sample, screen in
                 self?.motionQueue.async { [weak self] in
                     guard let self, self.isActive, self.motionGeneration == generation else { return }
-                    let mappedAccel = self.remapDeviceMotion(accel, orientation: orientation)
-                    let mappedGyro = self.remapDeviceMotion(gyro, orientation: orientation)
-                    self.writeMotion(accelerometer: mappedAccel, gyroscope: mappedGyro)
+                    let output = self.deviceMotionSettings.process(sample, screen: screen)
+                    self.writeMotion(accelerometer: output.accelerometer, gyroscope: output.gyroscope)
                 }
             }
         }
@@ -172,12 +203,4 @@ extension BaseController {
         }
     }
 
-    private func remapDeviceMotion(_ value: SIMD3<Float>, orientation: UIDeviceOrientation) -> SIMD3<Float> {
-        switch orientation {
-        case .landscapeLeft: return SIMD3(value.y, -value.x, value.z)
-        case .landscapeRight: return SIMD3(-value.y, value.x, value.z)
-        case .portraitUpsideDown: return SIMD3(-value.x, value.z, value.y)
-        default: return SIMD3(value.x, value.z, -value.y)
-        }
-    }
 }

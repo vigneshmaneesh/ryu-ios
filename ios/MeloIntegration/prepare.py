@@ -238,7 +238,7 @@ def prepare(offline=False):
                       metalfx='Metal 4 spatial scaler where supported, with spatial compatibility fallback; temporal/depth data is not exposed',
                       fsr='FSR1 GPU header from AMD FSR SDK 2.4.0, 7539ae8b6568ad29ed78a753404351daf3b5cca7; 32-bit portable Vulkan EASU/RCAS',
                       upscale_presets='MetalFX and FSR quality presets set launch render scale and upscale to the display; Manual retains saved values',
-                      controller_motion='per-controller automatic, device gyro or off; device motion and physical buttons use the same player slot',
+                      controller_motion='per-controller device gyro with game-screen axes, orientation override, live tilt, recenter, sensitivity, dead zone and steering inversion',
                       mip_chain_downscale='sub-native rendering keeps mipmapped texture storage and its views at native size',
                       guest_ram='stock MeloNX allocation flags; startup rollback and error details',
                       ram_donor='stock MeloNXRamDonor.appex, com.stossy11.MeloNX.RamDonor',
@@ -559,10 +559,13 @@ struct ControllerMapping: Codable, Hashable {
     }
 ''')
     edit(model, 'var motionEnabled: Bool', 'var motionSource: ControllerMotionSource')
+    edit(model, '    var motionSource: ControllerMotionSource\n',
+         '    var motionSource: ControllerMotionSource\n    var deviceMotion = DeviceMotionSettings()\n')
     edit(model, 'motionEnabled: Bool = true)', 'motionSource: ControllerMotionSource = .automatic)')
     edit(model, 'self.motionEnabled = motionEnabled', 'self.motionSource = motionSource')
     edit(model, '        motionEnabled = try container.decodeIfPresent(Bool.self, forKey: .motionEnabled) ?? standard.motionEnabled',
-         '''        let saved = try container.decodeIfPresent(String.self, forKey: .motionSource)
+         '''        deviceMotion = try container.decodeIfPresent(DeviceMotionSettings.self, forKey: .deviceMotion) ?? DeviceMotionSettings()
+        let saved = try container.decodeIfPresent(String.self, forKey: .motionSource)
         if let savedSource = saved.flatMap(ControllerMotionSource.init(rawValue:)) {
             motionSource = savedSource
         } else {
@@ -579,6 +582,7 @@ struct ControllerMapping: Codable, Hashable {
     source = source[:start] + '''    // Motion state is serialized by motionQueue.
     var motionAttached = false
     var motionRoute: ControllerMotionRoute = .off
+    var deviceMotionSettings = DeviceMotionSettings()
     var motionGeneration: UInt64 = 0
     var lastMotionSubmit: UInt64 = 0
 
@@ -591,9 +595,9 @@ struct ControllerMapping: Codable, Hashable {
     path.write_text(source, encoding='utf-8', newline='\n')
     edit(base, '''        Ryujinx.attachGamepad(self.pointer, self.name, controllerType == .handheld ? 8 : index, controllerType)
     }''', '''        Ryujinx.attachGamepad(self.pointer, self.name, controllerType == .handheld ? 8 : index, controllerType)
-        let source = ControllerMappingStore.shared.mapping(for: self).motionSource
+        let mapping = ControllerMappingStore.shared.mapping(for: self)
         motionQueue.sync { motionAttached = true }
-        refreshMotion(source)
+        refreshMotion(mapping.motionSource, deviceSettings: mapping.deviceMotion)
     }''')
     edit(base, '''        // Motion setup is usually low frequency, async is fine here
         inputQueue.async { [weak self] in
@@ -653,19 +657,31 @@ struct ControllerMapping: Codable, Hashable {
     var resolvedSelection: [(id: String, controller: BaseController)] {''')
     edit(swift + 'Core/RyujinxController.swift', '                self.emulationThreadActive = false',
          '                self.controllerManager.stopControllerMotion()\n                self.emulationThreadActive = false')
-    edit(swift + 'UI/MeloNXApp.swift', '        UIDevice.current.beginGeneratingDeviceOrientationNotifications()',
-         '        UIDevice.current.beginGeneratingDeviceOrientationNotifications()\n        DeviceMotionFeed.observeOrientation()')
+    app = swift + 'UI/MeloNXApp.swift'
+    edit(app, '        let window = UIWindow(windowScene: windowScene)',
+         '        DeviceMotionFeed.shared.updateScreenOrientation(windowScene.effectiveGeometry.interfaceOrientation)\n        let window = UIWindow(windowScene: windowScene)')
+    edit(app, '    func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {',
+         '''    func windowScene(_ windowScene: UIWindowScene, didUpdateEffectiveGeometry previousEffectiveGeometry: UIWindowScene.Geometry) {
+        DeviceMotionFeed.shared.updateScreenOrientation(windowScene.effectiveGeometry.interfaceOrientation)
+    }
+
+    func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {''')
 
     view = swift + 'UI/Main/Settings/Elements/Controller/ControllerMappingView.swift'
     edit(view, 'import GameController\n', 'import GameController\nimport UIKit\n')
-    edit(view, '                controllerTypeSection\n', '                controllerTypeSection\n                motionSection\n')
+    edit(view, '                controllerTypeSection\n', '''                controllerTypeSection
+                motionSection
+                if mapping.motionSource == .device {
+                    DeviceGyroSettingsView(settings: $mapping.deviceMotion)
+                }
+''')
     edit(view, '\n                    motionSection\n', '\n')
     edit(view, '''            .onChange(of: mapping) { _ in
                 save()
             }''', '''            .onChange(of: mapping) { oldMapping, newMapping in
                 save()
-                if oldMapping.motionSource != newMapping.motionSource {
-                    controller.refreshMotion(newMapping.motionSource)
+                if oldMapping.motionSource != newMapping.motionSource || oldMapping.deviceMotion != newMapping.deviceMotion {
+                    controller.refreshMotion(newMapping.motionSource, deviceSettings: newMapping.deviceMotion)
                 }
             }''')
     edit(view, '''            .onChange(of: mapping.motionEnabled) { _ in
