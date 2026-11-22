@@ -7,7 +7,7 @@ static class FrameLimitChecks
 {
     public static void Run()
     {
-        var composer = typeof(Switch).Assembly.GetType(
+        var composer = typeof(PerformanceStatistics).Assembly.GetType(
             "Ryujinx.HLE.HOS.Services.SurfaceFlinger.SurfaceFlinger", throwOnError: true)!;
         const BindingFlags staticFlags = BindingFlags.Static | BindingFlags.NonPublic;
         var intervalFor = composer.GetMethod("GetFrameInterval", staticFlags)!;
