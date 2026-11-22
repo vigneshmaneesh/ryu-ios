@@ -4,7 +4,7 @@ import Foundation
 import GameController
 import UIKit
 
-enum ControllerMotionRoute {
+nonisolated enum ControllerMotionRoute {
     case controller
     case device
     case off
