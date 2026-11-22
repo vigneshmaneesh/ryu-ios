@@ -82,6 +82,7 @@ def prepare(offline=False):
     apply_metal_fx_recovery(swift)
     apply_fsr_presentation_orientation()
     apply_upscaler_telemetry(swift)
+    apply_controller_motion_source(swift)
     # The host menu is revealed only by a narrow top-edge strip above gameplay.
     # Replace the old hide switch, including existing saved values.
     for settings_view in ('UI/Main/Settings/SettingsView.swift', 'UI/Main/Settings/PerGameSettings.swift'):
@@ -219,6 +220,7 @@ def prepare(offline=False):
     data['CFBundleDisplayName'] = 'Ryu MeloNX'
     data['CFBundleShortVersionString'] = '1.0.0'
     data['NSPhotoLibraryAddUsageDescription'] = 'Save game pictures, screenshots and game artwork to Photos.'
+    data['NSMotionUsageDescription'] = 'Use this device’s gyroscope and accelerometer for motion controls in games.'
     data['LSApplicationQueriesSchemes'] = sorted(set(data.get('LSApplicationQueriesSchemes', []) + ['stikdebug', 'stikjit']))
     with info.open('wb') as stream: plistlib.dump(data, stream)
     # Retain all upstream notices; provenance travels with the app and IPA.
@@ -236,6 +238,7 @@ def prepare(offline=False):
                       metalfx='Metal 4 spatial scaler where supported, with spatial compatibility fallback; temporal/depth data is not exposed',
                       fsr='FSR1 GPU header from AMD FSR SDK 2.4.0, 7539ae8b6568ad29ed78a753404351daf3b5cca7; 32-bit portable Vulkan EASU/RCAS',
                       upscale_presets='MetalFX and FSR quality presets set launch render scale and upscale to the display; Manual retains saved values',
+                      controller_motion='per-controller automatic, device gyro or off; device motion and physical buttons use the same player slot',
                       mip_chain_downscale='sub-native rendering keeps mipmapped texture storage and its views at native size',
                       guest_ram='stock MeloNX allocation flags; startup rollback and error details',
                       ram_donor='stock MeloNXRamDonor.appex, com.stossy11.MeloNX.RamDonor',
@@ -539,6 +542,156 @@ def apply_metal_fx_recovery(swift):
         MetalFxBridge.beginSession()
 
         let expandedRAM = settings.expandRAM''')
+
+
+def apply_controller_motion_source(swift):
+    controllers = swift + 'Core/Controllers/'
+    model = swift + 'Core/Models/ControllerMapping.swift'
+    edit(model, 'struct ControllerMapping: Codable, Hashable {', '''enum ControllerMotionSource: String, Codable {
+    case automatic
+    case device
+    case off
+}
+
+struct ControllerMapping: Codable, Hashable {
+    private enum LegacyMotionKey: String, CodingKey {
+        case motionEnabled
+    }
+''')
+    edit(model, 'var motionEnabled: Bool', 'var motionSource: ControllerMotionSource')
+    edit(model, 'motionEnabled: Bool = true)', 'motionSource: ControllerMotionSource = .automatic)')
+    edit(model, 'self.motionEnabled = motionEnabled', 'self.motionSource = motionSource')
+    edit(model, '        motionEnabled = try container.decodeIfPresent(Bool.self, forKey: .motionEnabled) ?? standard.motionEnabled',
+         '''        let saved = try container.decodeIfPresent(String.self, forKey: .motionSource)
+        if let savedSource = saved.flatMap(ControllerMotionSource.init(rawValue:)) {
+            motionSource = savedSource
+        } else {
+            let legacy = try decoder.container(keyedBy: LegacyMotionKey.self)
+            motionSource = try legacy.decodeIfPresent(Bool.self, forKey: .motionEnabled) == false ? .off : .automatic
+        }''')
+
+    base = controllers + 'BaseController.swift'
+    edit(base, 'import CoreMotion\n', '')
+    path = DEST / base
+    source = path.read_text(encoding='utf-8-sig')
+    start = source.index('    // Motion\n')
+    end = source.index('    var inputQueue: DispatchQueue', start)
+    source = source[:start] + '''    // Motion state is serialized by motionQueue.
+    var motionAttached = false
+    var motionRoute: ControllerMotionRoute = .off
+    var motionGeneration: UInt64 = 0
+    var lastMotionSubmit: UInt64 = 0
+
+    var hasExternalMotionSensors: Bool { false }
+    func setExternalMotionSensorsActive(_ active: Bool) {}
+
+    private var rumbleController: RumbleController?
+
+''' + source[end:]
+    path.write_text(source, encoding='utf-8', newline='\n')
+    edit(base, '''        Ryujinx.attachGamepad(self.pointer, self.name, controllerType == .handheld ? 8 : index, controllerType)
+    }''', '''        Ryujinx.attachGamepad(self.pointer, self.name, controllerType == .handheld ? 8 : index, controllerType)
+        let source = ControllerMappingStore.shared.mapping(for: self).motionSource
+        motionQueue.sync { motionAttached = true }
+        refreshMotion(source)
+    }''')
+    edit(base, '''        // Motion setup is usually low frequency, async is fine here
+        inputQueue.async { [weak self] in
+            guard let self = self else { return }
+            self.setupMotion()
+        }
+        
+        setupHaptics()''', '        setupHaptics()')
+    edit(controllers + 'NativeController.swift', '''        setupHaptics()
+        
+        setupMotion()
+    }
+    
+    func refreshMotion() {
+        stopMotion()
+        
+        setupMotion()
+    }''', '''        setupHaptics()
+    }''')
+    steam = controllers + 'SteamController.swift'
+    edit(steam, '''    override func applyMapping(_ mapping: ControllerMapping) {
+        super.applyMapping(mapping)
+        setMotionEnabled(mapping.motionEnabled)
+    }
+    
+    override func refreshMotion() {
+        setMotionEnabled(activeMapping.motionEnabled)
+    }''', '''    override var hasExternalMotionSensors: Bool { true }
+
+    override func setExternalMotionSensorsActive(_ active: Bool) {
+        setMotionEnabled(active)
+    }''')
+    edit(steam, '''            guard self.activeMapping.motionEnabled else { return }
+            
+            if let accel = state.accelerometer {
+                Ryujinx.setGamepadMotion(self.pointer, motionType: 1, axis: accel)
+            }
+            
+            if let gyro = state.gyroscope {
+                Ryujinx.setGamepadMotion(self.pointer, motionType: 2, axis: gyro)
+            }''', '''            if state.accelerometer != nil || state.gyroscope != nil {
+                self.submitExternalMotion(accelerometer: state.accelerometer, gyroscope: state.gyroscope)
+            }''')
+    manager = controllers + 'ControllerManager.swift'
+    edit(manager, '''            for controller in _privAllControllers {
+                Ryujinx.detachGamepad(controller.pointer)''', '''            for controller in _privAllControllers {
+                controller.stopMotion()
+                Ryujinx.detachGamepad(controller.pointer)''')
+    edit(manager, '    var resolvedSelection: [(id: String, controller: BaseController)] {', '''    func stopControllerMotion() {
+        controllerQueue.sync {
+            for controller in _privAllControllers {
+                controller.stopMotion()
+            }
+        }
+    }
+
+    var resolvedSelection: [(id: String, controller: BaseController)] {''')
+    edit(swift + 'Core/RyujinxController.swift', '                self.emulationThreadActive = false',
+         '                self.controllerManager.stopControllerMotion()\n                self.emulationThreadActive = false')
+    edit(swift + 'UI/MeloNXApp.swift', '        UIDevice.current.beginGeneratingDeviceOrientationNotifications()',
+         '        UIDevice.current.beginGeneratingDeviceOrientationNotifications()\n        DeviceMotionFeed.observeOrientation()')
+
+    view = swift + 'UI/Main/Settings/Elements/Controller/ControllerMappingView.swift'
+    edit(view, 'import GameController\n', 'import GameController\nimport UIKit\n')
+    edit(view, '                controllerTypeSection\n', '                controllerTypeSection\n                motionSection\n')
+    edit(view, '\n                    motionSection\n', '\n')
+    edit(view, '''            .onChange(of: mapping) { _ in
+                save()
+            }''', '''            .onChange(of: mapping) { oldMapping, newMapping in
+                save()
+                if oldMapping.motionSource != newMapping.motionSource {
+                    controller.refreshMotion(newMapping.motionSource)
+                }
+            }''')
+    edit(view, '''            .onChange(of: mapping.motionEnabled) { _ in
+                nativeController?.refreshMotion()
+            }
+''', '')
+    edit(view, '''        if controller.nativeController?.motion != nil, !controller.usesDeviceHandlers {
+            Section {
+                Toggle("Controller Motion", isOn: $mapping.motionEnabled)
+            } footer: {
+                Text("Uses \\(controller.name)'s own gyro and accelerometer. Turning it off can reduce input delay in games that do not use motion.")
+            }
+        }''', '''        let deviceName = UIDevice.current.userInterfaceIdiom == .pad ? "iPad" : "iPhone"
+        Section {
+            Picker("Motion Source", selection: $mapping.motionSource) {
+                Text("Automatic").tag(ControllerMotionSource.automatic)
+                Text("\\(deviceName) Gyro").tag(ControllerMotionSource.device)
+                Text("Off").tag(ControllerMotionSource.off)
+            }
+        } footer: {
+            if mapping.motionSource == .device {
+                Text("Move the \\(deviceName) to use motion controls alongside this controller’s buttons and sticks.")
+            } else if mapping.motionSource == .automatic {
+                Text("Uses controller motion when available and device motion as a fallback.")
+            }
+        }''')
 
 
 def apply_fsr_presentation_orientation():
