@@ -83,6 +83,7 @@ def prepare(offline=False):
     apply_fsr_presentation_orientation()
     apply_upscaler_telemetry(swift)
     apply_controller_motion_source(swift)
+    apply_switch_vsync_frame_limit(swift)
     # The host menu is revealed only by a narrow top-edge strip above gameplay.
     # Replace the old hide switch, including existing saved values.
     for settings_view in ('UI/Main/Settings/SettingsView.swift', 'UI/Main/Settings/PerGameSettings.swift'):
@@ -239,6 +240,7 @@ def prepare(offline=False):
                       fsr='FSR1 GPU header from AMD FSR SDK 2.4.0, 7539ae8b6568ad29ed78a753404351daf3b5cca7; 32-bit portable Vulkan EASU/RCAS',
                       upscale_presets='MetalFX and FSR quality presets set launch render scale and upscale to the display; Manual retains saved values',
                       controller_motion='per-controller device gyro with game-screen axes, orientation override, live tilt, recenter, sensitivity, dead zone and steering inversion',
+                      switch_vsync_frame_limit='optional 60 FPS compositor pacing while retaining Switch swap intervals; overlay counts composed frames when enabled',
                       mip_chain_downscale='sub-native rendering keeps mipmapped texture storage and its views at native size',
                       guest_ram='stock MeloNX allocation flags; startup rollback and error details',
                       ram_donor='stock MeloNXRamDonor.appex, com.stossy11.MeloNX.RamDonor',
@@ -706,6 +708,139 @@ struct ControllerMapping: Codable, Hashable {
                 Text("Move the \\(deviceName) to use motion controls alongside this controller’s buttons and sticks.")
             } else if mapping.motionSource == .automatic {
                 Text("Uses controller motion when available and device motion as a fallback.")
+            }
+        }''')
+
+
+def apply_switch_vsync_frame_limit(swift):
+    model = swift + 'Core/Models/Options/'
+    edit(model + 'Options.swift', '    var customVSyncInterval: Int32 = 120',
+         '    var customVSyncInterval: Int32 = 120\n    var limitSwitchVSyncTo60 = false')
+    edit(model + 'Options.swift', '        n.pointee.CustomVSyncInterval        = customVSyncInterval',
+         '        n.pointee.CustomVSyncInterval        = customVSyncInterval\n        n.pointee.LimitSwitchVSyncTo60        = limitSwitchVSyncTo60')
+    codec = model + 'Options+Codable.swift'
+    edit(codec, 'case disableVSync, vSyncMode, customVSyncInterval,',
+         'case disableVSync, vSyncMode, customVSyncInterval, limitSwitchVSyncTo60,')
+    edit(codec, '        try c.encode(customVSyncInterval,        forKey: .customVSyncInterval)',
+         '        try c.encode(customVSyncInterval,        forKey: .customVSyncInterval)\n        try c.encode(limitSwitchVSyncTo60,        forKey: .limitSwitchVSyncTo60)')
+    edit(codec, '        customVSyncInterval        = try c.decodeIfPresent(Int32.self,  forKey: .customVSyncInterval)      ?? 120',
+         '        customVSyncInterval        = try c.decodeIfPresent(Int32.self,  forKey: .customVSyncInterval)      ?? 120\n        limitSwitchVSyncTo60        = try c.decodeIfPresent(Bool.self, forKey: .limitSwitchVSyncTo60) ?? false')
+    edit(model + 'NativeOptions.h', '    char*  InputPath;\n} OptionsNative;',
+         '    char*  InputPath;\n    bool   LimitSwitchVSyncTo60;\n} OptionsNative;')
+    for view in ('SettingsView.swift', 'PerGameSettings.swift'):
+        edit(swift + 'UI/Main/Settings/' + view,
+             '                if config.wrappedValue.vSyncMode == .custom {',
+             '''                if config.wrappedValue.vSyncMode == .switchMode {
+                    NativeToggleRow("Limit to 60 FPS", icon: "speedometer",
+                                    isOn: config.limitSwitchVSyncTo60,
+                                    info: "Prevents catch-up bursts while using Switch VSync. Relaunch the game to apply.")
+                }
+
+                if config.wrappedValue.vSyncMode == .custom {''')
+
+    options = 'src/Ryujinx.Library/Options.cs'
+    edit(options, '        public int CustomVSyncInterval { get; set; }',
+         '        public int CustomVSyncInterval { get; set; }\n\n        public bool LimitSwitchVSyncTo60 { get; set; }')
+    edit(options, '        public byte*  InputPath;\n    }',
+         '        public byte*  InputPath;\n        public bool   LimitSwitchVSyncTo60;\n    }')
+    edit(options, '                InputPath = FromUtf8(n->InputPath),',
+         '                InputPath = FromUtf8(n->InputPath),\n                LimitSwitchVSyncTo60 = n->LimitSwitchVSyncTo60,')
+    edit('src/Ryujinx.HLE/HleConfiguration.cs', '        internal readonly int CustomVSyncInterval;',
+         '        internal readonly int CustomVSyncInterval;\n\n        public bool LimitSwitchVSyncTo60 { get; init; }')
+    edit('src/Ryujinx.Library/Library.cs', '''                options.CustomVSyncInterval
+            ).ConfigureMultiplayerLanInterface(''', '''                options.CustomVSyncInterval
+            )
+            {
+                LimitSwitchVSyncTo60 = options.LimitSwitchVSyncTo60,
+            }.ConfigureMultiplayerLanInterface(''')
+
+    composer = 'src/Ryujinx.HLE/HOS/Services/SurfaceFlinger/SurfaceFlinger.cs'
+    edit(composer, '        private readonly Switch _device;', '''        private readonly Switch _device;
+        private static readonly long Minimum60FpsInterval = (Stopwatch.Frequency + 59) / 60;
+
+        private bool HasSwitchFrameLimit => _device.Configuration.LimitSwitchVSyncTo60 && _device.VSyncMode == VSyncMode.Switch;
+
+        internal static long GetFrameInterval(long originalInterval, bool limitTo60) =>
+            limitTo60 ? Math.Max(originalInterval, Minimum60FpsInterval) : originalInterval;
+
+        internal static long GetTimingRemainder(long elapsed, long interval, bool limitTo60) =>
+            limitTo60 ? 0 : Math.Min(elapsed - interval, interval * 3);''')
+    edit(composer, 'SetUnboundedPresentMode(_swapInterval == 0);',
+         'SetUnboundedPresentMode(_swapInterval == 0 && !HasSwitchFrameLimit);')
+    edit(composer, '''                long ticks = PerformanceCounter.ElapsedTicks;
+
+                if (_swapInterval == 0)''', '''                long ticks = PerformanceCounter.ElapsedTicks;
+                bool limitTo60 = HasSwitchFrameLimit;
+                long frameInterval = GetFrameInterval(_ticksPerFrame, limitTo60);
+                if (_swapInterval == 0 && !limitTo60)''')
+    edit(composer, '                    if (_ticks >= _ticksPerFrame)',
+         '                    if (_ticks >= frameInterval)')
+    edit(composer, 'Compose();', 'Compose(ticks);')
+    edit(composer, '''                        // Apply a maximum bound of 3 frames to the tick remainder, in case some event causes Ryujinx to pause for a long time or messes with the timer.
+                        _ticks = Math.Min(_ticks - _ticksPerFrame, _ticksPerFrame * 3);''',
+         '''                        // A capped tick starts a new interval instead of repaying late ticks in a burst.
+                        frameInterval = GetFrameInterval(_ticksPerFrame, limitTo60);
+                        _ticks = GetTimingRemainder(_ticks, frameInterval, limitTo60);''')
+    edit(composer, '_ticksPerFrame - (_ticks + PerformanceCounter.ElapsedTicks - ticks)',
+         'frameInterval - (_ticks + PerformanceCounter.ElapsedTicks - ticks)')
+    edit(composer, '        public void Compose()', '        private void Compose(long frameTicks)')
+    edit(composer, 'PostFrameBuffer(layer, item);', 'PostFrameBuffer(layer, item, frameTicks);')
+    edit(composer, 'private void PostFrameBuffer(Layer layer, BufferItem item)',
+         'private void PostFrameBuffer(Layer layer, BufferItem item, long frameTicks)')
+    edit(composer, '''                textureCallbackInformation))
+            {
+                if (item.Fence.FenceCount == 0)''', '''                textureCallbackInformation))
+            {
+                if (HasSwitchFrameLimit)
+                {
+                    _device.Statistics.RecordGameFrameTime(frameTicks);
+                }
+
+                if (item.Fence.FenceCount == 0)''')
+    edit(composer, '            _device.Statistics.RecordGameFrameTime();', '''            if (!HasSwitchFrameLimit)
+            {
+                _device.Statistics.RecordGameFrameTime();
+            }''')
+
+    stats = 'src/Ryujinx.HLE/PerformanceStatistics.cs'
+    edit(stats, '''        public void RecordGameFrameTime()
+        {
+            RecordFrameTime(FrameTypeGame);
+        }''', '''        public void RecordGameFrameTime() => RecordGameFrameTime(PerformanceCounter.ElapsedTicks);
+
+        public void RecordGameFrameTime(long timestamp)
+        {
+            RecordFrameTime(FrameTypeGame, timestamp * _ticksToSeconds);
+        }''')
+    edit(stats, '''        private void RecordFrameTime(int frameType)
+        {
+            double currentFrameTime = PerformanceCounter.ElapsedTicks * _ticksToSeconds;
+            double elapsedFrameTime = currentFrameTime - _previousFrameTime[frameType];
+
+            _previousFrameTime[frameType] = currentFrameTime;
+
+            lock (_frameLock[frameType])
+            {
+                _accumulatedFrameTime[frameType] += elapsedFrameTime;
+
+                _framesRendered[frameType]++;
+            }
+        }''', '''        private void RecordFrameTime(int frameType, double currentFrameTime)
+        {
+            lock (_frameLock[frameType])
+            {
+                double previousFrameTime = _previousFrameTime[frameType];
+                if (currentFrameTime <= previousFrameTime)
+                {
+                    return;
+                }
+
+                _previousFrameTime[frameType] = currentFrameTime;
+                if (previousFrameTime > 0)
+                {
+                    _accumulatedFrameTime[frameType] += currentFrameTime - previousFrameTime;
+                    _framesRendered[frameType]++;
+                }
             }
         }''')
 
