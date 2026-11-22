@@ -80,6 +80,7 @@ def prepare(offline=False):
     apply_mip_chain_downscale_guard()
     apply_moltenvk_texture_view_bounds()
     apply_metal_fx_recovery(swift)
+    apply_fsr_presentation_orientation()
     apply_upscaler_telemetry(swift)
     # The host menu is revealed only by a narrow top-edge strip above gameplay.
     # Replace the old hide switch, including existing saved values.
@@ -538,6 +539,15 @@ def apply_metal_fx_recovery(swift):
         MetalFxBridge.beginSession()
 
         let expandedRAM = settings.expandRAM''')
+
+
+def apply_fsr_presentation_orientation():
+    edit('src/Ryujinx.Graphics.Vulkan/Window.cs',
+         '                    new Extents2D(dstX0, dstY0, dstX1, dstY1)\n                    );',
+         '''                    // The legacy Area shader has its own Y-coordinate convention.
+                    _scalingFilter is AreaScalingFilter
+                        ? new Extents2D(dstX0, dstY0, dstX1, dstY1)
+                        : destinationRegion);''')
 
 
 def apply_upscaler_telemetry(swift):
