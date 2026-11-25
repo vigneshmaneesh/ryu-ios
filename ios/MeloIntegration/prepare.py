@@ -32,10 +32,14 @@ def edit(path, old, new):
 def prepare(offline=False):
     if not GIT.exists():
         subprocess.run(['git', 'init', '--bare', str(GIT)], check=True)
-    if not offline:
+    # Use the cached history when it already contains both pins and their expected merge base.
+    ancestry = git('merge-base', MELO, RYU, check=False)
+    if not offline and (ancestry.returncode != 0 or ancestry.stdout.decode().strip() != BASE):
         git('fetch', '--depth=256', 'https://starforgejo.dev/projects/MeloNX.git', MELO)
         git('fetch', '--depth=256', 'https://git.ryujinx.app/projects/Ryubing.git', RYU)
-    actual = git('merge-base', MELO, RYU).stdout.decode().strip()
+        ancestry = git('merge-base', MELO, RYU)
+    ancestry.check_returncode()
+    actual = ancestry.stdout.decode().strip()
     if actual != BASE:
         raise RuntimeError('Unexpected merge ancestry: ' + actual)
     merge = git('merge-tree', '--write-tree', '--messages', MELO, RYU, check=False)
