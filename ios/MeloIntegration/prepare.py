@@ -64,6 +64,18 @@ def prepare(offline=False):
     overlay = HERE / 'overlay'
     if overlay.exists():
         shutil.copytree(overlay, DEST, dirs_exist_ok=True)
+    # Backport Ryubing 1.3.356's strict A32 single-precision comparison.
+    edit('src/ARMeilleure/Instructions/SoftFloat/SoftFloat32.cs',
+         '''public static float FPCompareLTFpscr(float value1, float value2, byte standardFpscr)
+        {
+            return FPCompareGEFpscrImpl(value2, value1, standardFpscr == 1);''',
+         '''public static float FPCompareLTFpscr(float value1, float value2, byte standardFpscr)
+        {
+            return FPCompareGTFpscrImpl(value2, value1, standardFpscr == 1);''')
+    # Reject cached translations produced before the comparison fix.
+    edit('src/ARMeilleure/Translation/PTC/Ptc.cs',
+         'private const uint InternalVersion = 7031;',
+         'private const uint InternalVersion = 7032;')
     # Upstream moved sparse-table selection out of AddressTable.CreateForArm;
     # retain MeloNX's iOS restriction at both new call sites.
     for backend in ('Jit/JitCpuContext.cs', 'LightningJit/LightningJitCpuContext.cs'):
@@ -233,6 +245,7 @@ def prepare(offline=False):
                       jit_helper='original BreakpointJIT.framework; StikDebug universal.js with process-local readiness',
                       jit_flow='single activation handoff, explicit retry, cancelled view polling',
                       cpu_tables='multi-level on iOS for both CPU backends; no 1 TiB sparse reservation',
+                      cpu_backport='Ryubing 1.3.356 A32 single-precision less-than comparison fix; PTC version 7032',
                       in_game_menu='32-point top-edge strip reveals safe corner icon for 6 seconds; non-cancelling touch observer; session-only live docked mode toggle',
                       profiles='engine-backed selection and edits preserve profile IDs; refresh restores the selected profile',
                       photos='add-only Photos access; host screenshots and guest album captures use native image encoding; local copy survives denied access',
