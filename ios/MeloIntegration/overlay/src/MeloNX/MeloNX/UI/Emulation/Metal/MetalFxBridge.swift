@@ -23,6 +23,7 @@ nonisolated private struct MetalFxInteropRequest {
     var destinationX: Int32
     var destinationY: Int32
     var result: Int32
+    var directResize: Int32
 }
 
 @available(iOS 26.0, *)
@@ -44,8 +45,9 @@ nonisolated private final class MetalFxSpatialState {
     private let metal4: Metal4SpatialUpscaler?
     private let compatibleScaler: (any MTLFXSpatialScaler)?
     private let outputTexture: any MTLTexture
-    private let presentationTexture: (any MTLTexture)?
+    private var presentationTexture: (any MTLTexture)?
     private let presentationScaler: MPSImageLanczosScale?
+    private var framesUntilTimingSample = 120
     
     var backendCode: Int32 { metal4 == nil ? 1 : 2 }
     var metal4Failed: Bool { metal4?.hasFailed == true }
@@ -104,23 +106,6 @@ nonisolated private final class MetalFxSpatialState {
         
         outputTexture.label = "MeloNX MetalFX spatial output"
         
-        var presentationTexture: (any MTLTexture)?
-        var presentationScaler: MPSImageLanczosScale?
-        
-        if renderWidth != outputWidth || renderHeight != outputHeight {
-            let presentationDescriptor = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: destinationTexture.pixelFormat, width: outputWidth, height: outputHeight, mipmapped: false)
-            presentationDescriptor.storageMode = .private
-            presentationDescriptor.usage = .shaderWrite
-            
-            guard let texture = device.makeTexture(descriptor: presentationDescriptor) else {
-                return nil
-            }
-            
-            texture.label = "MeloNX MetalFX presentation"
-            presentationTexture = texture
-            presentationScaler = MPSImageLanczosScale(device: device)
-        }
-        
         configuration = .init(
             deviceRegistryID: device.registryID,
             inputWidth: inputWidth,
@@ -137,8 +122,8 @@ nonisolated private final class MetalFxSpatialState {
         self.metal4 = metal4
         self.compatibleScaler = compatibleScaler
         self.outputTexture = outputTexture
-        self.presentationTexture = presentationTexture
-        self.presentationScaler = presentationScaler
+        self.presentationScaler = renderWidth != outputWidth || renderHeight != outputHeight
+            ? MPSImageLanczosScale(device: device) : nil
         let backend = metal4 == nil ? "Compatible" : "Metal 4"
         NSLog("[MetalFX] %@ spatial, %dx%d to %dx%d, display %dx%d", backend,
               inputWidth, inputHeight, renderWidth, renderHeight, outputWidth, outputHeight)
@@ -174,7 +159,7 @@ nonisolated private final class MetalFxSpatialState {
         destinationTexture: any MTLTexture,
         destinationX: Int,
         destinationY: Int
-    ) -> Bool {
+    ) -> (encoded: Bool, directResize: Bool) {
         guard commandQueue.device.registryID == configuration.deviceRegistryID,
               inputTexture.device.registryID == configuration.deviceRegistryID,
               destinationTexture.device.registryID == configuration.deviceRegistryID,
@@ -187,41 +172,71 @@ nonisolated private final class MetalFxSpatialState {
               destinationX + configuration.outputWidth <= destinationTexture.width,
               destinationY + configuration.outputHeight <= destinationTexture.height,
               let commandBuffer = commandQueue.makeCommandBuffer() else {
-            return false
+            return (false, false)
         }
         
         commandBuffer.label = "MeloNX MetalFX spatial upscale"
         
-        var presentationEncoded = false
+        var presentation = (encoded: false, directResize: false)
         if let metal4 {
             guard metal4.encode(legacyQueue: commandQueue, completionBuffer: commandBuffer,
                                 input: inputTexture, output: outputTexture,
                                 width: configuration.inputWidth, height: configuration.inputHeight,
                                 encodePresentation: {
-                presentationEncoded = self.encodePresentation(commandBuffer, to: destinationTexture,
-                                                               x: destinationX, y: destinationY)
-            }) else { return false }
+                presentation = self.encodePresentation(commandBuffer, to: destinationTexture,
+                                                       x: destinationX, y: destinationY)
+            }) else { return (false, false) }
         } else if let compatibleScaler {
             scaler.inputContentWidth = configuration.inputWidth
             scaler.inputContentHeight = configuration.inputHeight
             scaler.colorTexture = inputTexture
             scaler.outputTexture = outputTexture
             compatibleScaler.encode(commandBuffer: commandBuffer)
-            presentationEncoded = encodePresentation(commandBuffer, to: destinationTexture,
-                                                      x: destinationX, y: destinationY)
+            presentation = encodePresentation(commandBuffer, to: destinationTexture,
+                                             x: destinationX, y: destinationY)
+        }
+
+        framesUntilTimingSample -= 1
+        if framesUntilTimingSample == 0 {
+            framesUntilTimingSample = 600
+            let work = metal4 == nil ? "spatial upscale and presentation" : "presentation only"
+            let path = presentation.directResize ? "direct resize" : "intermediate copy"
+            commandBuffer.addCompletedHandler { completed in
+                guard completed.status == .completed, completed.gpuStartTime > 0,
+                      completed.gpuEndTime >= completed.gpuStartTime else { return }
+                let milliseconds = (completed.gpuEndTime - completed.gpuStartTime) * 1_000
+                NSLog("[MetalFX] GPU sample (%@, %@): %.2f ms", work, path, milliseconds)
+            }
         }
         commandBuffer.commit()
         scaler.colorTexture = nil
         scaler.outputTexture = nil
-        return presentationEncoded
+        return presentation
     }
 
     private func encodePresentation(_ commandBuffer: any MTLCommandBuffer, to destinationTexture: any MTLTexture,
-                                    x: Int, y: Int) -> Bool {
+                                    x: Int, y: Int) -> (encoded: Bool, directResize: Bool) {
         
         let copySource: any MTLTexture
         
-        if let presentationTexture, let presentationScaler {
+        if let presentationScaler {
+            let width = configuration.outputWidth
+            let height = configuration.outputHeight
+            if MetalFxPresentation.encodeDirectResize(presentationScaler, commandBuffer: commandBuffer,
+                                                       source: outputTexture, destination: destinationTexture,
+                                                       x: x, y: y, width: width, height: height) {
+                return (true, true)
+            }
+
+            if presentationTexture == nil {
+                let descriptor = MTLTextureDescriptor.texture2DDescriptor(
+                    pixelFormat: destinationTexture.pixelFormat, width: width, height: height, mipmapped: false)
+                descriptor.storageMode = .private
+                descriptor.usage = .shaderWrite
+                presentationTexture = destinationTexture.device.makeTexture(descriptor: descriptor)
+                presentationTexture?.label = "MeloNX MetalFX presentation"
+            }
+            guard let presentationTexture else { return (false, false) }
             presentationScaler.encode(commandBuffer: commandBuffer, sourceTexture: outputTexture, destinationTexture: presentationTexture)
             
             copySource = presentationTexture
@@ -229,7 +244,7 @@ nonisolated private final class MetalFxSpatialState {
             copySource = outputTexture
         }
         
-        guard let blitEncoder = commandBuffer.makeBlitCommandEncoder() else { return false }
+        guard let blitEncoder = commandBuffer.makeBlitCommandEncoder() else { return (false, false) }
         
         blitEncoder.label = "MeloNX MetalFX presentation copy"
         blitEncoder.copy(
@@ -248,7 +263,7 @@ nonisolated private final class MetalFxSpatialState {
             destinationOrigin: MTLOrigin(x: x, y: y, z: 0)
         )
         blitEncoder.endEncoding()
-        return true
+        return (true, false)
     }
 }
 
@@ -416,6 +431,7 @@ nonisolated enum MetalFxBridge {
     
     private static func encode(_ request: UnsafeMutablePointer<MetalFxInteropRequest>) {
         request.pointee.result = 0
+        request.pointee.directResize = 0
         
         guard let commandQueue = metalCommandQueue(from: request.pointee.commandQueue),
               let inputTexture = metalTexture(from: request.pointee.inputTexture),
@@ -426,11 +442,14 @@ nonisolated enum MetalFxBridge {
         lock.lock()
         defer { lock.unlock() }
         
-        if let state, state.encode(commandQueue: commandQueue, inputTexture: inputTexture,
-                                   destinationTexture: destinationTexture,
-                                   destinationX: Int(request.pointee.destinationX),
-                                   destinationY: Int(request.pointee.destinationY)) {
+        if let state {
+            let presentation = state.encode(commandQueue: commandQueue, inputTexture: inputTexture,
+                                            destinationTexture: destinationTexture,
+                                            destinationX: Int(request.pointee.destinationX),
+                                            destinationY: Int(request.pointee.destinationY))
+            guard presentation.encoded else { return }
             request.pointee.result = state.backendCode
+            request.pointee.directResize = presentation.directResize ? 1 : 0
         }
     }
 }

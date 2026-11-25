@@ -98,6 +98,7 @@ def prepare(offline=False):
     apply_metal_fx_recovery(swift)
     apply_fsr_presentation_orientation()
     apply_upscaler_telemetry(swift)
+    apply_metal_fx_presentation()
     apply_controller_motion_source(swift)
     apply_switch_vsync_frame_limit(swift)
     # The host menu is revealed only by a narrow top-edge strip above gameplay.
@@ -254,6 +255,7 @@ def prepare(offline=False):
                       profiles='engine-backed selection and edits preserve profile IDs; refresh restores the selected profile',
                       photos='add-only Photos access; host screenshots and guest album captures use native image encoding; local copy survives denied access',
                       metalfx='Metal 4 spatial scaler where supported, with spatial compatibility fallback; temporal/depth data is not exposed',
+                      metalfx_presentation='direct Lanczos resize for supported full-size drawables; Vulkan fence wait and Metal command-buffer timing in game logs',
                       fsr='FSR1 GPU header from AMD FSR SDK 2.4.0, 7539ae8b6568ad29ed78a753404351daf3b5cca7; 32-bit portable Vulkan EASU/RCAS',
                       upscale_presets='MetalFX and FSR quality presets set launch render scale and upscale to the display; Manual retains saved values',
                       controller_motion='per-controller device gyro with game-screen axes, orientation override, live tilt, recenter, sensitivity, dead zone and steering inversion',
@@ -960,6 +962,58 @@ def apply_upscaler_telemetry(swift):
     }
 
     var body: some View {''')
+
+
+def apply_metal_fx_presentation():
+    window = 'src/Ryujinx.Graphics.Vulkan/Window.cs'
+    edit(window, 'using System.Linq;', 'using System.Diagnostics;\nusing System.Linq;')
+    edit(window, '''            if (metalFxPrepared)
+            {
+                // MoltenVK processes queue submissions asynchronously.''',
+         '''            double metalFxWaitMs = 0;
+            if (metalFxPrepared)
+            {
+                // MoltenVK processes queue submissions asynchronously.''')
+    edit(window, '''                // synchronously during game startup.
+                cbs.GetFence().Wait();''',
+         '''                // synchronously during game startup.
+                long waitStart = Stopwatch.GetTimestamp();
+                cbs.GetFence().Wait();
+                metalFxWaitMs = Stopwatch.GetElapsedTime(waitStart).TotalMilliseconds;''')
+    edit(window, '                    _metalFxScalingFilter.Encode();',
+         '                    _metalFxScalingFilter.Encode(metalFxWaitMs);')
+
+    path = 'src/Ryujinx.Graphics.Vulkan/Effects/MetalFxScalingFilter.cs'
+    edit(path, '            public int Result;', '            public int Result;\n            public int DirectResize;')
+    edit(path, '        private bool _hasLoggedConfiguration;',
+         '''        private const int FenceSampleFrames = 240;
+        private int _fenceSamples;
+        private double _fenceWaitTotalMs;
+        private double _fenceWaitMaxMs;
+
+        private bool _hasLoggedConfiguration;''')
+    edit(path, '        public bool Encode()', '        public bool Encode(double fenceWaitMs)')
+    edit(path, '''                UpscalerTelemetry.Report(_pendingRequest.Result == 2
+                    ? "MetalFX · Metal 4 spatial" : "MetalFX · Compatible spatial");''',
+         '''                UpscalerTelemetry.Report((_pendingRequest.Result, _pendingRequest.DirectResize) switch
+                {
+                    (2, 1) => "MetalFX · Metal 4 spatial · Direct resize",
+                    (2, _) => "MetalFX · Metal 4 spatial",
+                    (_, 1) => "MetalFX · Compatible spatial · Direct resize",
+                    _ => "MetalFX · Compatible spatial",
+                });
+
+                _fenceWaitTotalMs += fenceWaitMs;
+                _fenceWaitMaxMs = Math.Max(_fenceWaitMaxMs, fenceWaitMs);
+                if (++_fenceSamples == FenceSampleFrames)
+                {
+                    Logger.Info?.Print(LogClass.Gpu,
+                        $"MetalFX Vulkan fence wait over {_fenceSamples} frames: " +
+                        $"mean {_fenceWaitTotalMs / _fenceSamples:F2} ms, max {_fenceWaitMaxMs:F2} ms.");
+                    _fenceSamples = 0;
+                    _fenceWaitTotalMs = 0;
+                    _fenceWaitMaxMs = 0;
+                }''')
 
 
 def apply_live_docked_mode(swift):

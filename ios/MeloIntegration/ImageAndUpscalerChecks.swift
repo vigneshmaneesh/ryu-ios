@@ -3,6 +3,7 @@ import CoreGraphics
 import ImageIO
 import Metal
 import MetalFX
+import MetalPerformanceShaders
 
 @main
 struct ImageAndUpscalerChecks {
@@ -63,6 +64,12 @@ struct ImageAndUpscalerChecks {
             width: 0, height: 0, byteLength: 0, flags: 0, result: 0)) == nil, "Invalid image accepted")
         print("PASS JPEG colours, RGBA/BGRA, all flips, owned data and capture ABI")
 
+        if let device = MTLCreateSystemDefaultDevice(), MPSSupportsMTLDevice(device) {
+            checkDirectResize(device: device)
+        } else {
+            print("SKIP direct resize GPU execution: runner does not expose a supported GPU")
+        }
+
         guard #available(macOS 26.0, *), let device = MTLCreateSystemDefaultDevice(),
               MTLFXSpatialScalerDescriptor.supportsMetal4FX(device) else {
             print("SKIP Metal 4 GPU execution: runner does not expose a supported GPU")
@@ -71,6 +78,60 @@ struct ImageAndUpscalerChecks {
         checkMetal4(device: device, width: 64, height: 64, format: .rgba8Unorm)
         checkMetal4(device: device, width: 427, height: 240, format: .bgra8Unorm)
         print("PASS Metal 4 spatial readback, including the 427x240 case and overlapping presentation submissions")
+    }
+
+    private static func checkDirectResize(device: any MTLDevice) {
+        let queue = device.makeCommandQueue()!
+        let format = MTLPixelFormat.bgra8Unorm
+        let inputDescriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: format, width: 32, height: 24, mipmapped: false)
+        inputDescriptor.storageMode = .shared
+        inputDescriptor.usage = .shaderRead
+        let input = device.makeTexture(descriptor: inputDescriptor)!
+        let pixels = (0..<(32 * 24 * 4)).map { UInt8(truncatingIfNeeded: $0 * 13 + $0 / 128) }
+        pixels.withUnsafeBytes {
+            input.replace(region: MTLRegionMake2D(0, 0, 32, 24), mipmapLevel: 0,
+                          withBytes: $0.baseAddress!, bytesPerRow: 32 * 4)
+        }
+        let width = 61
+        let height = 43
+        let stride = (width * 4 + 255) / 256 * 256
+        let outputDescriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: format, width: width, height: height, mipmapped: false)
+        outputDescriptor.storageMode = .private
+        outputDescriptor.usage = .shaderWrite
+        let intermediate = device.makeTexture(descriptor: outputDescriptor)!
+        let fast = device.makeTexture(descriptor: outputDescriptor)!
+        let results = (0..<2).map { _ in
+            device.makeBuffer(length: stride * height, options: .storageModeShared)!
+        }
+        let buffer = queue.makeCommandBuffer()!
+        let scaler = MPSImageLanczosScale(device: device)
+        require(!MetalFxPresentation.encodeDirectResize(scaler, commandBuffer: buffer, source: input,
+            destination: fast, x: 1, y: 0, width: width - 1, height: height), "Inset viewport must use the offset copy")
+        require(MetalFxPresentation.encodeDirectResize(scaler, commandBuffer: buffer, source: input,
+            destination: fast, x: 0, y: 0, width: width, height: height), "Full viewport should resize directly")
+        scaler.encode(commandBuffer: buffer, sourceTexture: input, destinationTexture: intermediate)
+
+        let blit = buffer.makeBlitCommandEncoder()!
+        for (texture, output) in zip([fast, intermediate], results) {
+            blit.copy(from: texture, sourceSlice: 0, sourceLevel: 0,
+                      sourceOrigin: MTLOrigin(x: 0, y: 0, z: 0),
+                      sourceSize: MTLSize(width: width, height: height, depth: 1),
+                      to: output, destinationOffset: 0, destinationBytesPerRow: stride,
+                      destinationBytesPerImage: stride * height)
+        }
+        blit.endEncoding()
+        buffer.commit()
+        buffer.waitUntilCompleted()
+        require(buffer.status == .completed, "Lanczos resize: \(String(describing: buffer.error))")
+        for y in 0..<height {
+            let offset = y * stride
+            let actual = Data(bytes: results[0].contents().advanced(by: offset), count: width * 4)
+            let expected = Data(bytes: results[1].contents().advanced(by: offset), count: width * 4)
+            require(actual == expected, "Direct resize differed from the intermediate at row \(y)")
+        }
+        print("PASS direct MetalFX presentation resize pixel comparison and inset fallback")
     }
 
     @available(macOS 26.0, *)
